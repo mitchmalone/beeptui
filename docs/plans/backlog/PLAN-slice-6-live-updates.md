@@ -36,7 +36,8 @@ same event pipeline at a bounded interval.
 ## Steps
 
 - [ ] Watch/WebSocket client: connect, subscribe, parse events (new message, edit, receipt, chat
-      summary), normalized errors; fixture/replay tests.
+      summary), normalized errors; fixture/replay tests (synthetic/scrubbed fixtures only —
+      AGENTS.md publishable-repo hygiene).
 - [ ] Reconnect state machine: connected → degraded → reconnecting with backoff; connection events
       dispatched to the reducer; status bar reflects each state.
 - [ ] Gap resync on reconnect, deduplicated by message id (tests for replayed and out-of-order

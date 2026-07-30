@@ -32,7 +32,8 @@ the adapter's capability data — no ad hoc strings scattered through the UI.
 ## Steps
 
 - [ ] Run the full validation matrix on Discord, Instagram DMs, X DMs; record per-capability
-      results in this plan.
+      results in this plan in redacted form (network + capability + outcome only — AGENTS.md
+      publishable-repo hygiene; account specifics stay in `local/`).
 - [ ] Fix scoped breakages; journal/backlog anything that belongs to Phase 3.
 - [ ] Capability-message audit: inventory every gated action, route all of them through one
       unavailable-state pattern fed by adapter capability data; tests over the mapping.

@@ -28,4 +28,6 @@ Record outcomes in `DECISIONS.md` when made.
 4. First four validation accounts on Mitch's real Beeper setup.
 5. Cache policy: metadata/drafts only vs opt-in message-body cache. (Slice 7 assumes
    metadata/drafts only for v1.)
-6. Private tool vs open-source from first public commit.
+6. Private tool vs open-source from first public commit. **Partially resolved 2026-07-30:** the
+   repo is treated as publishable from day one regardless (`DECISIONS.md`); only the
+   when/whether-to-flip-public call remains open.

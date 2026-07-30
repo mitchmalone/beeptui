@@ -37,3 +37,20 @@ start, plans, docs close-out) lives in `CLAUDE.md`.
 - **Secrets:** Beeper tokens go in the platform credential store (macOS Keychain first); config
   files hold references, never raw tokens. Nothing secret is ever committed, logged, or passed as
   a CLI argument.
+
+## Publishable-repo hygiene
+
+The repo is treated as public even while private (`docs/DECISIONS.md` 2026-07-30). Rules:
+
+- **Fixtures and snapshots are synthetic.** Invent names ("Ada Lovelace", "#test-channel"), ids,
+  and message bodies. To base a fixture on a real API response, scrub every value that identifies
+  a person, chat, account, or endpoint **before** the file is first staged — never scrub in a
+  follow-up commit.
+- **Validation matrices record network + capability + outcome only.** Real account details used
+  for live validation go in `local/` (gitignored), referenced from the plan as "see local notes".
+- **Docs, journal, learnings, and commit messages** describe API shapes and behaviors — never
+  quote real message content, contact names, or personal hostnames/IPs.
+- **`local/` is the escape hatch** for anything private. If in doubt whether something is
+  publishable, it goes in `local/` and the committed doc links to it by name.
+- **Close-out includes a leak check:** before finishing a slice, scan the diff for personal data
+  the same way you'd scan for tokens.
