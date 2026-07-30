@@ -5,13 +5,17 @@ import { BeeperAdapter, resolveConfig, resolveToken } from '@/beeper/index.ts'
 import { App } from '@/tui/app.tsx'
 import { createStore } from '@/tui/store.ts'
 import { attachPersistence, openUiStore } from '@/store/index.ts'
+import { startWatch, type WatchHandle } from '@/beeper/watch.ts'
 import {
+  applyWatchEvent,
   bootstrap,
   loadOlderMessages,
   openChat,
   refreshChats,
+  resyncAfterReconnect,
   retrySend,
   submitSend,
+  watchStatusToConnection,
 } from '@/tui/runtime.ts'
 
 /**
@@ -33,8 +37,10 @@ export async function launch(): Promise<void> {
   const persistence = attachPersistence(uiStore, store)
 
   const renderer = await createCliRenderer()
+  let watch: WatchHandle | null = null
   const onQuit = () => {
     persistence.flush() // save the last debounce window before exiting
+    watch?.close()
     renderer.destroy()
     process.exit(0)
   }
@@ -70,4 +76,27 @@ export async function launch(): Promise<void> {
 
   // Fire-and-forget: bootstrap dispatches into the store, which re-renders the app.
   void bootstrap(adapter, store.dispatch)
+
+  // Live updates: subscribe to the watch socket. On each (re)connect after the
+  // first, resync to close the gap. No token → no watch (reads/writes 401 anyway).
+  if (token !== undefined) {
+    let connectedBefore = false
+    watch = startWatch({
+      endpoint,
+      accessToken: token,
+      onEvent: (event) => {
+        void applyWatchEvent(adapter, store.dispatch, event)
+      },
+      onStatus: (status) => {
+        const connection = watchStatusToConnection(status)
+        if (connection !== null) store.dispatch({ type: 'connection/changed', state: connection })
+        if (status === 'connected') {
+          if (connectedBefore) {
+            void resyncAfterReconnect(adapter, store.dispatch, store.getState().selectedChatId)
+          }
+          connectedBefore = true
+        }
+      },
+    })
+  }
 }
