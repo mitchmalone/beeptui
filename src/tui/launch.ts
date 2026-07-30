@@ -4,6 +4,7 @@ import { createElement } from 'react'
 import { BeeperAdapter, resolveConfig, resolveToken } from '@/beeper/index.ts'
 import { App } from '@/tui/app.tsx'
 import { createStore } from '@/tui/store.ts'
+import { attachPersistence, openUiStore } from '@/store/index.ts'
 import {
   bootstrap,
   loadOlderMessages,
@@ -26,8 +27,14 @@ export async function launch(): Promise<void> {
   const adapter = new BeeperAdapter({ endpoint, accessToken: token })
   const store = createStore()
 
+  // Hydrate persisted UI state (drafts, cached inbox, last-view) before the live
+  // bootstrap runs, and write it through as it changes (Slice 7).
+  const uiStore = openUiStore()
+  const persistence = attachPersistence(uiStore, store)
+
   const renderer = await createCliRenderer()
   const onQuit = () => {
+    persistence.flush() // save the last debounce window before exiting
     renderer.destroy()
     process.exit(0)
   }
