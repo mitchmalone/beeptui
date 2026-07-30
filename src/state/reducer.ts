@@ -65,7 +65,11 @@ function mergeMessages(
     byId.set(m.id, existing ? { ...existing, ...m } : m)
   }
   const merged = [...byId.values()].sort((a, b) => effectiveKey(a).localeCompare(effectiveKey(b)))
-  return { items: capWindow(merged, page), hasMoreOlder: window?.hasMoreOlder ?? false }
+  return {
+    items: capWindow(merged, page),
+    hasMoreOlder: window?.hasMoreOlder ?? false,
+    olderCursor: window?.olderCursor ?? null,
+  }
 }
 
 /** Return new state with the given chat's message window transformed. */
@@ -84,7 +88,11 @@ function mapWindowItems(
   window: ChatMessages | undefined,
   fn: (m: MessageEntity) => MessageEntity
 ): ChatMessages {
-  return { items: (window?.items ?? []).map(fn), hasMoreOlder: window?.hasMoreOlder ?? false }
+  return {
+    items: (window?.items ?? []).map(fn),
+    hasMoreOlder: window?.hasMoreOlder ?? false,
+    olderCursor: window?.olderCursor ?? null,
+  }
 }
 
 // ── Reducer ──────────────────────────────────────────────────────────────
@@ -119,9 +127,14 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     }
 
     case 'messages/loaded':
-      return withChatMessages(state, event.chatId, (window) =>
-        mergeMessages(window, event.messages.map(toEntity), event.page)
-      )
+      return withChatMessages(state, event.chatId, (window) => {
+        const merged = mergeMessages(window, event.messages.map(toEntity), event.page)
+        return {
+          ...merged,
+          ...(event.hasMoreOlder !== undefined ? { hasMoreOlder: event.hasMoreOlder } : {}),
+          ...(event.olderCursor !== undefined ? { olderCursor: event.olderCursor } : {}),
+        }
+      })
 
     case 'message/received':
       return withChatMessages(state, event.message.chatId, (window) =>
@@ -129,7 +142,21 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       )
 
     case 'chat/selected':
-      return { ...state, selectedChatId: event.chatId }
+      // Reset scroll to the newest message when the selection changes.
+      return { ...state, selectedChatId: event.chatId, conversationOffset: 0 }
+
+    case 'focus/changed':
+      return { ...state, focus: event.focus }
+
+    case 'conversation/scrolled': {
+      const count =
+        state.selectedChatId === null
+          ? 0
+          : (state.messagesByChat[state.selectedChatId]?.items.length ?? 0)
+      const max = Math.max(0, count - 1)
+      const offset = Math.min(max, Math.max(0, state.conversationOffset + event.delta))
+      return { ...state, conversationOffset: offset }
+    }
 
     case 'draft/changed': {
       const drafts = { ...state.drafts }
@@ -164,6 +191,7 @@ export function reduce(state: AppState, event: AppEvent): AppState {
         const withoutPending: ChatMessages = {
           items: (window?.items ?? []).filter((m) => m.clientId !== event.clientId),
           hasMoreOlder: window?.hasMoreOlder ?? false,
+          olderCursor: window?.olderCursor ?? null,
         }
         return mergeMessages(withoutPending, [toEntity(event.message)], 'newer')
       })

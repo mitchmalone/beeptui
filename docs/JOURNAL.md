@@ -5,6 +5,20 @@
 
 ---
 
+### 2026-07-30 — Slice 4 built: conversation view
+
+- **Read a chat.** The center pane renders history via pure `formatMessage`/`messageLine` (degrades
+  cleanly on absent fields — no `undefined`/`NaN`), with a focus model (inbox ↔ conversation) and
+  cursor-threaded older-paging (adapter `listMessages` now returns `{messages, hasMore, cursor}`).
+- **Ditched `<scrollbox>` for a computed window.** Its `stickyStart="bottom"` scrolls short content
+  out of the headless capture frame (and the scrollbar renders but content vanished). A sliced
+  visible-window (`conversation-scroll.ts`, offset in state) is deterministic and testable, and I
+  control the bottom-pin exactly. Two layout gotchas: `flexGrow` siblings shrink `text` to 0 height
+  (need `flexShrink: 0`); terminal `Esc` is parser-ambiguous so bind `h`/`←` too. All in
+  `LEARNINGS.md`.
+- **Unvalidated guess:** the `direction: 'older'` cursor token for backward paging — confirm against
+  a live Beeper in Slice 6.
+
 ### 2026-07-30 — Slice 3 built: TUI shell & inbox
 
 - **The product renders.** `store` (observable wrapper over the reducer) → `useSyncExternalStore` →

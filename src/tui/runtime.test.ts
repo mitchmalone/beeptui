@@ -1,8 +1,15 @@
 import { describe, expect, test } from 'bun:test'
-import { bootstrap, refreshChats, type Gateway } from '@/tui/runtime.ts'
+import {
+  bootstrap,
+  loadOlderMessages,
+  openChat,
+  refreshChats,
+  type Gateway,
+} from '@/tui/runtime.ts'
 import { BeeperError } from '@/beeper/errors.ts'
+import type { MessageHistoryPage } from '@/beeper/client.ts'
 import type { AppEvent } from '@/state/types.ts'
-import type { Account, ChatSummary, ServerInfo } from '@/beeper/types.ts'
+import type { Account, ChatSummary, MessageSummary, ServerInfo } from '@/beeper/types.ts'
 
 const server: ServerInfo = {
   appName: 'Beeper',
@@ -35,11 +42,30 @@ function capture(): { dispatch: (e: AppEvent) => void; events: AppEvent[] } {
   return { events, dispatch: (e) => events.push(e) }
 }
 
+const historyMessages: MessageSummary[] = [
+  {
+    id: 'm1',
+    chatId: 'c1',
+    accountId: 'a',
+    senderId: 'x',
+    timestamp: 't',
+    sortKey: '1',
+    isSender: false,
+    isUnread: false,
+  },
+]
+const historyPage: MessageHistoryPage = {
+  messages: historyMessages,
+  hasMore: true,
+  cursor: 'CUR-2',
+}
+
 function gateway(over: Partial<Gateway> = {}): Gateway {
   return {
     getInfo: async () => server,
     listAccounts: async () => accounts,
     listChats: async () => chats,
+    listMessages: async () => historyPage,
     ...over,
   }
 }
@@ -113,5 +139,58 @@ describe('refreshChats', () => {
     const { dispatch, events } = capture()
     await refreshChats(gateway(), dispatch)
     expect(events).toEqual([{ type: 'chats/loaded', chats }])
+  })
+})
+
+describe('openChat', () => {
+  test('selects, focuses the conversation, and loads the initial page', async () => {
+    const { dispatch, events } = capture()
+    await openChat(gateway(), dispatch, 'c1')
+    expect(events).toEqual([
+      { type: 'chat/selected', chatId: 'c1' },
+      { type: 'focus/changed', focus: 'conversation' },
+      {
+        type: 'messages/loaded',
+        chatId: 'c1',
+        messages: historyMessages,
+        page: 'initial',
+        hasMoreOlder: true,
+        olderCursor: 'CUR-2',
+      },
+    ])
+  })
+
+  test('still selects + focuses even if the message load fails', async () => {
+    const { dispatch, events } = capture()
+    await openChat(
+      gateway({
+        listMessages: async () => {
+          throw new BeeperError('unreachable', 'down')
+        },
+      }),
+      dispatch,
+      'c1'
+    )
+    expect(events.map((e) => e.type)).toEqual(['chat/selected', 'focus/changed', 'error/raised'])
+  })
+})
+
+describe('loadOlderMessages', () => {
+  test('fetches with the cursor and dispatches an older page', async () => {
+    let usedCursor: string | undefined
+    const { dispatch, events } = capture()
+    await loadOlderMessages(
+      gateway({
+        listMessages: async (_id, opts) => {
+          usedCursor = opts?.cursor
+          return { messages: historyMessages, hasMore: false, cursor: null }
+        },
+      }),
+      dispatch,
+      'c1',
+      'CUR-2'
+    )
+    expect(usedCursor).toBe('CUR-2')
+    expect(events[0]).toMatchObject({ type: 'messages/loaded', page: 'older', hasMoreOlder: false })
   })
 })

@@ -7,17 +7,17 @@
 
 ## Where we are
 
-**Slices 0–3 merged/complete.** 0–2 are on `main` (scaffold, adapter + `status`/`doctor`, pure state
-core). **Slice 3 — TUI shell & inbox** is done on `feat/slice-3-tui-shell-inbox`: `bun run dev`
-renders the three-pane shell — inbox from `selectInboxRows`, keyboard nav (j/k/g/G via a declarative
-keymap), status bar with connection state, narrow single-pane fallback, and visible degraded states.
-The store→reducer→selector→render loop is fully wired. 92 tests green.
+**Slices 0–4 merged/complete.** 0–3 are on `main` (scaffold; adapter + `status`/`doctor`; pure state
+core; TUI shell & inbox). **Slice 4 — conversation view** is done on `feat/slice-4-conversation-view`:
+the center pane renders the selected chat's history (author/time/body with reply/edit/attachment
+markers + delivery status), a focus model (inbox ↔ conversation), scroll (`k`/`j`/`g`/`G`), and
+history paging (`u`, cursor-threaded). 122 tests green.
 
 ## Next up
 
-- Land Slice 3 (PR), then start **Slice 4 — Conversation view**: render message history for the
-  selected chat (author/timestamp/delivery), upward paging, scroll behavior. The center pane stops
-  being a placeholder.
+- Land Slice 4 (PR), then start **Slice 5 — Compose & send**: multiline editor, explicit send with
+  pending/sent/failed states (the reducer's optimistic-send lifecycle already models this). First
+  slice that can _write_ — mind invariant 5 (never send except on explicit user action).
 
 ## Deferred / blocked on external setup
 

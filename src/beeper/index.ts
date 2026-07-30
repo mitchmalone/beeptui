@@ -3,7 +3,11 @@
  * invariant 3). Wraps the official `@beeper/desktop-api` SDK; owns auth,
  * pagination, capability detection, and error normalization.
  */
-export { BeeperAdapter, type BeeperAdapterOptions } from '@/beeper/client.ts'
+export {
+  BeeperAdapter,
+  type BeeperAdapterOptions,
+  type MessageHistoryPage,
+} from '@/beeper/client.ts'
 export { BeeperError, normalizeError, type BeeperErrorKind } from '@/beeper/errors.ts'
 export { formatError, redactSecrets } from '@/beeper/redact.ts'
 export { resolveConfig, DEFAULT_ENDPOINT, type ResolvedConfig } from '@/beeper/config.ts'

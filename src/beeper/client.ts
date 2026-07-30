@@ -13,6 +13,15 @@ import {
   type ServerInfo,
 } from '@/beeper/types.ts'
 
+/** One page of message history from the adapter. */
+export interface MessageHistoryPage {
+  messages: MessageSummary[]
+  /** Whether older history exists beyond this page. */
+  hasMore: boolean
+  /** Cursor for fetching the next older page, or null at the start of history. */
+  cursor: string | null
+}
+
 export interface BeeperAdapterOptions {
   endpoint: string
   /** Bearer token. Omit for an unauthenticated client (auth'd calls will 401). */
@@ -65,11 +74,29 @@ export class BeeperAdapter {
     })
   }
 
-  async listMessages(chatID: string, options: { limit?: number } = {}): Promise<MessageSummary[]> {
+  /**
+   * Fetch one page of a chat's messages, newest-first from the API but returned
+   * oldest-first. Pass `cursor` (a prior page's `cursor`) with `direction:
+   * 'older'` to page backward through history. Returns the cursor + whether more
+   * older history exists so the caller can keep paging.
+   *
+   * NOTE: the exact `direction` token the API expects is unconfirmed until live
+   * validation (Slice 6) — journalled.
+   */
+  async listMessages(
+    chatID: string,
+    options: { limit?: number; cursor?: string } = {}
+  ): Promise<MessageHistoryPage> {
     const limit = options.limit ?? DEFAULT_PAGE_LIMIT
     return this.#guard(async () => {
-      const messages = await this.#collect(this.#client.messages.list(chatID), limit)
-      return messages.map(mapMessage)
+      const query =
+        options.cursor === undefined ? {} : { cursor: options.cursor, direction: 'older' }
+      const page = await this.#client.messages.list(chatID, query)
+      return {
+        messages: page.items.slice(0, limit).map(mapMessage),
+        hasMore: page.hasMore,
+        cursor: page.oldestCursor,
+      }
     })
   }
 

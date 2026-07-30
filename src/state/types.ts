@@ -17,6 +17,9 @@ export type ConnectionState =
 
 export type MessageDeliveryStatus = 'sent' | 'pending' | 'failed'
 
+/** Which pane has keyboard focus. */
+export type FocusTarget = 'inbox' | 'conversation'
+
 /**
  * A message in state. Extends the adapter's summary with local delivery status
  * and, for optimistic sends, the `clientId` used to reconcile the server echo.
@@ -31,6 +34,8 @@ export interface MessageEntity extends MessageSummary {
 export interface ChatMessages {
   items: MessageEntity[]
   hasMoreOlder: boolean
+  /** Opaque adapter cursor for fetching the next older page. */
+  olderCursor: string | null
 }
 
 export interface AppState {
@@ -42,6 +47,10 @@ export interface AppState {
   chatOrder: string[]
   messagesByChat: Record<string, ChatMessages>
   selectedChatId: string | null
+  /** Which pane the keyboard drives. */
+  focus: FocusTarget
+  /** Rows the active conversation is scrolled up from the newest message. */
+  conversationOffset: number
   /** Per-chat draft text (state only; persistence is Slice 7). */
   drafts: Record<string, string>
   server: ServerInfo | null
@@ -56,6 +65,8 @@ export const initialState: AppState = {
   chatOrder: [],
   messagesByChat: {},
   selectedChatId: null,
+  focus: 'inbox',
+  conversationOffset: 0,
   drafts: {},
   server: null,
   error: null,
@@ -71,9 +82,18 @@ export type AppEvent =
   | { type: 'accounts/loaded'; accounts: Account[] }
   | { type: 'chats/loaded'; chats: ChatSummary[] }
   | { type: 'chats/upserted'; chat: ChatSummary }
-  | { type: 'messages/loaded'; chatId: string; messages: MessageSummary[]; page: MessagePage }
+  | {
+      type: 'messages/loaded'
+      chatId: string
+      messages: MessageSummary[]
+      page: MessagePage
+      hasMoreOlder?: boolean
+      olderCursor?: string | null
+    }
   | { type: 'message/received'; message: MessageSummary }
   | { type: 'chat/selected'; chatId: string | null }
+  | { type: 'focus/changed'; focus: FocusTarget }
+  | { type: 'conversation/scrolled'; delta: number }
   | { type: 'draft/changed'; chatId: string; text: string }
   | { type: 'send/requested'; chatId: string; clientId: string; text: string; timestamp: string }
   | { type: 'send/succeeded'; chatId: string; clientId: string; message: MessageSummary }
