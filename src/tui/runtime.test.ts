@@ -4,6 +4,8 @@ import {
   loadOlderMessages,
   openChat,
   refreshChats,
+  retrySend,
+  submitSend,
   type Gateway,
 } from '@/tui/runtime.ts'
 import { BeeperError } from '@/beeper/errors.ts'
@@ -66,8 +68,16 @@ function gateway(over: Partial<Gateway> = {}): Gateway {
     listAccounts: async () => accounts,
     listChats: async () => chats,
     listMessages: async () => historyPage,
+    sendMessage: async () => ({ chatId: 'c1', pendingMessageId: 'srv-1' }),
     ...over,
   }
+}
+
+const sendParams = {
+  chatId: 'c1',
+  clientId: 'cid-1',
+  text: 'hi',
+  timestamp: '2026-07-31T00:00:00.000Z',
 }
 
 describe('bootstrap', () => {
@@ -172,6 +182,56 @@ describe('openChat', () => {
       'c1'
     )
     expect(events.map((e) => e.type)).toEqual(['chat/selected', 'focus/changed', 'error/raised'])
+  })
+})
+
+describe('submitSend', () => {
+  test('optimistic pending, draft cleared, then reconciled to sent', async () => {
+    const { dispatch, events } = capture()
+    await submitSend(gateway(), dispatch, sendParams)
+    expect(events.map((e) => e.type)).toEqual([
+      'send/requested',
+      'draft/changed', // cleared
+      'send/succeeded',
+    ])
+    const requested = events[0]
+    expect(requested).toMatchObject({ type: 'send/requested', clientId: 'cid-1', text: 'hi' })
+    const succeeded = events[2]
+    expect(succeeded).toMatchObject({ type: 'send/succeeded', clientId: 'cid-1' })
+  })
+
+  test('a failing send surfaces as send/failed, never a silent success', async () => {
+    const { dispatch, events } = capture()
+    await submitSend(
+      gateway({
+        sendMessage: async () => {
+          throw new BeeperError('unreachable', 'down')
+        },
+      }),
+      dispatch,
+      sendParams
+    )
+    expect(events.map((e) => e.type)).toEqual(['send/requested', 'draft/changed', 'send/failed'])
+  })
+})
+
+describe('retrySend', () => {
+  test('re-attempts a failed send with send/retried, no new pending', async () => {
+    const { dispatch, events } = capture()
+    await retrySend(gateway(), dispatch, sendParams)
+    expect(events.map((e) => e.type)).toEqual(['send/retried', 'send/succeeded'])
+  })
+})
+
+describe('invariant 5: no implicit sends', () => {
+  test('bootstrap, refreshChats, openChat, and loadOlder never emit send/requested', async () => {
+    const { dispatch, events } = capture()
+    await bootstrap(gateway(), dispatch)
+    await refreshChats(gateway(), dispatch)
+    await openChat(gateway(), dispatch, 'c1')
+    await loadOlderMessages(gateway(), dispatch, 'c1', 'cur')
+    expect(events.some((e) => e.type === 'send/requested')).toBe(false)
+    expect(events.some((e) => e.type === 'send/succeeded')).toBe(false)
   })
 })
 

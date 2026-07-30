@@ -49,6 +49,16 @@ height})` gives a headless render; `captureCharFrame()` asserts content, `mockIn
   offset in state) instead: deterministic, unit-testable, and exact control over the bottom-pin.
 - **A `flexGrow` child shrinks its `text` siblings to zero height** (default `flexShrink: 1`), so
   fixed header/hint lines above a growing list overlap. Give them `style={{ flexShrink: 0 }}`.
+- **`useKeyboard` handlers capture a stale closure** — `mockInput.pressKeys([...])` fires several
+  keys before React re-renders, so a handler reading a `prop`/`useState` sees the value from the
+  render when it subscribed (typing "hi" landed as "i"). For an input, hold the editing state in a
+  `useRef` the handler reads/writes, mirror it to `useState` for rendering, and remount per context
+  with a `key`. The compose editor uses this pattern.
+- **Modal input**: while the compose box is focused the global keymap must be fully bypassed
+  (`if (focus === 'compose') return` before resolving any command) or letters like `q` fire commands
+  instead of typing. Two `useKeyboard` handlers (App + Compose) coexist; each guards on focus.
+- Multiple `testRender`s + a second `useKeyboard` trip a benign "EventTarget memory leak … 11 entry
+  listeners" warning — test-env noise, not a real leak.
 - Terminal **Esc is ambiguous** (the parser buffers it as an escape-sequence prefix), so it's
   unreliable to test — bind an unambiguous alias too (`h`/`←` for "back") and test that one.
 - **Fake tokens in fixtures must not _look_ like secrets.** A synthetic `beeper_sk_…` test token

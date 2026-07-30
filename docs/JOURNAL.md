@@ -5,6 +5,21 @@
 
 ---
 
+### 2026-07-31 — Slice 5 built: compose & send
+
+- **The core loop closes.** `applyComposeKey` (pure) drives a `Compose` strip; `submitSend` wires
+  the Slice-2 optimistic lifecycle to `adapter.sendMessage`. Send success reconciles from the local
+  text + the API's `pendingMessageID` (the send call returns only a pending id, not the echoed
+  message — the real one arrives via live updates in Slice 6), parked at the bottom via a sentinel
+  sortKey.
+- **Invariant 5 is structural + guard-tested**: the sole `send/requested` emitter is `submitSend`,
+  called only from an explicit `⏎` on a non-empty draft; bootstrap/refresh/openChat/loadOlder are
+  asserted never to emit it.
+- **Modal input gotchas** (both in `LEARNINGS.md`): (1) `useKeyboard` closures go stale under fast
+  `pressKeys` — hold editor state in a `useRef`, mirror to state for render, remount per chat via
+  `key`; (2) while compose is focused the global keymap must be bypassed entirely or `q`/`j`/… run
+  commands instead of typing.
+
 ### 2026-07-30 — Slice 4 built: conversation view
 
 - **Read a chat.** The center pane renders history via pure `formatMessage`/`messageLine` (degrades

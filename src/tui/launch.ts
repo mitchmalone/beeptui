@@ -4,7 +4,14 @@ import { createElement } from 'react'
 import { BeeperAdapter, resolveConfig, resolveToken } from '@/beeper/index.ts'
 import { App } from '@/tui/app.tsx'
 import { createStore } from '@/tui/store.ts'
-import { bootstrap, loadOlderMessages, openChat, refreshChats } from '@/tui/runtime.ts'
+import {
+  bootstrap,
+  loadOlderMessages,
+  openChat,
+  refreshChats,
+  retrySend,
+  submitSend,
+} from '@/tui/runtime.ts'
 
 /**
  * Boot the TUI: build the adapter from config + credential store, create the
@@ -33,9 +40,25 @@ export async function launch(): Promise<void> {
   const onLoadOlder = (chatId: string, cursor: string) => {
     void loadOlderMessages(adapter, store.dispatch, chatId, cursor)
   }
+  const onSend = (chatId: string, text: string) => {
+    void submitSend(adapter, store.dispatch, {
+      chatId,
+      clientId: crypto.randomUUID(),
+      text,
+      timestamp: new Date().toISOString(),
+    })
+  }
+  const onRetry = (chatId: string, clientId: string, text: string) => {
+    void retrySend(adapter, store.dispatch, {
+      chatId,
+      clientId,
+      text,
+      timestamp: new Date().toISOString(),
+    })
+  }
 
   createRoot(renderer).render(
-    createElement(App, { store, onQuit, onRefresh, onOpenChat, onLoadOlder })
+    createElement(App, { store, onQuit, onRefresh, onOpenChat, onLoadOlder, onSend, onRetry })
   )
 
   // Fire-and-forget: bootstrap dispatches into the store, which re-renders the app.

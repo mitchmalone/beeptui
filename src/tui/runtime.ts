@@ -1,7 +1,13 @@
 import type { MessageHistoryPage } from '@/beeper/client.ts'
 import { BeeperError, normalizeError } from '@/beeper/errors.ts'
-import type { Account, ChatSummary, ServerInfo } from '@/beeper/types.ts'
-import type { AppEvent } from '@/state/types.ts'
+import type {
+  Account,
+  ChatSummary,
+  MessageSummary,
+  SendResult,
+  ServerInfo,
+} from '@/beeper/types.ts'
+import { PENDING_SORT_PREFIX, type AppEvent } from '@/state/types.ts'
 
 /**
  * The adapter surface the runtime needs. `BeeperAdapter` satisfies it; tests
@@ -15,6 +21,16 @@ export interface Gateway {
     chatId: string,
     options?: { limit?: number; cursor?: string }
   ): Promise<MessageHistoryPage>
+  sendMessage(chatId: string, text: string): Promise<SendResult>
+}
+
+export interface SendParams {
+  chatId: string
+  /** Stable client id linking the optimistic message to its result. */
+  clientId: string
+  text: string
+  /** ISO timestamp (injected by the caller so this stays deterministic). */
+  timestamp: string
 }
 
 type Dispatch = (event: AppEvent) => void
@@ -87,6 +103,76 @@ export async function openChat(
     const error = normalizeError(err)
     dispatch({ type: 'error/raised', kind: error.kind, message: error.message })
   }
+}
+
+/** Build the reconciled "sent" message from what we know locally + the server's
+ *  pending id. A sentinel sortKey keeps it at the bottom until the real message
+ *  arrives via live updates (Slice 6). */
+function sentMessage(params: SendParams, serverId: string): MessageSummary {
+  return {
+    id: serverId,
+    chatId: params.chatId,
+    accountId: '',
+    senderId: 'me',
+    timestamp: params.timestamp,
+    sortKey: PENDING_SORT_PREFIX + params.timestamp,
+    text: params.text,
+    isSender: true,
+    isUnread: false,
+  }
+}
+
+/** Attempt delivery, reconciling to sent or failed. Shared by send + retry. */
+async function attemptSend(
+  gateway: Gateway,
+  dispatch: Dispatch,
+  params: SendParams
+): Promise<void> {
+  try {
+    const result = await gateway.sendMessage(params.chatId, params.text)
+    dispatch({
+      type: 'send/succeeded',
+      chatId: params.chatId,
+      clientId: params.clientId,
+      message: sentMessage(params, result.pendingMessageId),
+    })
+  } catch {
+    // A failed send stays visible on the message; never a silent success
+    // (invariant 5). The error kind isn't surfaced globally — the message
+    // carries the failure and can be retried.
+    dispatch({ type: 'send/failed', chatId: params.chatId, clientId: params.clientId })
+  }
+}
+
+/**
+ * Send a message. This is the ONLY path that emits `send/requested`, and it is
+ * only ever called from an explicit user send action (invariant 5). The message
+ * appears immediately as pending, the draft clears, then it reconciles.
+ */
+export async function submitSend(
+  gateway: Gateway,
+  dispatch: Dispatch,
+  params: SendParams
+): Promise<void> {
+  dispatch({
+    type: 'send/requested',
+    chatId: params.chatId,
+    clientId: params.clientId,
+    text: params.text,
+    timestamp: params.timestamp,
+  })
+  dispatch({ type: 'draft/changed', chatId: params.chatId, text: '' })
+  await attemptSend(gateway, dispatch, params)
+}
+
+/** Retry a previously failed send (explicit user action). */
+export async function retrySend(
+  gateway: Gateway,
+  dispatch: Dispatch,
+  params: SendParams
+): Promise<void> {
+  dispatch({ type: 'send/retried', chatId: params.chatId, clientId: params.clientId })
+  await attemptSend(gateway, dispatch, params)
 }
 
 /** Page one step further back in a chat's history using the stored cursor. */
