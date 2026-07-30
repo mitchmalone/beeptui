@@ -44,6 +44,8 @@ repo map.
 - [ ] One trivial `bun:test` test proving the runner works (e.g. a reducer stub).
 - [ ] Husky + lint-staged + commitlint (conventional commits): pre-commit lint-staged, commit-msg
       commitlint, pre-push `bun test`.
+- [ ] Secret/leak scanning enforced mechanically: gitleaks (or equivalent) on pre-commit and as a
+      CI job, so tokens or personal data never enter history (CLAUDE.md invariant 9).
 - [ ] GitHub Actions CI: `bun install --frozen-lockfile`, typecheck, lint, test on macOS arm64
       (and ubuntu if cheap).
 - [ ] Update `docs/RUNBOOK.md` and CLAUDE.md Commands/Repo map to match what actually landed.
