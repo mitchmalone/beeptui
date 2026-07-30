@@ -77,11 +77,11 @@ export class BeeperAdapter {
   /**
    * Fetch one page of a chat's messages, newest-first from the API but returned
    * oldest-first. Pass `cursor` (a prior page's `cursor`) with `direction:
-   * 'older'` to page backward through history. Returns the cursor + whether more
-   * older history exists so the caller can keep paging.
+   * 'before'` to page backward through history. Returns the cursor + whether
+   * more older history exists so the caller can keep paging.
    *
-   * NOTE: the exact `direction` token the API expects is unconfirmed until live
-   * validation (Slice 6) — journalled.
+   * The `direction` enum is `'before' | 'after'` — confirmed against Beeper
+   * Desktop 4.2.1004 (live validation 2026-07-31).
    */
   async listMessages(
     chatID: string,
@@ -90,7 +90,7 @@ export class BeeperAdapter {
     const limit = options.limit ?? DEFAULT_PAGE_LIMIT
     return this.#guard(async () => {
       const query =
-        options.cursor === undefined ? {} : { cursor: options.cursor, direction: 'older' }
+        options.cursor === undefined ? {} : { cursor: options.cursor, direction: 'before' }
       const page = await this.#client.messages.list(chatID, query)
       return {
         messages: page.items.slice(0, limit).map(mapMessage),
