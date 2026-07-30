@@ -14,6 +14,21 @@
 - `@opentui/core` and `@opentui/react` are exact-pinned at `0.4.5` and must share that version;
   upgrade them together. `@opentui/keymap` is intentionally _not_ used (see `docs/DECISIONS.md`).
 
+## Beeper API (live-validated against Beeper Desktop 4.2.1004, 2026-07-31)
+
+- **Message paging `direction` enum is `'before' | 'after'`** — NOT `'older'`/`'newer'`. Passing
+  anything else is a `400 VALIDATION_ERROR`. Older history = `direction: 'before'` with the prior
+  page's `oldestCursor`. (Fixed a wrong Slice-4 guess.)
+- **Write operations need the `write` token scope.** A read-only token authenticates fine and reads
+  everything, but `POST` calls (`messages.send`, `chats.start`) return `403 forbidden` —
+  `"Required scopes: write, missing: write"`. Create the token with write scope to send. The adapter
+  maps this 403 to `unauthorized` (degrade visibly). Follow-up: `doctor` should surface token scope
+  so a read-only token doesn't look send-capable.
+- **`chats.start({ accountID, user: { phoneNumber } })`** resolves-or-creates a DM and returns
+  `{ chatID, status: 'existing' | 'created' }` — no need to look up a participant id to start a chat.
+- Transient `400 VALIDATION_ERROR` can occur while Beeper Desktop is still syncing on startup; it
+  clears on its own. The adapter normalizes it; callers just retry.
+
 ## OpenTUI / rendering
 
 - **Verified: `@opentui/react@0.4.5` renders on macOS arm64 under Bun 1.3.14.** The native core

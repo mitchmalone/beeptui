@@ -78,7 +78,7 @@ describe('BeeperAdapter happy paths', () => {
     const a = adapter(capturingFetch)
     await a.listMessages('!wa-1:beeper.local', { cursor: 'CURSOR-1' })
     expect(sentQuery).toContain('cursor=CURSOR-1')
-    expect(sentQuery).toContain('direction=older')
+    expect(sentQuery).toContain('direction=before')
   })
 
   test('sendMessage posts and returns the pending id', async () => {
