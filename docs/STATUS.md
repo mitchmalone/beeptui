@@ -7,21 +7,24 @@
 
 ## Where we are
 
-**Slice 1 core complete on `feat/slice-1-beeper-adapter`** (Slice 0 is merged to `main`, PR #1). The
-typed Beeper adapter (`src/beeper/`) wraps the official `@beeper/desktop-api` SDK: config + Keychain
-token resolution, domain models, cursor pagination, capability detection, and a normalized
-`BeeperError` taxonomy — all fixture-tested via an injected `fetch` (no live Beeper). The
-`beeper-tui status` and `doctor` commands work; `doctor` names failures and exits non-zero, verified
-end-to-end against a closed port. 52 tests; `typecheck`/`lint`/`format`/`test` green.
+**Slices 0 and 1 merged to `main`** (PRs #1, #2, CI green). The scaffold is proven and the typed
+Beeper adapter (`src/beeper/`) wraps the official `@beeper/desktop-api` SDK: config + Keychain token
+resolution, domain models, cursor pagination, capability detection, a normalized `BeeperError`
+taxonomy, and the `status` / `doctor` CLI — all fixture-tested via an injected `fetch`. 52 tests
+green.
 
 ## Next up
 
-- **Open the PR for Slice 1** and confirm CI is green, then merge.
-- **One deferred acceptance item:** live smoke against a running Beeper Desktop (`status` lists real
-  accounts; adapter reads chats + messages for ≥2 networks). Needs Beeper Desktop installed +
-  running and a token created in its settings — run before Slice 1 is considered fully validated.
-- Then **Slice 2 — State core** (event reducer, normalized entities, optimistic sends; no UI),
-  which consumes the adapter's domain models.
+- Start **Slice 2 — State core** (event reducer, normalized entities, optimistic sends; pure, no
+  UI), which consumes the adapter's domain models.
+
+## Deferred / blocked on external setup
+
+- **Live testing is booked until Beeper Desktop is set up** (Mitch's call, 2026-07-30). Needs Beeper
+  Desktop installed + running, WhatsApp bridged, and a token created in its settings. Once ready:
+  run Slice 1's deferred live smoke (`status` lists real accounts; adapter reads chats + messages
+  for ≥2 networks), and a real send can be exercised (either an added `send` command or, properly,
+  the Slice 5 compose flow).
 
 ## Pending decisions (from PRD "Open questions")
 
