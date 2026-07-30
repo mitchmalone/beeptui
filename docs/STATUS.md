@@ -7,16 +7,16 @@
 
 ## Where we are
 
-**Slices 0 and 1 merged to `main`** (PRs #1, #2, CI green). The scaffold is proven and the typed
-Beeper adapter (`src/beeper/`) wraps the official `@beeper/desktop-api` SDK: config + Keychain token
-resolution, domain models, cursor pagination, capability detection, a normalized `BeeperError`
-taxonomy, and the `status` / `doctor` CLI — all fixture-tested via an injected `fetch`. 52 tests
-green.
+**Slices 0–2 merged/complete.** Scaffold (0) and the typed Beeper adapter + `status`/`doctor` CLI
+(1) are on `main`. **Slice 2 — state core** is done on `feat/slice-2-state-core`: `src/state/` is a
+pure event reducer + normalized entities + selectors (accounts/chats/messages/drafts/selection/
+connection, optimistic sends with reconciliation). 76 tests green; reducer/selectors verified
+I/O-free.
 
 ## Next up
 
-- Start **Slice 2 — State core** (event reducer, normalized entities, optimistic sends; pure, no
-  UI), which consumes the adapter's domain models.
+- Land Slice 2 (PR), then start **Slice 3 — TUI shell & inbox**: three-pane layout, chat list from
+  `selectInboxRows`, keyboard nav, status bar. First slice that renders the reducer's state.
 
 ## Deferred / blocked on external setup
 

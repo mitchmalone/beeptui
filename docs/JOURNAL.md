@@ -5,6 +5,21 @@
 
 ---
 
+### 2026-07-30 — Slice 2 built: pure state core
+
+- **Reducer + selectors are fully pure** — verified every `@/beeper` import in `src/state/` is
+  `import type` (erased at build), so there's no adapter/OpenTUI runtime coupling. Entity types are
+  the adapter's domain models, not duplicated.
+- **Optimistic send reconciliation** keys off a `clientId`: `send/requested` adds a pending message
+  (sorted last via a sentinel key), `send/succeeded` drops the pending and merges the server message
+  (deduped by id, so a live echo of the same id is a no-op). Covered the races — success after
+  failure, duplicate succeeded, reconnect replay.
+- **Bounded message windows**: ordered array per chat capped at `MAX_MESSAGES_PER_CHAT`, deduped by
+  id; eviction keeps the messages nearest the page direction the user just loaded from. Simple
+  window now; finer scroll-anchoring can come with the UI slices.
+- Message-identity reconciliation is designed but unvalidated against the real API — that's the
+  Slice 6 (live updates) checkpoint.
+
 ### 2026-07-30 — Slice 1 built: adapter + status/doctor
 
 - **Adapter wraps the SDK cleanly.** `BeeperAdapter` (`src/beeper/client.ts`) is the only SDK
