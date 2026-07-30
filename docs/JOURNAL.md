@@ -5,6 +5,20 @@
 
 ---
 
+### 2026-07-30 — Slice 3 built: TUI shell & inbox
+
+- **The product renders.** `store` (observable wrapper over the reducer) → `useSyncExternalStore` →
+  selectors → components. Nav dispatches `chat/selected`; selection lives in the reducer so it
+  survives re-renders and refreshes. `launch.ts` wires the real adapter and fires `bootstrap`.
+- **OpenTUI is very testable** — `testRender` + `captureCharFrame` for content, `mockInput.pressKey`
+  for real keyboard events, `resize` for breakpoints. So the inbox render, j/k/G navigation, narrow
+  fallback, and `q`-quit are all covered in `bun test` (no PTY needed for those). This retired the
+  Slice 3 "unknown testability" risk. (Benign React `act()` warnings from mock input — ignore.)
+- **Skipped `@opentui/keymap`.** It's a full keybinding runtime (contexts, sequences, Solid peer
+  deps); our need is a handful of static bindings. A thin in-repo `keymap.ts` table is the single
+  source (help-overlay ready) and trivially testable. Recorded in `DECISIONS.md`.
+- `text` styles use `fg`/`bg`; `box` uses `backgroundColor` — don't mix them (tsc catches it).
+
 ### 2026-07-30 — Slice 2 built: pure state core
 
 - **Reducer + selectors are fully pure** — verified every `@/beeper` import in `src/state/` is

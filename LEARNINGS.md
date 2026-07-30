@@ -11,8 +11,8 @@
   typescript-eslint#10940). Running TS 7 makes `bun run lint` hard-fail with "typescript-eslint
   does not support TS 7.0". We pin `typescript@6.0.3` so typecheck and lint share one compatible
   compiler. Revisit when typescript-eslint ships TS 7 support. See `docs/DECISIONS.md`.
-- All `@opentui/*` packages are exact-pinned at `0.4.5` and share that version; upgrade them
-  together (`@opentui/keymap` peer-depends on the exact matching `@opentui/react`).
+- `@opentui/core` and `@opentui/react` are exact-pinned at `0.4.5` and must share that version;
+  upgrade them together. `@opentui/keymap` is intentionally _not_ used (see `docs/DECISIONS.md`).
 
 ## OpenTUI / rendering
 
@@ -36,6 +36,13 @@ height })` returns `{ renderOnce, captureCharFrame, … }`; assert on the captur
   TTY needed, so it runs in CI — this is the Slice 0 render smoke.
 - Do not unit-test the quit path: the handler calls `process.exit(0)`, which would kill the test
   runner. Verify clean exit with a PTY smoke instead.
+- **OpenTUI components are very testable** (resolves the Slice 3 risk). `testRender(<C/>, {width,
+height})` gives a headless render; `captureCharFrame()` asserts content, `mockInput.pressKey('j',
+{shift})` drives real keyboard events, and `resize(w,h)` tests responsive breakpoints. Keyboard
+  nav and the narrow-pane fallback are all covered this way. Expect benign React `act(...)` warnings
+  from mock-input state updates — the assertions are still valid; ignore the warnings.
+- Style props differ by element: `box` takes `backgroundColor`; **`text` takes `fg`/`bg`**, not
+  `backgroundColor` (tsc catches the mixup).
 - **Fake tokens in fixtures must not _look_ like secrets.** A synthetic `beeper_sk_…` test token
   tripped gitleaks' `generic-api-key` rule and blocked the commit. Use low-entropy, obviously-fake
   placeholders (e.g. `example-placeholder-token-value`); redaction/auth tests key off the `Bearer`
