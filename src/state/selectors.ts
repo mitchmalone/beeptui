@@ -42,12 +42,20 @@ export interface ActiveConversation {
   hasMoreOlder: boolean
   olderCursor: string | null
   scrollOffset: number
+  newMessagesBelow: boolean
 }
 
 export function selectActiveConversation(state: AppState): ActiveConversation {
   const id = state.selectedChatId
   if (id === null) {
-    return { chat: null, messages: [], hasMoreOlder: false, olderCursor: null, scrollOffset: 0 }
+    return {
+      chat: null,
+      messages: [],
+      hasMoreOlder: false,
+      olderCursor: null,
+      scrollOffset: 0,
+      newMessagesBelow: false,
+    }
   }
   const window = state.messagesByChat[id]
   return {
@@ -56,6 +64,7 @@ export function selectActiveConversation(state: AppState): ActiveConversation {
     hasMoreOlder: window?.hasMoreOlder ?? false,
     olderCursor: window?.olderCursor ?? null,
     scrollOffset: state.conversationOffset,
+    newMessagesBelow: state.newMessagesBelow,
   }
 }
 

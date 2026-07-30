@@ -34,7 +34,15 @@ function msg(id: string, text: string, over: Partial<MessageEntity> = {}): Messa
 }
 
 function conv(over: Partial<ActiveConversation> = {}): ActiveConversation {
-  return { chat, messages: [], hasMoreOlder: false, olderCursor: null, scrollOffset: 0, ...over }
+  return {
+    chat,
+    messages: [],
+    hasMoreOlder: false,
+    olderCursor: null,
+    scrollOffset: 0,
+    newMessagesBelow: false,
+    ...over,
+  }
 }
 
 async function frameOf(conversation: ActiveConversation, capacity = 10): Promise<string> {

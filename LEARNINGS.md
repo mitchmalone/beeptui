@@ -28,6 +28,15 @@
   `{ chatID, status: 'existing' | 'created' }` — no need to look up a participant id to start a chat.
 - Transient `400 VALIDATION_ERROR` can occur while Beeper Desktop is still syncing on startup; it
   clears on its own. The adapter normalizes it; callers just retry.
+- **WebSocket live protocol** (`/v1/ws`, Bearer header; `info.endpoints.ws_events` gives the URL as
+  `http://…` — upgrade to `ws://`). Flow: on connect the server sends `{type:'ready', version,
+chatIDs:[]}`; then send **`{type:'subscriptions.set', requestID, chatIDs:['*']}`** (the command is
+  `subscriptions.set`, NOT `subscribe`; unknown types → `{type:'error', code:'INVALID_COMMAND'}`;
+  `['*']`=all, `[]`=pause, and `'*'` can't mix with specific ids) → `subscriptions.updated` ack.
+  Events then stream: `message.upserted {chatID, ids:[…], entries:[Message…], seq, ts}` (entries are
+  full Message objects — map with `mapMessage`), `chat.upserted {chatID, ids, seq, ts}` (no entry —
+  refetch the chat), plus `message.deleted` / `chat.deleted`. `seq` is monotonic — usable for
+  gap-detection on reconnect. No auto-delivery: nothing arrives until you subscribe.
 
 ## OpenTUI / rendering
 

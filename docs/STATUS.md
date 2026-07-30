@@ -7,24 +7,27 @@
 
 ## Where we are
 
-**Slices 0–5 merged; first live validation pass done (2026-07-31).** The core loop — read → reply →
-move on — is built and, for reads, validated against real Beeper Desktop (4.2.1004): `doctor`/`status`,
-3 accounts, multi-network chats, message history, and older-paging all work live. One real bug found
-and fixed (paging `direction` is `'before'`, not `'older'` — PR #7). 141 tests green.
+**Slices 0–5 merged; live-validated end-to-end (2026-07-31), including a real WhatsApp send.**
+**Slice 6 — live updates** is done on `feat/slice-6-live-updates` and **live-validated**: WebSocket
+`subscriptions.set` → `message.upserted` flows socket → store; reconnect-with-backoff, gap-resync,
+and a scrolled-up "new messages" affordance. 161 tests green. **Slice 7 — local store & drafts** is
+done in parallel (fork) — **PR #8 open, CI green, not yet merged** (needs review + a small
+`launch.ts` reconciliation with Slice 6).
 
 ## Next up
 
-- **Send is blocked on token scope:** the current token is read-only, so `messages.send` 403s
-  (`missing: write`). Re-create the token _with write scope_ to run the live send test to
-  `+61493009690` (Mitch's chosen self/test target).
-- Then **Slice 6 — Live updates**: WebSocket subscription (`ws://…/v1/ws`), reconnect with backoff,
-  new-message affordance, and finalize send-echo reconciliation.
+- **Merge the two open PRs:** Slice 6 (`feat/slice-6-live-updates`) and Slice 7 (PR #8). Reconcile
+  the `launch.ts` overlap (Slice 7 adds `attachPersistence` before `bootstrap` + a `flush()` in
+  `onQuit`).
+- Then **Slice 8 — chat search & help overlay** (the help overlay generates from the keymap table).
+  Phase 1 then closes with **Slice 9 — validation & smoke harness**.
 
-## Deferred / blocked on external setup
+## Deferred / follow-ups
 
-- **Live send** needs a **write-scoped token** (see above). Read paths are validated.
-- Follow-up: `doctor` should report token scope, so a read-only token doesn't look send-capable
-  (`LEARNINGS.md`). Candidate for Slice 14 polish or a capability-detection tweak.
+- `doctor` should report token scope (read-only token looks send-capable). Candidate for Slice 14.
+- Slice 6 deferrals: polling fallback (this build has the WS), delete-event application, the
+  quit-Beeper-mid-draft manual dance, and cross-network send-echo id confirmation — all for Slice 9.
+- Slice 7 deferral: scroll-anchor _restore_ into the loaded page (Slice 6/9 territory).
 
 ## Pending decisions (from PRD "Open questions")
 
