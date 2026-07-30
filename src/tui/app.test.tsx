@@ -49,9 +49,26 @@ async function renderApp(store: Store, over: Partial<AppProps> = {}) {
     onRefresh: noop,
     onOpenChat: noop,
     onLoadOlder: noop,
+    onSend: noop,
+    onRetry: noop,
     ...over,
   }
   return testRender(<App {...props} />, { width: 100, height: 24 })
+}
+
+/** Store with a chat open and the conversation focused. */
+function openChatStore(): Store {
+  const store = seededStore()
+  store.dispatch({ type: 'chat/selected', chatId: 'c1' })
+  store.dispatch({ type: 'focus/changed', focus: 'conversation' })
+  store.dispatch({
+    type: 'messages/loaded',
+    chatId: 'c1',
+    page: 'initial',
+    messages: [],
+    hasMoreOlder: false,
+  })
+  return store
 }
 
 describe('App shell', () => {
@@ -169,6 +186,63 @@ describe('App shell', () => {
     expect(store.getState().conversationOffset).toBe(1)
     await mockInput.pressKey('j') // scroll back down
     expect(store.getState().conversationOffset).toBe(0)
+  })
+
+  describe('compose', () => {
+    test('Tab focuses compose; typing edits the draft; letters do not run commands', async () => {
+      const store = openChatStore()
+      const { renderOnce, mockInput } = await renderApp(store)
+      await renderOnce()
+      await mockInput.pressKey('TAB')
+      expect(store.getState().focus).toBe('compose')
+      await mockInput.pressKeys(['h', 'i'])
+      expect(store.getState().drafts.c1).toBe('hi')
+      // 'q' in compose types, it does not quit.
+      await mockInput.pressKey('q')
+      expect(store.getState().drafts.c1).toBe('hiq')
+    })
+
+    test('Enter sends the draft via the explicit onSend callback', async () => {
+      const store = openChatStore()
+      store.dispatch({ type: 'draft/changed', chatId: 'c1', text: 'ship it' })
+      const sent: Array<[string, string]> = []
+      const { renderOnce, mockInput } = await renderApp(store, {
+        onSend: (id, text) => sent.push([id, text]),
+      })
+      await renderOnce()
+      await mockInput.pressKey('TAB')
+      await mockInput.pressKey('RETURN')
+      expect(sent).toEqual([['c1', 'ship it']])
+    })
+
+    test('Enter with an empty draft does not send', async () => {
+      const store = openChatStore()
+      const sent: string[] = []
+      const { renderOnce, mockInput } = await renderApp(store, { onSend: (_id, t) => sent.push(t) })
+      await renderOnce()
+      await mockInput.pressKey('TAB')
+      await mockInput.pressKey('RETURN')
+      expect(sent).toEqual([])
+    })
+
+    test('R retries the last failed send from the conversation', async () => {
+      const store = openChatStore()
+      store.dispatch({
+        type: 'send/requested',
+        chatId: 'c1',
+        clientId: 'cid-9',
+        text: 'oops',
+        timestamp: '2026-07-31T00:00:00.000Z',
+      })
+      store.dispatch({ type: 'send/failed', chatId: 'c1', clientId: 'cid-9' })
+      const retried: Array<[string, string, string]> = []
+      const { renderOnce, mockInput } = await renderApp(store, {
+        onRetry: (id, clientId, text) => retried.push([id, clientId, text]),
+      })
+      await renderOnce()
+      await mockInput.pressKey('R', { shift: true })
+      expect(retried).toEqual([['c1', 'cid-9', 'oops']])
+    })
   })
 
   test('q triggers the quit callback from either pane', async () => {

@@ -18,7 +18,7 @@ export type ConnectionState =
 export type MessageDeliveryStatus = 'sent' | 'pending' | 'failed'
 
 /** Which pane has keyboard focus. */
-export type FocusTarget = 'inbox' | 'conversation'
+export type FocusTarget = 'inbox' | 'conversation' | 'compose'
 
 /**
  * A message in state. Extends the adapter's summary with local delivery status

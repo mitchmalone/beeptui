@@ -5,7 +5,17 @@
  */
 
 export type Command =
-  'move-down' | 'move-up' | 'open' | 'back' | 'top' | 'bottom' | 'load-older' | 'refresh' | 'quit'
+  | 'move-down'
+  | 'move-up'
+  | 'open'
+  | 'back'
+  | 'top'
+  | 'bottom'
+  | 'load-older'
+  | 'compose'
+  | 'retry'
+  | 'refresh'
+  | 'quit'
 
 export interface Binding {
   /** Normalized key tokens that trigger the command (see `keyToken`). */
@@ -29,6 +39,8 @@ export const KEYMAP: readonly Binding[] = [
   { keys: ['g'], display: 'g', command: 'top', description: 'Jump to top' },
   { keys: ['shift+g'], display: 'G', command: 'bottom', description: 'Jump to bottom' },
   { keys: ['u'], display: 'u', command: 'load-older', description: 'Load older messages' },
+  { keys: ['tab', 'i'], display: 'Tab / i', command: 'compose', description: 'Compose a message' },
+  { keys: ['shift+r'], display: 'R', command: 'retry', description: 'Retry failed send' },
   { keys: ['r'], display: 'r', command: 'refresh', description: 'Refresh' },
   { keys: ['q'], display: 'q', command: 'quit', description: 'Quit' },
 ]

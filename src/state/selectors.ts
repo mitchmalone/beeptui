@@ -81,3 +81,23 @@ export function selectConnectionBanner(state: AppState): ConnectionBanner | null
 export function selectDraft(state: AppState, chatId: string): string {
   return state.drafts[chatId] ?? ''
 }
+
+export interface FailedSend {
+  clientId: string
+  text: string
+}
+
+/** The most recent failed optimistic send in the active chat, for explicit
+ *  retry. Null when there's nothing to retry. */
+export function selectLastFailedSend(state: AppState): FailedSend | null {
+  const id = state.selectedChatId
+  if (id === null) return null
+  const items = state.messagesByChat[id]?.items ?? []
+  for (let i = items.length - 1; i >= 0; i--) {
+    const message = items[i]
+    if (message?.status === 'failed' && message.clientId !== undefined) {
+      return { clientId: message.clientId, text: message.text ?? '' }
+    }
+  }
+  return null
+}

@@ -1,0 +1,62 @@
+import { describe, expect, test } from 'bun:test'
+import { testRender } from '@opentui/react/test-utils'
+import { Compose, type ComposeProps } from '@/tui/components/Compose.tsx'
+
+const noop = () => {}
+
+function props(over: Partial<ComposeProps> = {}): ComposeProps {
+  return {
+    draft: '',
+    focused: false,
+    hasFailedSend: false,
+    onEdit: noop,
+    onSend: noop,
+    onBlur: noop,
+    ...over,
+  }
+}
+
+describe('Compose', () => {
+  test('shows a placeholder when empty and unfocused', async () => {
+    const { renderOnce, captureCharFrame } = await testRender(<Compose {...props()} />, {
+      width: 60,
+      height: 6,
+    })
+    await renderOnce()
+    expect(captureCharFrame()).toContain('Press Tab to write')
+  })
+
+  test('renders the draft text', async () => {
+    const { renderOnce, captureCharFrame } = await testRender(
+      <Compose {...props({ draft: 'hello there' })} />,
+      { width: 60, height: 6 }
+    )
+    await renderOnce()
+    expect(captureCharFrame()).toContain('hello there')
+  })
+
+  test('shows the failed-send retry hint', async () => {
+    const { renderOnce, captureCharFrame } = await testRender(
+      <Compose {...props({ draft: 'x', hasFailedSend: true })} />,
+      { width: 60, height: 6 }
+    )
+    await renderOnce()
+    expect(captureCharFrame()).toContain('press R to retry')
+  })
+
+  test('typing when focused edits and Enter sends the text', async () => {
+    let edited = ''
+    let sent = ''
+    const { renderOnce, mockInput } = await testRender(
+      <Compose
+        {...props({ focused: true, onEdit: (t) => (edited = t), onSend: (t) => (sent = t) })}
+      />,
+      { width: 60, height: 6 }
+    )
+    await renderOnce()
+    await mockInput.pressKeys(['h', 'i'])
+    expect(edited).toBe('hi')
+    await mockInput.pressKey('RETURN')
+    expect(sent).toBe('hi')
+  })
+})
