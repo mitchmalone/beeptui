@@ -38,9 +38,12 @@ reporting — results recorded in the plan and gaps journaled.
 - [ ] Pty harness: launch the TUI, inject keys, snapshot/assert rendered frames; stable across CI.
 - [ ] Golden-path smoke tests covering PRD acceptance scenarios 1–4 and 7 end-to-end.
 - [ ] Wire the smoke suite into CI as a separate job from unit tests.
-- [ ] Resolve pending decision #4 (validation accounts) with Mitch; record in `DECISIONS.md`.
+- [ ] Resolve pending decision #4 (validation accounts) with Mitch; account specifics go in
+      `local/` (gitignored), not in `DECISIONS.md`.
 - [ ] Execute the live validation matrix per network; record per-capability results (works /
-      degraded-with-honest-UX / broken) in this plan.
+      degraded-with-honest-UX / broken) in this plan **in redacted form** — network + capability +
+      outcome only, no chat names, contacts, or message content (AGENTS.md publishable-repo
+      hygiene).
 - [ ] Fix what the matrix breaks (scoped to Phase 1 behavior) or journal + ticket what moves to
       Phase 2.
 - [ ] Measure PRD success criteria: launch-to-usable ≤ 3s, inbound render ≤ 2s; journal results.

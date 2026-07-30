@@ -56,6 +56,11 @@ for project-specific gotchas.
    no update checks in v1.
 8. **Degrade visibly.** Missing capability, dead endpoint, or unsupported network operation shows a
    named, honest state — never a dead control or a fake success.
+9. **Every commit is publishable.** The repo may be open-sourced; treat it as public now
+   (`docs/DECISIONS.md` 2026-07-30). No real conversation content, contact names, chat titles,
+   account identifiers, tokens, or personal endpoints in code, fixtures, snapshots, docs, plans,
+   or commit messages — fixtures are synthetic/scrubbed, validation results are redacted. Private
+   working notes go in `local/` (gitignored).
 
 ---
 
@@ -137,5 +142,7 @@ docs/          # PRD, STATUS, ROADMAP, JOURNAL, DECISIONS, RUNBOOK, plans/ — s
 - Don't write production code without a failing test first.
 - Don't auto-send, auto-retry a send ambiguously, or swallow a send failure.
 - Don't log or echo secrets or message content; don't add telemetry.
+- Don't commit anything unpublishable — real chats, contacts, ids, captured API responses — and
+  don't scrub after the fact; it's already in history (invariant 9).
 - Don't add a dependency a Bun/standard-library API covers.
 - Don't finish a slice without updating `docs/`.

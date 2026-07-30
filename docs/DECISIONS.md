@@ -6,6 +6,30 @@
 
 ---
 
+### 2026-07-30 · Treat the repo as public from day one
+
+**Decision.** The project may be open-sourced (PRD open question #6). Regardless of when that
+decision lands, **every commit must be publishable as-is** — code, docs, plans, journal entries,
+test fixtures, snapshots, and commit messages. Concretely:
+
+- Test fixtures and smoke snapshots are **synthetic or fully scrubbed**: invented names, chat
+  titles, message bodies, and identifiers. Never commit a captured real API response unscrubbed.
+- Validation results (Slices 9/12) are recorded in **redacted form**: network + capability +
+  outcome only — no chat names, contact names, message content, or account identifiers.
+- `JOURNAL.md` / `LEARNINGS.md` entries describe API shapes and behaviors, never real
+  conversation content, contacts, or personal endpoints/hostnames.
+- Anything genuinely private (real validation account details, personal notes) lives in `local/`,
+  which is gitignored.
+
+**Why.** Git history is permanent: one leaked commit forces a history rewrite or kills
+open-sourcing. Enforcing publishability from the first commit costs almost nothing; retrofitting it
+costs everything. This also matches the product invariant that the app itself never leaks message
+content or tokens — repo and runtime hold the same bar.
+
+**Consequences.** CLAUDE.md gains invariant 9 and the project AGENTS.md a hygiene section; slice
+plans referencing fixtures/validation were amended. Reviewing for accidental personal data is part
+of every close-out.
+
 ### 2026-07-30 · Bun is the runtime, package manager, and test runner (overrides global AGENTS.md)
 
 **Decision.** This project uses **Bun** for everything the global AGENTS.md assigns to npm/Node/

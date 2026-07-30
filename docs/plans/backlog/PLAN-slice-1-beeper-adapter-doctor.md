@@ -42,7 +42,9 @@ unsupported-capability, rate-limited, unknown). Test against recorded fixtures. 
 - [ ] Typed models for accounts, chats, messages, send results — inferred from one schema layer
       (Zod or TS types + runtime guards at the API boundary).
 - [ ] HTTP client with pagination, timeouts, and the normalized error taxonomy. Fixture-based tests
-      for happy paths and each error class (test-first).
+      for happy paths and each error class (test-first). **Fixtures are synthetic or scrubbed
+      before first staging** — no real chat/contact/account data (AGENTS.md publishable-repo
+      hygiene).
 - [ ] Capability detection: what does this endpoint/account/network support; expose as typed data.
 - [ ] `beeptui status`: endpoint, auth state, account list summary — human-readable + `--json`.
 - [ ] `beeptui doctor`: named checks with pass/fail and remediation text — Beeper not running,
