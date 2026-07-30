@@ -1,50 +1,86 @@
-import { useState } from 'react'
-import { useKeyboard, useRenderer } from '@opentui/react'
+import { useSyncExternalStore } from 'react'
+import { useKeyboard, useTerminalDimensions } from '@opentui/react'
+import {
+  selectActiveConversation,
+  selectConnectionBanner,
+  selectInboxRows,
+} from '@/state/selectors.ts'
+import { edgeSelection, moveSelection } from '@/tui/navigation.ts'
+import { resolveCommand } from '@/tui/keymap.ts'
+import type { Store } from '@/tui/store.ts'
+import { InboxPane } from '@/tui/components/InboxPane.tsx'
+import { StatusBar } from '@/tui/components/StatusBar.tsx'
+import { ConversationPane } from '@/tui/components/ConversationPane.tsx'
+
+/** Below this terminal width we collapse to a single (inbox-only) pane. */
+const NARROW_WIDTH = 80
+
+export interface AppProps {
+  store: Store
+  /** Called on the quit binding — launch restores the terminal and exits. */
+  onQuit: () => void
+  /** Called on the refresh binding — launch re-fetches chats. */
+  onRefresh: () => void
+}
 
 /**
- * Slice 0 hello-world shell. This is a static three-pane layout that proves the
- * OpenTUI native core renders on macOS arm64 and that `q` tears the terminal
- * down cleanly. It has no product behaviour yet — the real inbox lands in
- * Slice 3, the conversation view in Slice 4.
+ * The three-pane shell. It reads store state through selectors and dispatches
+ * navigation events; it never mutates state or calls the adapter (invariant 4).
+ * Selection lives in the reducer, so it survives re-renders and data refreshes.
  */
-export function App() {
-  const renderer = useRenderer()
-  const [status, setStatus] = useState('ready')
+export function App({ store, onQuit, onRefresh }: AppProps) {
+  const state = useSyncExternalStore(store.subscribe, store.getState)
+  const rows = selectInboxRows(state)
+  const banner = selectConnectionBanner(state)
+  const conversation = selectActiveConversation(state)
+  const { width } = useTerminalDimensions()
+  const narrow = width < NARROW_WIDTH
 
   useKeyboard((key) => {
-    if (key.name === 'q') {
-      // Restore the terminal before exiting so the shell is left usable.
-      renderer.destroy()
-      process.exit(0)
+    switch (resolveCommand({ name: key.name, shift: key.shift })) {
+      case 'move-down':
+        store.dispatch({
+          type: 'chat/selected',
+          chatId: moveSelection(rows, state.selectedChatId, 1),
+        })
+        break
+      case 'move-up':
+        store.dispatch({
+          type: 'chat/selected',
+          chatId: moveSelection(rows, state.selectedChatId, -1),
+        })
+        break
+      case 'top':
+        store.dispatch({ type: 'chat/selected', chatId: edgeSelection(rows, 'top') })
+        break
+      case 'bottom':
+        store.dispatch({ type: 'chat/selected', chatId: edgeSelection(rows, 'bottom') })
+        break
+      case 'refresh':
+        onRefresh()
+        break
+      case 'quit':
+        onQuit()
+        break
+      case 'open':
+        // Slice 4 renders the conversation for the current selection.
+        break
+      default:
+        break
     }
-    setStatus(`last key: ${key.name}`)
   })
 
   return (
     <box style={{ flexDirection: 'column', width: '100%', height: '100%' }}>
-      <box style={{ flexDirection: 'row', flexGrow: 1 }}>
-        <box
-          title="Chats"
-          border
-          style={{ width: 28, flexShrink: 0, flexDirection: 'column', padding: 1 }}
-        >
-          <text>WhatsApp</text>
-          <text>Slack</text>
-          <text>Telegram</text>
-          <text>Signal</text>
+      {narrow ? (
+        <InboxPane rows={rows} grow />
+      ) : (
+        <box style={{ flexDirection: 'row', flexGrow: 1 }}>
+          <InboxPane rows={rows} />
+          <ConversationPane chatTitle={conversation.chat?.title ?? null} />
         </box>
-        <box title="Conversation" border style={{ flexGrow: 1, padding: 1 }}>
-          <text>beeper-tui</text>
-          <text>A terminal client for Beeper.</text>
-        </box>
-        <box title="Details" border style={{ width: 30, flexShrink: 0, padding: 1 }}>
-          <text>Slice 0 · scaffold</text>
-        </box>
-      </box>
-      <box style={{ height: 1, paddingLeft: 1, paddingRight: 1, flexDirection: 'row' }}>
-        <text style={{ flexGrow: 1 }}>{status}</text>
-        <text>q to quit</text>
-      </box>
+      )}
+      <StatusBar banner={banner} accountCount={state.accountOrder.length} />
     </box>
   )
 }
