@@ -5,6 +5,21 @@
 
 ---
 
+### 2026-07-31 — Slice 6 built + live-validated: live updates
+
+- **Probed the real `/v1/ws` to nail the protocol** (huge advantage of having live Beeper): command
+  is `subscriptions.set` (not `subscribe`), `message.upserted` carries full `entries` that map with
+  `mapMessage`, `chat.upserted` carries only an id (refetch). Full protocol in `LEARNINGS.md`.
+- **End-to-end live smoke passed:** real socket → `subscriptions.set` → `message.upserted` →
+  `applyWatchEvent` → `message/received` → store. A self-message produced 3 status-upsert events that
+  **deduped to 1** stored message — confirming replay/reconnect can't duplicate (invariant 5).
+- Pure protocol (`watch-protocol.ts`) + fake-socket/fake-scheduler client tests (`watch.ts`); the
+  reconnect loop doesn't block quit (PTY-verified clean exit with the watch active).
+- New-messages affordance: appending while scrolled up bumps `conversationOffset` so the reading
+  window is unchanged and flags `newMessagesBelow`; scrolling to bottom / `G` dismisses it.
+- Built **in parallel with Slice 7** (a forked subagent in a worktree). Coordination worked: the
+  fork left the shared cursor docs to me and gave clean `launch.ts` reconciliation notes.
+
 ### 2026-07-31 — Live validation pass (Beeper Desktop 4.2.1004)
 
 First run against a real Beeper. Read paths all pass; found + fixed one real bug; hit a token-scope

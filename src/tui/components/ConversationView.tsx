@@ -32,7 +32,7 @@ export function ConversationView({
   capacityOverride,
 }: ConversationViewProps) {
   const { height } = useTerminalDimensions()
-  const { chat, messages, hasMoreOlder, scrollOffset } = conversation
+  const { chat, messages, hasMoreOlder, scrollOffset, newMessagesBelow } = conversation
 
   if (chat === null) {
     return (
@@ -70,7 +70,11 @@ export function ConversationView({
           ))
         )}
       </box>
-      {scrollOffset > 0 ? (
+      {newMessagesBelow ? (
+        <text style={{ flexShrink: 0, fg: '#38bdf8' }}>
+          — ↓ new messages — press G for latest —
+        </text>
+      ) : scrollOffset > 0 ? (
         <text style={{ flexShrink: 0, fg: '#94a3b8' }}>— ↓ j for newer —</text>
       ) : null}
     </box>

@@ -74,6 +74,12 @@ export class BeeperAdapter {
     })
   }
 
+  /** Fetch a single chat summary (used to refresh an inbox row on a live
+   *  `chat.upserted` event). */
+  async getChat(chatID: string): Promise<ChatSummary> {
+    return this.#guard(async () => mapChat(await this.#client.chats.retrieve(chatID)))
+  }
+
   /**
    * Fetch one page of a chat's messages, newest-first from the API but returned
    * oldest-first. Pass `cursor` (a prior page's `cursor`) with `direction:

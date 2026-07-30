@@ -136,14 +136,33 @@ export function reduce(state: AppState, event: AppEvent): AppState {
         }
       })
 
-    case 'message/received':
-      return withChatMessages(state, event.message.chatId, (window) =>
+    case 'message/received': {
+      const chatId = event.message.chatId
+      const before = state.messagesByChat[chatId]?.items.length ?? 0
+      const next = withChatMessages(state, chatId, (window) =>
         mergeMessages(window, [toEntity(event.message)], 'newer')
       )
+      const added = (next.messagesByChat[chatId]?.items.length ?? 0) - before
+      // If the user is scrolled up in this chat, keep their reading position
+      // (bump the offset by the number appended) and flag new-below.
+      if (chatId === state.selectedChatId && state.conversationOffset > 0 && added > 0) {
+        return {
+          ...next,
+          conversationOffset: state.conversationOffset + added,
+          newMessagesBelow: true,
+        }
+      }
+      return next
+    }
 
     case 'chat/selected':
       // Reset scroll to the newest message when the selection changes.
-      return { ...state, selectedChatId: event.chatId, conversationOffset: 0 }
+      return {
+        ...state,
+        selectedChatId: event.chatId,
+        conversationOffset: 0,
+        newMessagesBelow: false,
+      }
 
     case 'focus/changed':
       return { ...state, focus: event.focus }
@@ -155,7 +174,12 @@ export function reduce(state: AppState, event: AppEvent): AppState {
           : (state.messagesByChat[state.selectedChatId]?.items.length ?? 0)
       const max = Math.max(0, count - 1)
       const offset = Math.min(max, Math.max(0, state.conversationOffset + event.delta))
-      return { ...state, conversationOffset: offset }
+      // Reaching the bottom (offset 0) dismisses the new-messages affordance.
+      return {
+        ...state,
+        conversationOffset: offset,
+        newMessagesBelow: offset === 0 ? false : state.newMessagesBelow,
+      }
     }
 
     case 'draft/changed': {

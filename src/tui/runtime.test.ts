@@ -1,11 +1,14 @@
 import { describe, expect, test } from 'bun:test'
 import {
+  applyWatchEvent,
   bootstrap,
   loadOlderMessages,
   openChat,
   refreshChats,
+  resyncAfterReconnect,
   retrySend,
   submitSend,
+  watchStatusToConnection,
   type Gateway,
 } from '@/tui/runtime.ts'
 import { BeeperError } from '@/beeper/errors.ts'
@@ -69,6 +72,7 @@ function gateway(over: Partial<Gateway> = {}): Gateway {
     listChats: async () => chats,
     listMessages: async () => historyPage,
     sendMessage: async () => ({ chatId: 'c1', pendingMessageId: 'srv-1' }),
+    getChat: async () => chats[0]!,
     ...over,
   }
 }
@@ -232,6 +236,47 @@ describe('invariant 5: no implicit sends', () => {
     await loadOlderMessages(gateway(), dispatch, 'c1', 'cur')
     expect(events.some((e) => e.type === 'send/requested')).toBe(false)
     expect(events.some((e) => e.type === 'send/succeeded')).toBe(false)
+  })
+})
+
+describe('live updates', () => {
+  test('watchStatusToConnection maps socket status to connection state', () => {
+    expect(watchStatusToConnection('connecting')).toBe('connecting')
+    expect(watchStatusToConnection('reconnecting')).toBe('connecting')
+    expect(watchStatusToConnection('connected')).toBe('connected')
+    expect(watchStatusToConnection('closed')).toBeNull()
+  })
+
+  test('applyWatchEvent dispatches message/received for each inbound message', async () => {
+    const { dispatch, events } = capture()
+    await applyWatchEvent(gateway(), dispatch, {
+      kind: 'messages',
+      chatId: 'c1',
+      seq: 1,
+      messages: [historyMessages[0]!, { ...historyMessages[0]!, id: 'm2' }],
+    })
+    expect(events.map((e) => e.type)).toEqual(['message/received', 'message/received'])
+  })
+
+  test('applyWatchEvent refetches the chat on chat-upserted', async () => {
+    const { dispatch, events } = capture()
+    await applyWatchEvent(gateway(), dispatch, { kind: 'chat-upserted', chatId: 'c1', seq: 2 })
+    expect(events[0]).toMatchObject({ type: 'chats/upserted' })
+  })
+
+  test('applyWatchEvent ignores ready/subscribed/error frames', async () => {
+    const { dispatch, events } = capture()
+    await applyWatchEvent(gateway(), dispatch, { kind: 'ready' })
+    await applyWatchEvent(gateway(), dispatch, { kind: 'error', code: 'X', message: 'y' })
+    expect(events).toHaveLength(0)
+  })
+
+  test('resyncAfterReconnect refetches chats and the active tail', async () => {
+    const { dispatch, events } = capture()
+    await resyncAfterReconnect(gateway(), dispatch, 'c1')
+    const types = events.map((e) => e.type)
+    expect(types).toContain('chats/loaded')
+    expect(types).toContain('messages/loaded')
   })
 })
 
