@@ -7,26 +7,24 @@
 
 ## Where we are
 
-**Slices 0–5 merged/complete.** 0–4 are on `main`. **Slice 5 — compose & send** is done on
-`feat/slice-5-compose-send`: a compose strip (pure editor, draft-backed, `Tab`/`i` to focus), explicit
-`⏎` send → optimistic pending → sent/failed reconciliation, `Shift+⏎` newline, and `R` to retry a
-failed send. Invariant 5 is enforced and guard-tested (no implicit send path). The core loop — read →
-reply → move on — is complete. 141 tests green.
+**Slices 0–5 merged; first live validation pass done (2026-07-31).** The core loop — read → reply →
+move on — is built and, for reads, validated against real Beeper Desktop (4.2.1004): `doctor`/`status`,
+3 accounts, multi-network chats, message history, and older-paging all work live. One real bug found
+and fixed (paging `direction` is `'before'`, not `'older'` — PR #7). 141 tests green.
 
 ## Next up
 
-- Land Slice 5 (PR), then **Slice 6 — Live updates**: WebSocket/watch subscription
-  (`ws://…/v1/ws`), reconnect with backoff, new-message affordance. **This is where a running Beeper
-  Desktop becomes genuinely necessary** — a natural point to pause the build-ahead and do the live
-  validation pass (Slices 1/3/4/5 smokes) in one go once Beeper is set up.
+- **Send is blocked on token scope:** the current token is read-only, so `messages.send` 403s
+  (`missing: write`). Re-create the token _with write scope_ to run the live send test to
+  `+61493009690` (Mitch's chosen self/test target).
+- Then **Slice 6 — Live updates**: WebSocket subscription (`ws://…/v1/ws`), reconnect with backoff,
+  new-message affordance, and finalize send-echo reconciliation.
 
 ## Deferred / blocked on external setup
 
-- **Live testing is booked until Beeper Desktop is set up** (Mitch's call, 2026-07-30). Needs Beeper
-  Desktop installed + running, WhatsApp bridged, and a token created in its settings. Once ready:
-  run Slice 1's deferred live smoke (`status` lists real accounts; adapter reads chats + messages
-  for ≥2 networks), and a real send can be exercised (either an added `send` command or, properly,
-  the Slice 5 compose flow).
+- **Live send** needs a **write-scoped token** (see above). Read paths are validated.
+- Follow-up: `doctor` should report token scope, so a read-only token doesn't look send-capable
+  (`LEARNINGS.md`). Candidate for Slice 14 polish or a capability-detection tweak.
 
 ## Pending decisions (from PRD "Open questions")
 
