@@ -38,6 +38,13 @@ export interface ChatSummary {
   lastActivity?: string
 }
 
+export type AttachmentKind = 'image' | 'video' | 'audio' | 'file'
+
+export interface AttachmentSummary {
+  kind: AttachmentKind
+  fileName?: string
+}
+
 export interface MessageSummary {
   id: string
   chatId: string
@@ -49,6 +56,12 @@ export interface MessageSummary {
   text?: string
   isSender: boolean
   isUnread: boolean
+  /** Present and true when the message was edited after sending. */
+  isEdited?: boolean
+  /** Id of the message this replies to, if any. */
+  replyToId?: string
+  /** Attachment placeholders (open/download is Slice 11). */
+  attachments?: AttachmentSummary[]
 }
 
 export interface SendResult {
@@ -94,7 +107,24 @@ export function mapChat(chat: BeeperDesktop.Chat): ChatSummary {
   }
 }
 
+const ATTACHMENT_KIND: Record<string, AttachmentKind> = {
+  img: 'image',
+  video: 'video',
+  audio: 'audio',
+}
+
+function mapAttachments(
+  attachments: BeeperDesktop.Message['attachments']
+): AttachmentSummary[] | undefined {
+  if (attachments === undefined || attachments.length === 0) return undefined
+  return attachments.map((a) => ({
+    kind: ATTACHMENT_KIND[a.type] ?? 'file',
+    ...(a.fileName !== undefined ? { fileName: a.fileName } : {}),
+  }))
+}
+
 export function mapMessage(message: BeeperDesktop.Message): MessageSummary {
+  const attachments = mapAttachments(message.attachments)
   return {
     id: message.id,
     chatId: message.chatID,
@@ -106,6 +136,9 @@ export function mapMessage(message: BeeperDesktop.Message): MessageSummary {
     isUnread: message.isUnread ?? false,
     ...(message.senderName !== undefined ? { senderName: message.senderName } : {}),
     ...(message.text !== undefined ? { text: message.text } : {}),
+    ...(message.editedTimestamp !== undefined ? { isEdited: true } : {}),
+    ...(message.linkedMessageID !== undefined ? { replyToId: message.linkedMessageID } : {}),
+    ...(attachments !== undefined ? { attachments } : {}),
   }
 }
 

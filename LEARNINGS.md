@@ -43,6 +43,14 @@ height})` gives a headless render; `captureCharFrame()` asserts content, `mockIn
   from mock-input state updates — the assertions are still valid; ignore the warnings.
 - Style props differ by element: `box` takes `backgroundColor`; **`text` takes `fg`/`bg`**, not
   `backgroundColor` (tsc catches the mixup).
+- **`<scrollbox stickyStart="bottom">` misrenders short content** under the headless test renderer —
+  it scrolls earlier lines out of the captured frame even when everything fits. The conversation
+  list uses a **computed visible window** (`conversation-scroll.ts` — slice the last N by a scroll
+  offset in state) instead: deterministic, unit-testable, and exact control over the bottom-pin.
+- **A `flexGrow` child shrinks its `text` siblings to zero height** (default `flexShrink: 1`), so
+  fixed header/hint lines above a growing list overlap. Give them `style={{ flexShrink: 0 }}`.
+- Terminal **Esc is ambiguous** (the parser buffers it as an escape-sequence prefix), so it's
+  unreliable to test — bind an unambiguous alias too (`h`/`←` for "back") and test that one.
 - **Fake tokens in fixtures must not _look_ like secrets.** A synthetic `beeper_sk_…` test token
   tripped gitleaks' `generic-api-key` rule and blocked the commit. Use low-entropy, obviously-fake
   placeholders (e.g. `example-placeholder-token-value`); redaction/auth tests key off the `Bearer`

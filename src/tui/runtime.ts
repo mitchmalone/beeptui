@@ -1,3 +1,4 @@
+import type { MessageHistoryPage } from '@/beeper/client.ts'
 import { BeeperError, normalizeError } from '@/beeper/errors.ts'
 import type { Account, ChatSummary, ServerInfo } from '@/beeper/types.ts'
 import type { AppEvent } from '@/state/types.ts'
@@ -10,6 +11,10 @@ export interface Gateway {
   getInfo(): Promise<ServerInfo>
   listAccounts(): Promise<Account[]>
   listChats(options?: { limit?: number }): Promise<ChatSummary[]>
+  listMessages(
+    chatId: string,
+    options?: { limit?: number; cursor?: string }
+  ): Promise<MessageHistoryPage>
 }
 
 type Dispatch = (event: AppEvent) => void
@@ -53,6 +58,56 @@ export async function refreshChats(gateway: Gateway, dispatch: Dispatch): Promis
   } catch (err) {
     const error = normalizeError(err)
     dispatch({ type: 'connection/changed', state: connectionForError(error) })
+    dispatch({ type: 'error/raised', kind: error.kind, message: error.message })
+  }
+}
+
+/**
+ * Open a chat: select it, focus the conversation, and load the most recent page
+ * of messages. Errors surface as a connection/error state, never a crash.
+ */
+export async function openChat(
+  gateway: Gateway,
+  dispatch: Dispatch,
+  chatId: string
+): Promise<void> {
+  dispatch({ type: 'chat/selected', chatId })
+  dispatch({ type: 'focus/changed', focus: 'conversation' })
+  try {
+    const page = await gateway.listMessages(chatId)
+    dispatch({
+      type: 'messages/loaded',
+      chatId,
+      messages: page.messages,
+      page: 'initial',
+      hasMoreOlder: page.hasMore,
+      olderCursor: page.cursor,
+    })
+  } catch (err) {
+    const error = normalizeError(err)
+    dispatch({ type: 'error/raised', kind: error.kind, message: error.message })
+  }
+}
+
+/** Page one step further back in a chat's history using the stored cursor. */
+export async function loadOlderMessages(
+  gateway: Gateway,
+  dispatch: Dispatch,
+  chatId: string,
+  cursor: string
+): Promise<void> {
+  try {
+    const page = await gateway.listMessages(chatId, { cursor })
+    dispatch({
+      type: 'messages/loaded',
+      chatId,
+      messages: page.messages,
+      page: 'older',
+      hasMoreOlder: page.hasMore,
+      olderCursor: page.cursor,
+    })
+  } catch (err) {
+    const error = normalizeError(err)
     dispatch({ type: 'error/raised', kind: error.kind, message: error.message })
   }
 }

@@ -57,13 +57,28 @@ describe('BeeperAdapter happy paths', () => {
     expect(chats[0]?.title).toBe('Grace Hopper')
   })
 
-  test('listMessages returns mapped messages for a chat', async () => {
+  test('listMessages returns a page of mapped messages with cursor + hasMore', async () => {
     const a = adapter(
       fakeFetch((_m, p) => (p.endsWith('/messages') ? page(messagesFixture) : json({}, 404)))
     )
-    const msgs = await a.listMessages('!wa-1:beeper.local')
-    expect(msgs).toHaveLength(2)
-    expect(msgs[1]?.isSender).toBe(true)
+    const result = await a.listMessages('!wa-1:beeper.local')
+    expect(result.messages).toHaveLength(2)
+    expect(result.messages[1]?.isSender).toBe(true)
+    expect(result.hasMore).toBe(false)
+    expect(result.cursor).toBeNull()
+  })
+
+  test('listMessages passes the cursor when paging older history', async () => {
+    let sentQuery = ''
+    const capturingFetch = (async (input: string | URL | Request) => {
+      const url = new URL(typeof input === 'string' ? input : input.toString())
+      sentQuery = url.search
+      return page(messagesFixture)
+    }) as unknown as typeof fetch
+    const a = adapter(capturingFetch)
+    await a.listMessages('!wa-1:beeper.local', { cursor: 'CURSOR-1' })
+    expect(sentQuery).toContain('cursor=CURSOR-1')
+    expect(sentQuery).toContain('direction=older')
   })
 
   test('sendMessage posts and returns the pending id', async () => {

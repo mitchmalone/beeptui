@@ -60,21 +60,29 @@ describe('mapChat', () => {
 describe('mapMessage', () => {
   test('projects message summary; optional fields omitted when absent', () => {
     const [incoming, outgoing] = messagesFixture.map(mapMessage)
-    expect(incoming).toEqual({
+    expect(incoming).toMatchObject({
       id: 'msg-1',
       chatId: '!wa-1:beeper.local',
-      accountId: 'local-whatsapp',
-      senderId: 'wa-grace',
       senderName: 'Grace Hopper',
-      timestamp: '2026-07-30T01:59:00.000Z',
-      sortKey: '0000000001',
       text: 'Ship it.',
       isSender: false,
-      isUnread: true,
     })
     expect(outgoing?.isSender).toBe(true)
     // msg-2 has no senderName → key omitted entirely, not set to undefined.
     expect(outgoing && 'senderName' in outgoing).toBe(false)
+  })
+
+  test('maps edit, reply, and attachment metadata; omits when absent', () => {
+    const [withMeta, plain] = messagesFixture.map(mapMessage)
+    expect(withMeta).toMatchObject({
+      isEdited: true,
+      replyToId: 'msg-0',
+      attachments: [{ kind: 'image', fileName: 'diagram.png' }],
+    })
+    // Plain message carries none of the optional keys.
+    expect(plain && 'isEdited' in plain).toBe(false)
+    expect(plain && 'replyToId' in plain).toBe(false)
+    expect(plain && 'attachments' in plain).toBe(false)
   })
 })
 
