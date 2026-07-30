@@ -36,6 +36,13 @@ height })` returns `{ renderOnce, captureCharFrame, … }`; assert on the captur
   TTY needed, so it runs in CI — this is the Slice 0 render smoke.
 - Do not unit-test the quit path: the handler calls `process.exit(0)`, which would kill the test
   runner. Verify clean exit with a PTY smoke instead.
+- **Fake tokens in fixtures must not _look_ like secrets.** A synthetic `beeper_sk_…` test token
+  tripped gitleaks' `generic-api-key` rule and blocked the commit. Use low-entropy, obviously-fake
+  placeholders (e.g. `example-placeholder-token-value`); redaction/auth tests key off the `Bearer`
+  prefix and key names, not token format, so content doesn't matter.
+- Inject the SDK's `fetch` option to drive adapter tests from synthetic responses — the pagination
+  wire shape is `{ items, hasMore, oldestCursor, newestCursor }`; `accounts.list` returns a bare
+  array. `doctor`/`status` are exercised end-to-end by spawning the CLI against a closed port.
 
 ## Tooling / CI
 
