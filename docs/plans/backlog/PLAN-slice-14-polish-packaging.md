@@ -25,7 +25,7 @@ between "works for Mitch's checkout" and "a tool someone installs".
 
 ## Candidate scope (split when re-planning)
 
-- **Read-only reactions/edits/receipts** where the API exposes them; optional reaction *actions*
+- **Read-only reactions/edits/receipts** where the API exposes them; optional reaction _actions_
   only after API + UX validation (PRD is explicit about the ordering).
 - **Theme/config customization**: config-file keymap overrides, color themes, densities — schema
   documented; config is validated with clear errors.
