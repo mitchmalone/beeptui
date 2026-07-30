@@ -210,6 +210,52 @@ describe('focus + pagination metadata', () => {
   })
 })
 
+describe('new-messages affordance (scrolled up)', () => {
+  const seed: AppEvent[] = [
+    { type: 'chats/loaded', chats: [chat('c1')] },
+    { type: 'chat/selected', chatId: 'c1' },
+    {
+      type: 'messages/loaded',
+      chatId: 'c1',
+      page: 'initial',
+      messages: [msg('m1', '1'), msg('m2', '2'), msg('m3', '3')],
+    },
+  ]
+
+  test('a message arriving while scrolled up preserves position and flags new-below', () => {
+    const scrolled = run([...seed, { type: 'conversation/scrolled', delta: 2 }])
+    expect(scrolled.conversationOffset).toBe(2)
+    const after = run([{ type: 'message/received', message: msg('m4', '4') }], scrolled)
+    // Offset bumped by 1 so the visible window is unchanged; flag set.
+    expect(after.conversationOffset).toBe(3)
+    expect(after.newMessagesBelow).toBe(true)
+  })
+
+  test('a message arriving at the bottom (offset 0) does not raise the flag', () => {
+    const after = run([...seed, { type: 'message/received', message: msg('m4', '4') }])
+    expect(after.newMessagesBelow).toBe(false)
+    expect(after.conversationOffset).toBe(0)
+  })
+
+  test('scrolling back to the bottom dismisses the affordance', () => {
+    let s = run([...seed, { type: 'conversation/scrolled', delta: 2 }])
+    s = run([{ type: 'message/received', message: msg('m4', '4') }], s)
+    expect(s.newMessagesBelow).toBe(true)
+    s = run([{ type: 'conversation/scrolled', delta: -99 }], s)
+    expect(s.conversationOffset).toBe(0)
+    expect(s.newMessagesBelow).toBe(false)
+  })
+
+  test('a message for a different chat never raises the flag', () => {
+    const s = run([
+      ...seed,
+      { type: 'conversation/scrolled', delta: 2 },
+      { type: 'message/received', message: msg('x', '9', { chatId: 'other' }) },
+    ])
+    expect(s.newMessagesBelow).toBe(false)
+  })
+})
+
 describe('selection + drafts', () => {
   test('chat/selected sets and clears', () => {
     expect(run([{ type: 'chat/selected', chatId: 'c1' }]).selectedChatId).toBe('c1')

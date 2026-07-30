@@ -51,6 +51,8 @@ export interface AppState {
   focus: FocusTarget
   /** Rows the active conversation is scrolled up from the newest message. */
   conversationOffset: number
+  /** True when messages arrived in the active chat while scrolled up. */
+  newMessagesBelow: boolean
   /** Per-chat draft text (state only; persistence is Slice 7). */
   drafts: Record<string, string>
   server: ServerInfo | null
@@ -67,6 +69,7 @@ export const initialState: AppState = {
   selectedChatId: null,
   focus: 'inbox',
   conversationOffset: 0,
+  newMessagesBelow: false,
   drafts: {},
   server: null,
   error: null,

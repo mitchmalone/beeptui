@@ -7,7 +7,9 @@ import type {
   SendResult,
   ServerInfo,
 } from '@/beeper/types.ts'
-import { PENDING_SORT_PREFIX, type AppEvent } from '@/state/types.ts'
+import type { WatchEvent } from '@/beeper/watch-protocol.ts'
+import type { WatchStatus } from '@/beeper/watch.ts'
+import { PENDING_SORT_PREFIX, type AppEvent, type ConnectionState } from '@/state/types.ts'
 
 /**
  * The adapter surface the runtime needs. `BeeperAdapter` satisfies it; tests
@@ -22,6 +24,7 @@ export interface Gateway {
     options?: { limit?: number; cursor?: string }
   ): Promise<MessageHistoryPage>
   sendMessage(chatId: string, text: string): Promise<SendResult>
+  getChat(chatId: string): Promise<ChatSummary>
 }
 
 export interface SendParams {
@@ -173,6 +176,76 @@ export async function retrySend(
 ): Promise<void> {
   dispatch({ type: 'send/retried', chatId: params.chatId, clientId: params.clientId })
   await attemptSend(gateway, dispatch, params)
+}
+
+// ── Live updates (Slice 6) ───────────────────────────────────────────────
+
+/** Map a watch socket status to the app connection state (null = leave as-is). */
+export function watchStatusToConnection(status: WatchStatus): ConnectionState | null {
+  switch (status) {
+    case 'connecting':
+    case 'reconnecting':
+      return 'connecting'
+    case 'connected':
+      return 'connected'
+    case 'closed':
+      return null
+  }
+}
+
+/**
+ * Apply one parsed watch event to state. Inbound messages flow through
+ * `message/received` (deduped by id in the reducer, so replays are safe and
+ * never trigger a send). A `chat.upserted` carries no chat body, so we refetch
+ * the one chat to refresh its inbox row.
+ */
+export async function applyWatchEvent(
+  gateway: Gateway,
+  dispatch: Dispatch,
+  event: WatchEvent
+): Promise<void> {
+  switch (event.kind) {
+    case 'messages':
+      for (const message of event.messages) dispatch({ type: 'message/received', message })
+      break
+    case 'chat-upserted':
+      try {
+        dispatch({ type: 'chats/upserted', chat: await gateway.getChat(event.chatId) })
+      } catch {
+        // A failed single-chat refresh is non-fatal; the next resync catches up.
+      }
+      break
+    default:
+      // ready / subscribed / error / deletes / unknown — nothing to apply yet.
+      break
+  }
+}
+
+/**
+ * Close the gap after a reconnect: refetch chat summaries and the active chat's
+ * recent tail. Dedup by id in the reducer means replayed events can't duplicate
+ * messages (CLAUDE.md invariant 5 — no send on replay).
+ */
+export async function resyncAfterReconnect(
+  gateway: Gateway,
+  dispatch: Dispatch,
+  activeChatId: string | null
+): Promise<void> {
+  await refreshChats(gateway, dispatch)
+  if (activeChatId === null) return
+  try {
+    const page = await gateway.listMessages(activeChatId)
+    dispatch({
+      type: 'messages/loaded',
+      chatId: activeChatId,
+      messages: page.messages,
+      page: 'newer',
+      hasMoreOlder: page.hasMore,
+      olderCursor: page.cursor,
+    })
+  } catch {
+    // Non-fatal; live events will fill in.
+  }
 }
 
 /** Page one step further back in a chat's history using the stored cursor. */

@@ -7,3 +7,6 @@ dist/
 .env
 .env.*
 !.env.example
+
+# Agent worktrees (isolated subagent trees)
+.claude/worktrees/
