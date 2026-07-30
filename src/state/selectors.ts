@@ -39,14 +39,23 @@ export function selectInboxRows(state: AppState): InboxRow[] {
 export interface ActiveConversation {
   chat: ChatSummary | null
   messages: MessageEntity[]
+  hasMoreOlder: boolean
+  olderCursor: string | null
+  scrollOffset: number
 }
 
 export function selectActiveConversation(state: AppState): ActiveConversation {
   const id = state.selectedChatId
-  if (id === null) return { chat: null, messages: [] }
+  if (id === null) {
+    return { chat: null, messages: [], hasMoreOlder: false, olderCursor: null, scrollOffset: 0 }
+  }
+  const window = state.messagesByChat[id]
   return {
     chat: state.chats[id] ?? null,
-    messages: state.messagesByChat[id]?.items ?? [],
+    messages: window?.items ?? [],
+    hasMoreOlder: window?.hasMoreOlder ?? false,
+    olderCursor: window?.olderCursor ?? null,
+    scrollOffset: state.conversationOffset,
   }
 }
 

@@ -87,6 +87,9 @@ export const messagesFixture: BeeperDesktop.Message[] = [
     isSender: false,
     isUnread: true,
     type: 'TEXT',
+    editedTimestamp: '2026-07-30T01:59:30.000Z',
+    linkedMessageID: 'msg-0',
+    attachments: [{ type: 'img', fileName: 'diagram.png' }],
   },
   {
     id: 'msg-2',

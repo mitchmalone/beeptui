@@ -169,6 +169,47 @@ describe('messages paging', () => {
   })
 })
 
+describe('focus + pagination metadata', () => {
+  test('focus/changed switches the focused pane', () => {
+    expect(run([{ type: 'focus/changed', focus: 'conversation' }]).focus).toBe('conversation')
+    expect(initialState.focus).toBe('inbox')
+  })
+
+  test('conversation/scrolled clamps within loaded messages; chat/selected resets it', () => {
+    const base = run([
+      { type: 'chats/loaded', chats: [chat('c1')] },
+      { type: 'chat/selected', chatId: 'c1' },
+      {
+        type: 'messages/loaded',
+        chatId: 'c1',
+        page: 'initial',
+        messages: [msg('m1', '1'), msg('m2', '2'), msg('m3', '3')],
+      },
+    ])
+    const up = run([{ type: 'conversation/scrolled', delta: 99 }], base)
+    expect(up.conversationOffset).toBe(2) // clamped to count - 1
+    const down = run([{ type: 'conversation/scrolled', delta: -99 }], up)
+    expect(down.conversationOffset).toBe(0)
+    // Switching chats snaps back to the newest.
+    expect(run([{ type: 'chat/selected', chatId: 'other' }], up).conversationOffset).toBe(0)
+  })
+
+  test('messages/loaded records hasMoreOlder and the older cursor', () => {
+    const s = run([
+      {
+        type: 'messages/loaded',
+        chatId: 'c1',
+        page: 'initial',
+        messages: [msg('m1', '1')],
+        hasMoreOlder: true,
+        olderCursor: 'CUR-9',
+      },
+    ])
+    expect(s.messagesByChat.c1?.hasMoreOlder).toBe(true)
+    expect(s.messagesByChat.c1?.olderCursor).toBe('CUR-9')
+  })
+})
+
 describe('selection + drafts', () => {
   test('chat/selected sets and clears', () => {
     expect(run([{ type: 'chat/selected', chatId: 'c1' }]).selectedChatId).toBe('c1')
