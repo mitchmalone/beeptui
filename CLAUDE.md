@@ -130,8 +130,8 @@ docs/          # PRD, STATUS, ROADMAP, JOURNAL, DECISIONS, RUNBOOK, plans/ — s
 3. `bun test` green; new reducer/adapter behavior has tests written test-first.
 4. No Beeper I/O outside `src/beeper/`; no state mutation outside the reducer.
 5. No token, message body, or attachment path in logs or errors.
-6. The slice plan's acceptance criteria are checked off, and `docs/STATUS.md` + `docs/JOURNAL.md`
-   + the plan are updated in the same change.
+6. The slice plan's acceptance criteria are checked off, and `docs/STATUS.md`, `docs/JOURNAL.md`,
+   and the plan are updated in the same change.
 
 ---
 

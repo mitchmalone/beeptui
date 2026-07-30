@@ -1,0 +1,11 @@
+bunx lint-staged
+
+# Block secrets or personal data from ever entering history (CLAUDE.md invariant 9).
+# CI re-runs this scan, but catching it pre-commit keeps it out of the local history too.
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks git --staged --redact --no-banner
+else
+  echo "✖ gitleaks is not installed — cannot scan staged changes for secrets."
+  echo "  Install it: brew install gitleaks   (see docs/RUNBOOK.md)"
+  exit 1
+fi
