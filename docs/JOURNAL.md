@@ -5,6 +5,21 @@
 
 ---
 
+### 2026-07-31 — Live validation pass (Beeper Desktop 4.2.1004)
+
+First run against a real Beeper. Read paths all pass; found + fixed one real bug; hit a token-scope
+wall on send. (No personal data recorded — redacted smokes only.)
+
+- **`doctor`/`status` live:** reachable, token accepted, 3 accounts, server version/platform mapped.
+- **Adapter reads validated:** chats (multi-network, paginated), messages (fields present), and
+  **older paging** — after fixing the `direction` token.
+- **Bug fixed:** backward paging used `direction: 'older'` (a Slice-4 guess) → `400`. The API enum is
+  `'before' | 'after'`; changed to `'before'`, re-validated (fresh older messages paged in).
+- **Send blocked by scope:** the test token is read-only, so `messages.send`/`chats.start` return
+  `403 "missing: write"`. Reads work; sending needs a write-scoped token. Adapter maps it to
+  `unauthorized`. See `LEARNINGS.md` (also: `doctor` should report token scope — follow-up).
+- Saw a transient startup-sync `400` that self-resolved.
+
 ### 2026-07-31 — Slice 5 built: compose & send
 
 - **The core loop closes.** `applyComposeKey` (pure) drives a `Compose` strip; `submitSend` wires
