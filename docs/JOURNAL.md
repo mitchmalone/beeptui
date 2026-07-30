@@ -5,6 +5,33 @@
 
 ---
 
+### 2026-07-30 — Slice 1 research: Beeper Desktop API surface
+
+Studied the official [Beeper Desktop API](https://developers.beeper.com/desktop-api) (no live
+Beeper needed; docs + SDK source only). Key shapes:
+
+- **There's an official TypeScript SDK, `@beeper/desktop-api`** (npm, v5.0.0), a typed wrapper over
+  the local REST API. Docs explicitly say "use our SDKs." Supports **Bun 1.0+** (smoke-verified).
+- **Transport:** local REST at `http://127.0.0.1:23373` by default. Beeper Desktop must be running.
+- **Auth:** `Authorization: Bearer <token>`. Token is minted in Beeper Desktop → Settings →
+  Integrations → Approved connections (`+`). OAuth 2.0 + PKCE (`/.well-known/oauth-authorization-server`)
+  exists for remote access — that's Slice 13, not now.
+- **SDK client:** `new BeeperDesktop({ accessToken, baseURL, timeout, maxRetries, fetch, logger })`.
+  The `fetch` option lets us inject a synthetic fetch → **fixture-based tests need no live Beeper**.
+- **Pagination:** cursor-based, both auto (`for await…of page`) and manual (`page.items`,
+  `page.hasNextPage()`, `page.getNextPage()`).
+- **Errors:** base `APIError` + subclasses — `APIConnectionError` (no connection),
+  `AuthenticationError` (401), `PermissionDeniedError` (403), `NotFoundError` (404),
+  `RateLimitError` (429), `InternalServerError` (≥500), `BadRequestError` (400),
+  `UnprocessableEntityError` (422). These map cleanly onto our `BeeperError` taxonomy.
+- **Surface used by the roadmap:** `info.retrieve()` (GET /v1/info — status/doctor + capabilities),
+  `accounts.list()`, `chats.list/search`, `messages.list(chatID)/search/send(chatID)`. Live updates
+  are a WebSocket at `ws://…/v1/ws` with `chat.upserted`/`message.upserted` domain events (Slice 6);
+  reactions/edits/assets exist for Slice 11.
+
+Implication: Slice 1 **wraps the SDK** rather than hand-rolling HTTP + a full Zod schema layer. See
+`DECISIONS.md`.
+
 ### 2026-07-30 — Slice 0: scaffold & toolchain landed
 
 - **OpenTUI proven first, as planned.** `@opentui/react@0.4.5` renders a three-pane layout on

@@ -6,6 +6,35 @@
 
 ---
 
+### 2026-07-30 · The Beeper adapter wraps the official `@beeper/desktop-api` SDK
+
+**Decision.** `src/beeper/` builds on the official TypeScript SDK `@beeper/desktop-api` (exact-pinned)
+rather than hand-rolling an HTTP client and a from-scratch Zod schema layer for the whole API. The
+adapter still owns everything the PRD assigns it — auth/token via Keychain, our normalized
+`BeeperError` taxonomy, capability detection, redaction, and our own domain method signatures — but
+delegates transport, request/response typing, and cursor pagination to the SDK. Nothing outside
+`src/beeper/` imports the SDK (invariant 3 holds).
+
+**Why.** Beeper ships and recommends this SDK; it's the documented "call the API directly" path, not
+the `beeper` CLI (invariant 2 holds — the SDK is an HTTP client library). It provides typed models
+for the entire surface (accounts/chats/messages/send/info), cursor pagination helpers, and a clean
+error hierarchy that maps 1:1 onto our taxonomy. It runs on Bun 1.0+ (smoke-verified under Bun
+1.3.14) and pulls **zero transitive dependencies**. Hand-rolling all of that would be strictly more
+code to maintain and would drift from the API. The SDK's constructor takes a custom `fetch`, so
+fixture-based tests inject synthetic responses with no live Beeper — satisfying the "fixtures over
+live calls" rule.
+
+**Consequences.**
+
+- `@beeper/desktop-api@5.0.0` is a runtime dependency, exact-pinned; upgrades are deliberate.
+- Slice 1's "typed models" and "HTTP client" steps become "wrap SDK types into our domain models"
+  and "normalize SDK errors → `BeeperError`" — the plan is amended accordingly.
+- Adapter tests inject a fake `fetch` returning synthetic fixtures; error-class mapping is unit
+  tested against the SDK's `APIConnectionError`/`AuthenticationError`/`RateLimitError`/etc.
+- Capability detection reads `client.info.retrieve()` (GET /v1/info).
+- Live updates (Slice 6) use the SDK/WebSocket `ws://…/v1/ws`; reactions/edits/assets (Slice 11)
+  and OAuth remote access (Slice 13) are already covered by the same SDK surface.
+
 ### 2026-07-30 · Pin TypeScript to the 6.x line (not 7.x) for toolchain compatibility
 
 **Decision.** Pin `typescript@6.0.3`, not the newer `7.0.2`. TypeScript 7.0 is the native (Go)
