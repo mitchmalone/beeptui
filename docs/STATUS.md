@@ -7,20 +7,18 @@
 
 ## Where we are
 
-**Slices 0–5 merged; live-validated end-to-end (2026-07-31), including a real WhatsApp send.**
-**Slice 6 — live updates** is done on `feat/slice-6-live-updates` and **live-validated**: WebSocket
-`subscriptions.set` → `message.upserted` flows socket → store; reconnect-with-backoff, gap-resync,
-and a scrolled-up "new messages" affordance. 161 tests green. **Slice 7 — local store & drafts** is
-done in parallel (fork) — **PR #8 open, CI green, not yet merged** (needs review + a small
-`launch.ts` reconciliation with Slice 6).
+**Slices 0–7 merged to `main`; live-validated end-to-end (2026-07-31), incl. a real WhatsApp send.**
+**Slice 6 — live updates** (WebSocket `subscriptions.set` → `message.upserted` → store; reconnect +
+backoff, gap-resync, scrolled-up "new messages" affordance) and **Slice 7 — local SQLite store &
+drafts** were built **in parallel** (Slice 7 in a forked worktree) and both merged (PRs #9, #8). The
+`launch.ts` overlap reconciled cleanly. Integrated gate: **177 tests** green.
 
 ## Next up
 
-- **Merge the two open PRs:** Slice 6 (`feat/slice-6-live-updates`) and Slice 7 (PR #8). Reconcile
-  the `launch.ts` overlap (Slice 7 adds `attachPersistence` before `bootstrap` + a `flush()` in
-  `onQuit`).
-- Then **Slice 8 — chat search & help overlay** (the help overlay generates from the keymap table).
-  Phase 1 then closes with **Slice 9 — validation & smoke harness**.
+- **Slice 8 — chat search & help overlay** (the help overlay generates from the existing keymap
+  table). Phase 1 then closes with **Slice 9 — validation & smoke harness**.
+- Slice 7 wired persistence into `launch.ts`; a live warm-launch check (drafts/inbox restore) folds
+  into Slice 9.
 
 ## Deferred / follow-ups
 
