@@ -7,16 +7,17 @@
 
 ## Where we are
 
-**Slices 0–2 merged/complete.** Scaffold (0) and the typed Beeper adapter + `status`/`doctor` CLI
-(1) are on `main`. **Slice 2 — state core** is done on `feat/slice-2-state-core`: `src/state/` is a
-pure event reducer + normalized entities + selectors (accounts/chats/messages/drafts/selection/
-connection, optimistic sends with reconciliation). 76 tests green; reducer/selectors verified
-I/O-free.
+**Slices 0–3 merged/complete.** 0–2 are on `main` (scaffold, adapter + `status`/`doctor`, pure state
+core). **Slice 3 — TUI shell & inbox** is done on `feat/slice-3-tui-shell-inbox`: `bun run dev`
+renders the three-pane shell — inbox from `selectInboxRows`, keyboard nav (j/k/g/G via a declarative
+keymap), status bar with connection state, narrow single-pane fallback, and visible degraded states.
+The store→reducer→selector→render loop is fully wired. 92 tests green.
 
 ## Next up
 
-- Land Slice 2 (PR), then start **Slice 3 — TUI shell & inbox**: three-pane layout, chat list from
-  `selectInboxRows`, keyboard nav, status bar. First slice that renders the reducer's state.
+- Land Slice 3 (PR), then start **Slice 4 — Conversation view**: render message history for the
+  selected chat (author/timestamp/delivery), upward paging, scroll behavior. The center pane stops
+  being a placeholder.
 
 ## Deferred / blocked on external setup
 

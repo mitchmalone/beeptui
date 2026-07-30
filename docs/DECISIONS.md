@@ -6,6 +6,25 @@
 
 ---
 
+### 2026-07-30 · Bindings use a thin in-repo keymap, not the `@opentui/keymap` package
+
+**Decision.** Declare keybindings in a small in-repo module (`src/tui/keymap.ts`) — a static data
+structure mapping keys → command + human description — and dispatch via `@opentui/react`'s
+`useKeyboard`. This deviates from CLAUDE.md/AGENTS.md, which name `@opentui/keymap` as the keymap
+layer.
+
+**Why.** `@opentui/keymap@0.4.5` is a full keybinding _runtime_ (activation contexts, dispatch
+decisions, multi-key sequences, its own registry/emitter services) and its framework bindings
+peer-depend on Solid + `@opentui/solid`. That's heavy machinery for our need: a handful of static,
+single-key bindings. The _reason_ the convention exists — "the help overlay is generated from the
+same source" — is fully satisfied by a single declarative binding table, which is also trivially
+unit-testable. Pulling in the runtime now adds weight and coupling for no benefit.
+
+**Consequences.** `@opentui/keymap` is not a dependency. `src/tui/keymap.ts` is the single source of
+bindings; the Slice 8 help overlay is generated from it. If we later need chords, per-mode contexts,
+or remapping, revisit adopting `@opentui/keymap` then. Recorded so the CLAUDE.md mention isn't read
+as an unmet requirement.
+
 ### 2026-07-30 · The Beeper adapter wraps the official `@beeper/desktop-api` SDK
 
 **Decision.** `src/beeper/` builds on the official TypeScript SDK `@beeper/desktop-api` (exact-pinned)
