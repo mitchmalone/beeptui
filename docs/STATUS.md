@@ -7,21 +7,25 @@
 
 ## Where we are
 
-**Pre-code.** Docs are scaffolded; no application code exists yet. The PRD is mirrored at
-`docs/PRD.md`, the slice breakdown is in `docs/ROADMAP.md`, and every slice has a plan in
-`docs/plans/backlog/` ready to hand to an agent.
+**Slice 0 shipped (on branch `feat/slice-0-foundation`).** The Bun + TypeScript + OpenTUI scaffold
+is proven: `bun run dev` renders the hello-world three-pane TUI on macOS arm64 and `q` exits
+cleanly. `typecheck` / `lint` / `format:check` / `test` all pass; Husky hooks, gitleaks, and GitHub
+Actions CI are wired. `src/` skeleton stubs match the repo map.
 
 ## Next up
 
-- Resolve the pending PRD decisions below (they gate Slice 0/1 details but not their start).
-- Start **Slice 0 — Project scaffold & toolchain** (`plans/backlog/PLAN-slice-0-foundation.md`):
-  move it to `plans/active/`, set `status: active`, and go.
+- **Open the PR for Slice 0** and confirm the GitHub Actions run is green (CI hasn't run remotely
+  yet — it's authored, not yet observed).
+- Start **Slice 1 — Beeper adapter, config & doctor**
+  (`plans/backlog/PLAN-slice-1-beeper-adapter-doctor.md`): move it to `active/`, set `status:
+active`, branch, and begin with reading the Beeper Desktop API docs (step 1).
 
 ## Pending decisions (from PRD "Open questions")
 
 Record outcomes in `DECISIONS.md` when made.
 
-1. Final name (`beeper-tui` vs something else; repo is `beeptui`).
+1. ~~Final name~~ — **resolved 2026-07-30:** package/CLI/config is `beeper-tui`, repo stays
+   `beeptui` (`DECISIONS.md`).
 2. Phase 1 = local Beeper Desktop only? (Assumed **yes** by the slice plans.)
 3. Terminal support baseline: rich terminals only vs conservative baseline. (Slice plans assume
    rich terminals — Ghostty/Kitty/iTerm2/WezTerm — first.)

@@ -6,6 +6,35 @@
 
 ---
 
+### 2026-07-30 · Pin TypeScript to the 6.x line (not 7.x) for toolchain compatibility
+
+**Decision.** Pin `typescript@6.0.3`, not the newer `7.0.2`. TypeScript 7.0 is the native (Go)
+compiler rewrite; `typescript-eslint` does not yet support it (tracking:
+typescript-eslint#10940), so under TS 7 `bun run lint` hard-fails with "typescript-eslint does not
+support TS 7.0". TS 6 is the last JS-based compiler and is fully supported by the lint toolchain.
+
+**Why.** Typecheck and lint must run on the same compiler for a coherent gate. TS 7 buys nothing
+for a greenfield scaffold and would cost us all TS-aware linting until the ecosystem catches up.
+Pinning is cheap and reversible; this is exactly the "deliberate, tested version pin" the project
+`AGENTS.md` calls for.
+
+**Consequences.** `typescript@6.0.3` exact-pinned. When `typescript-eslint` ships TS 7 support,
+re-evaluate bumping both together. TS 7 already forced one config change kept for compatibility:
+`tsconfig` `baseUrl` is removed in TS 7, so the `@/*` alias uses a relative `paths` mapping
+(`./src/*`) that works on both lines. Quirks recorded in `LEARNINGS.md`.
+
+### 2026-07-30 · Package/CLI/config name is `beeper-tui`
+
+**Decision.** The npm package name, CLI binary, and config directory are `beeper-tui` (config at
+`~/.config/beeper-tui/`). The git repo stays `beeptui`. Resolves PRD open question #1.
+
+**Why.** `beeper-tui` reads clearly and matches the PRD's working name; the repo shortening to
+`beeptui` is cosmetic and doesn't need to propagate into user-facing surfaces. Locking it before
+Slice 0 avoids a later rename touching `package.json`, the bin entry, and config paths.
+
+**Consequences.** Slice 0 `package.json` `name`/`bin` use `beeper-tui`. `docs/RUNBOOK.md`'s Slice 1
+`status`/`doctor` command examples update from `beeptui` to `beeper-tui`.
+
 ### 2026-07-30 · Treat the repo as public from day one
 
 **Decision.** The project may be open-sourced (PRD open question #6). Regardless of when that

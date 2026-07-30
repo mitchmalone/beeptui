@@ -56,7 +56,7 @@ honest about its coverage.
 ## Out of scope
 
 Full-text indexing of message bodies locally (would violate the v1 cache decision), archive
-*actions* (archiving is Beeper's job; we only filter by its state).
+_actions_ (archiving is Beeper's job; we only filter by its state).
 
 ## Risks / open questions
 
