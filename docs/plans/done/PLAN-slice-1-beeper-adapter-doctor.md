@@ -1,6 +1,6 @@
 ---
 title: Slice 1 — Beeper adapter, config & doctor
-status: active
+status: done
 created: 2026-07-30
 updated: 2026-07-30
 links:
