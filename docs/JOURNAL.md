@@ -15,9 +15,12 @@ wall on send. (No personal data recorded — redacted smokes only.)
   **older paging** — after fixing the `direction` token.
 - **Bug fixed:** backward paging used `direction: 'older'` (a Slice-4 guess) → `400`. The API enum is
   `'before' | 'after'`; changed to `'before'`, re-validated (fresh older messages paged in).
-- **Send blocked by scope:** the test token is read-only, so `messages.send`/`chats.start` return
-  `403 "missing: write"`. Reads work; sending needs a write-scoped token. Adapter maps it to
-  `unauthorized`. See `LEARNINGS.md` (also: `doctor` should report token scope — follow-up).
+- **Send blocked by scope, then confirmed with a write token:** a read-only token `403`s on
+  `messages.send`/`chats.start` (`"missing: write"`). With a write-scoped token the **full send path
+  validated end-to-end** against real WhatsApp: `chats.start` resolved the DM, `adapter.sendMessage`
+  delivered, and a re-fetch found the message with `isSender: true`. The core loop (browse → read →
+  reply → send) now works live. Adapter maps the read-only 403 to `unauthorized`; follow-up: `doctor`
+  should report token scope. See `LEARNINGS.md`.
 - Saw a transient startup-sync `400` that self-resolved.
 
 ### 2026-07-31 — Slice 5 built: compose & send
