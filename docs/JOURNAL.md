@@ -5,6 +5,50 @@
 
 ---
 
+### 2026-07-30 — Slice 1 built: adapter + status/doctor
+
+- **Adapter wraps the SDK cleanly.** `BeeperAdapter` (`src/beeper/client.ts`) is the only SDK
+  consumer; it returns lean domain models (`types.ts`) and collapses every failure to `BeeperError`
+  (`errors.ts`). `maxRetries: 0` keeps retry policy ours (`BeeperError.retryable`), not the SDK's.
+- **Fixture testing via injected `fetch`** worked exactly as hoped — the whole adapter (happy paths +
+  401/429/connection-refused error mapping) is tested with synthetic responses, no live Beeper.
+- **Two SDK gotchas.** (1) The client constructor _throws_ if `accessToken` is `undefined` and
+  `BEEPER_ACCESS_TOKEN` is unset — so the adapter passes `''` when no token, letting the pre-auth
+  `/v1/info` reachability check still run while authed calls 401. (2) `exactOptionalPropertyTypes`
+  means mappers must omit optional keys (conditional spread), not set them to `undefined`.
+- **Keychain write is deferred on purpose.** `security add-generic-password` takes the secret as a
+  CLI argument, which invariant 6 forbids; reads (`security … -w`) are argv-safe. So Slice 1 reads
+  the token (env or Keychain) but leaves secure storage to the auth/login flow.
+- **`doctor` is provable offline.** A spawned-CLI test points at a closed port → connection refused
+  → `unreachable` → named failure + exit 1 (PRD scenario 7), no live Beeper needed.
+
+### 2026-07-30 — Slice 1 research: Beeper Desktop API surface
+
+Studied the official [Beeper Desktop API](https://developers.beeper.com/desktop-api) (no live
+Beeper needed; docs + SDK source only). Key shapes:
+
+- **There's an official TypeScript SDK, `@beeper/desktop-api`** (npm, v5.0.0), a typed wrapper over
+  the local REST API. Docs explicitly say "use our SDKs." Supports **Bun 1.0+** (smoke-verified).
+- **Transport:** local REST at `http://127.0.0.1:23373` by default. Beeper Desktop must be running.
+- **Auth:** `Authorization: Bearer <token>`. Token is minted in Beeper Desktop → Settings →
+  Integrations → Approved connections (`+`). OAuth 2.0 + PKCE (`/.well-known/oauth-authorization-server`)
+  exists for remote access — that's Slice 13, not now.
+- **SDK client:** `new BeeperDesktop({ accessToken, baseURL, timeout, maxRetries, fetch, logger })`.
+  The `fetch` option lets us inject a synthetic fetch → **fixture-based tests need no live Beeper**.
+- **Pagination:** cursor-based, both auto (`for await…of page`) and manual (`page.items`,
+  `page.hasNextPage()`, `page.getNextPage()`).
+- **Errors:** base `APIError` + subclasses — `APIConnectionError` (no connection),
+  `AuthenticationError` (401), `PermissionDeniedError` (403), `NotFoundError` (404),
+  `RateLimitError` (429), `InternalServerError` (≥500), `BadRequestError` (400),
+  `UnprocessableEntityError` (422). These map cleanly onto our `BeeperError` taxonomy.
+- **Surface used by the roadmap:** `info.retrieve()` (GET /v1/info — status/doctor + capabilities),
+  `accounts.list()`, `chats.list/search`, `messages.list(chatID)/search/send(chatID)`. Live updates
+  are a WebSocket at `ws://…/v1/ws` with `chat.upserted`/`message.upserted` domain events (Slice 6);
+  reactions/edits/assets exist for Slice 11.
+
+Implication: Slice 1 **wraps the SDK** rather than hand-rolling HTTP + a full Zod schema layer. See
+`DECISIONS.md`.
+
 ### 2026-07-30 — Slice 0: scaffold & toolchain landed
 
 - **OpenTUI proven first, as planned.** `@opentui/react@0.4.5` renders a three-pane layout on

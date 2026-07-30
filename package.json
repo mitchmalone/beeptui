@@ -29,6 +29,7 @@
     ]
   },
   "dependencies": {
+    "@beeper/desktop-api": "5.0.0",
     "@opentui/core": "0.4.5",
     "@opentui/react": "0.4.5",
     "react": "19.2.8"

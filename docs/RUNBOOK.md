@@ -20,12 +20,15 @@ bun run dev        # launch the TUI (Slice 0+)
 ## Diagnose
 
 ```bash
-bun run beeper-tui status   # endpoint + auth + account summary (Slice 1)
-bun run beeper-tui doctor   # named checks, non-zero exit on failure (Slice 1)
+bun run src/cli/index.ts status          # endpoint + auth + account summary
+bun run src/cli/index.ts status --json   # machine-readable
+bun run src/cli/index.ts doctor          # named checks, non-zero exit on failure
 ```
 
-`doctor` must identify: Beeper not running, endpoint unreachable, authentication failure, no
-connected accounts.
+`doctor` identifies: Beeper not running / endpoint unreachable, no access token, authentication
+failure, and no connected accounts. The token is read from the macOS Keychain (service `beeper-tui`,
+account `access-token`) or the `BEEPER_ACCESS_TOKEN` env var; override the endpoint with
+`BEEPER_TUI_ENDPOINT`.
 
 ## Checks (the merge gate)
 
