@@ -7,17 +7,18 @@
 
 ## Where we are
 
-**Slices 0–4 merged/complete.** 0–3 are on `main` (scaffold; adapter + `status`/`doctor`; pure state
-core; TUI shell & inbox). **Slice 4 — conversation view** is done on `feat/slice-4-conversation-view`:
-the center pane renders the selected chat's history (author/time/body with reply/edit/attachment
-markers + delivery status), a focus model (inbox ↔ conversation), scroll (`k`/`j`/`g`/`G`), and
-history paging (`u`, cursor-threaded). 122 tests green.
+**Slices 0–5 merged/complete.** 0–4 are on `main`. **Slice 5 — compose & send** is done on
+`feat/slice-5-compose-send`: a compose strip (pure editor, draft-backed, `Tab`/`i` to focus), explicit
+`⏎` send → optimistic pending → sent/failed reconciliation, `Shift+⏎` newline, and `R` to retry a
+failed send. Invariant 5 is enforced and guard-tested (no implicit send path). The core loop — read →
+reply → move on — is complete. 141 tests green.
 
 ## Next up
 
-- Land Slice 4 (PR), then start **Slice 5 — Compose & send**: multiline editor, explicit send with
-  pending/sent/failed states (the reducer's optimistic-send lifecycle already models this). First
-  slice that can _write_ — mind invariant 5 (never send except on explicit user action).
+- Land Slice 5 (PR), then **Slice 6 — Live updates**: WebSocket/watch subscription
+  (`ws://…/v1/ws`), reconnect with backoff, new-message affordance. **This is where a running Beeper
+  Desktop becomes genuinely necessary** — a natural point to pause the build-ahead and do the live
+  validation pass (Slices 1/3/4/5 smokes) in one go once Beeper is set up.
 
 ## Deferred / blocked on external setup
 
