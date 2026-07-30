@@ -7,18 +7,21 @@
 
 ## Where we are
 
-**Slice 0 merged to `main` (PR #1, CI green).** The Bun + TypeScript + OpenTUI scaffold is proven:
-`bun run dev` renders the hello-world three-pane TUI on macOS arm64 and `q` exits cleanly.
-`typecheck` / `lint` / `format:check` / `test` all pass locally and in CI (macOS arm64 + ubuntu);
-Husky hooks, gitleaks, and GitHub Actions are wired. `src/` skeleton stubs match the repo map.
+**Slice 1 core complete on `feat/slice-1-beeper-adapter`** (Slice 0 is merged to `main`, PR #1). The
+typed Beeper adapter (`src/beeper/`) wraps the official `@beeper/desktop-api` SDK: config + Keychain
+token resolution, domain models, cursor pagination, capability detection, and a normalized
+`BeeperError` taxonomy — all fixture-tested via an injected `fetch` (no live Beeper). The
+`beeper-tui status` and `doctor` commands work; `doctor` names failures and exits non-zero, verified
+end-to-end against a closed port. 52 tests; `typecheck`/`lint`/`format`/`test` green.
 
 ## Next up
 
-- Start **Slice 1 — Beeper adapter, config & doctor**
-  (`plans/backlog/PLAN-slice-1-beeper-adapter-doctor.md`): move it to `active/`, set `status:
-active`, branch, and begin with studying the Beeper Desktop API surface (step 1).
-- **Beeper Desktop is not set up locally yet** — Slice 1 builds against synthetic fixtures; live
-  smoke against a running Desktop is deferred until it's available.
+- **Open the PR for Slice 1** and confirm CI is green, then merge.
+- **One deferred acceptance item:** live smoke against a running Beeper Desktop (`status` lists real
+  accounts; adapter reads chats + messages for ≥2 networks). Needs Beeper Desktop installed +
+  running and a token created in its settings — run before Slice 1 is considered fully validated.
+- Then **Slice 2 — State core** (event reducer, normalized entities, optimistic sends; no UI),
+  which consumes the adapter's domain models.
 
 ## Pending decisions (from PRD "Open questions")
 

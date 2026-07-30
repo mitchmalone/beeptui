@@ -1,16 +1,60 @@
 #!/usr/bin/env bun
-import { createCliRenderer } from '@opentui/core'
-import { createRoot } from '@opentui/react'
-import { createElement } from 'react'
-import { App } from '@/tui/app.tsx'
+import { BeeperAdapter, resolveConfig, resolveToken } from '@/beeper/index.ts'
+import { formatDoctor, runDoctor } from '@/cli/doctor.ts'
+import { runStatus } from '@/cli/status.ts'
 
-/**
- * Entry point. Slice 0 only knows how to launch the TUI shell; `status`,
- * `doctor`, and `config` subcommands arrive with the adapter in Slice 1.
- */
-async function main() {
-  const renderer = await createCliRenderer()
-  createRoot(renderer).render(createElement(App))
+const USAGE = `beeper-tui — a terminal client for Beeper
+
+Usage:
+  beeper-tui              Launch the TUI
+  beeper-tui status       Show endpoint, auth state, and connected accounts
+  beeper-tui doctor       Run diagnostic checks (non-zero exit on any failure)
+  beeper-tui --help       Show this help
+
+Flags:
+  --json                  Machine-readable output (status, doctor)
+`
+
+/** Build the live context from resolved config + credential store. */
+function buildContext(): { endpoint: string; hasToken: boolean; adapter: BeeperAdapter } {
+  const { endpoint } = resolveConfig()
+  const token = resolveToken()
+  const adapter = new BeeperAdapter({ endpoint, accessToken: token })
+  return { endpoint, hasToken: token !== undefined, adapter }
 }
 
-await main()
+async function main(argv: string[]): Promise<void> {
+  const [command, ...rest] = argv
+  const json = rest.includes('--json')
+
+  switch (command) {
+    case undefined:
+    case 'run': {
+      const { launch } = await import('@/tui/launch.ts')
+      await launch()
+      return
+    }
+    case 'status': {
+      const { output, code } = await runStatus(buildContext(), { json })
+      console.log(output)
+      process.exit(code)
+      break
+    }
+    case 'doctor': {
+      const result = await runDoctor(buildContext())
+      console.log(json ? JSON.stringify(result, null, 2) : formatDoctor(result))
+      process.exit(result.code)
+      break
+    }
+    case '--help':
+    case '-h':
+      console.log(USAGE)
+      return
+    default:
+      console.error(`Unknown command: ${command}\n`)
+      console.error(USAGE)
+      process.exit(2)
+  }
+}
+
+await main(process.argv.slice(2))

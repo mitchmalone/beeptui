@@ -5,6 +5,23 @@
 
 ---
 
+### 2026-07-30 — Slice 1 built: adapter + status/doctor
+
+- **Adapter wraps the SDK cleanly.** `BeeperAdapter` (`src/beeper/client.ts`) is the only SDK
+  consumer; it returns lean domain models (`types.ts`) and collapses every failure to `BeeperError`
+  (`errors.ts`). `maxRetries: 0` keeps retry policy ours (`BeeperError.retryable`), not the SDK's.
+- **Fixture testing via injected `fetch`** worked exactly as hoped — the whole adapter (happy paths +
+  401/429/connection-refused error mapping) is tested with synthetic responses, no live Beeper.
+- **Two SDK gotchas.** (1) The client constructor _throws_ if `accessToken` is `undefined` and
+  `BEEPER_ACCESS_TOKEN` is unset — so the adapter passes `''` when no token, letting the pre-auth
+  `/v1/info` reachability check still run while authed calls 401. (2) `exactOptionalPropertyTypes`
+  means mappers must omit optional keys (conditional spread), not set them to `undefined`.
+- **Keychain write is deferred on purpose.** `security add-generic-password` takes the secret as a
+  CLI argument, which invariant 6 forbids; reads (`security … -w`) are argv-safe. So Slice 1 reads
+  the token (env or Keychain) but leaves secure storage to the auth/login flow.
+- **`doctor` is provable offline.** A spawned-CLI test points at a closed port → connection refused
+  → `unreachable` → named failure + exit 1 (PRD scenario 7), no live Beeper needed.
+
 ### 2026-07-30 — Slice 1 research: Beeper Desktop API surface
 
 Studied the official [Beeper Desktop API](https://developers.beeper.com/desktop-api) (no live

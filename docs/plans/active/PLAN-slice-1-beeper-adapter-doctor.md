@@ -42,30 +42,32 @@ constructor takes a custom `fetch`, so tests inject synthetic fixtures — no li
 - [x] ~~Read the Beeper Desktop API docs~~; journalled endpoints/auth/capabilities. **Done** —
       official SDK `@beeper/desktop-api@5.0.0` chosen; Bun compatibility + synthetic-`fetch` fixture
       seam smoke-verified.
-- [ ] Config module: endpoint resolution + config file location (`~/.config/beeper-tui/`), validated
-      at load with clear errors; token stored in Keychain (`security` CLI), config holds only a
-      reference.
-- [ ] Domain models + adapter surface: wrap the SDK's accounts/chats/messages/send/info types into
-      our own typed methods so nothing outside `src/beeper/` imports the SDK.
-- [ ] Error normalization: map SDK error classes (`APIConnectionError`, `AuthenticationError`,
-      `PermissionDeniedError`, `RateLimitError`, `InternalServerError`, …) → `BeeperError`, plus
-      timeouts. Fixture-based tests (injected `fetch`) for happy paths and each error class
-      (test-first). **Fixtures are synthetic** — no real chat/contact/account data (AGENTS.md
-      publishable-repo hygiene).
-- [ ] Capability detection from `info.retrieve()`; expose as typed data with an explicit fallback.
-- [ ] `beeper-tui status`: endpoint, auth state, account list summary — human-readable + `--json`.
-- [ ] `beeper-tui doctor`: named checks with pass/fail and remediation text — Beeper not running,
-      endpoint unreachable, auth failure, no connected accounts. Non-zero exit on any failure.
-- [ ] Redaction: verify no token or message body can appear in errors/logs (test the formatter).
+- [x] Config module (`config.ts`): endpoint resolution (env > file > default) + `~/.config/beeper-tui/`
+      path, validated at load with clear errors. Token resolution (`keychain.ts`) reads env >
+      Keychain (`security … -w`, argv-safe); config holds no secret. Secure _write_ deferred to the
+      auth/login flow (the write path would put the token in argv — invariant 6).
+- [x] Domain models + adapter surface (`types.ts`, `client.ts`): `BeeperAdapter` wraps the SDK's
+      accounts/chats/messages/send/info; nothing outside `src/beeper/` imports the SDK.
+- [x] Error normalization (`errors.ts`): SDK error classes → `BeeperError` taxonomy. Fixture-based
+      tests (injected `fetch`) for happy paths and each error class, test-first. **Fixtures are
+      synthetic** (`fixtures.ts`) — invented names/ids only.
+- [x] Capability detection (`capabilities.ts`) from `info.retrieve()`; typed, explicit fallback.
+- [x] `beeper-tui status`: endpoint, auth state, account list summary — human-readable + `--json`.
+- [x] `beeper-tui doctor`: named checks with pass/fail/skip and remediation — unreachable, no token,
+      auth failure, no accounts. Non-zero exit on any failure. Verified end-to-end via a spawned CLI
+      test against a closed port.
+- [x] Redaction (`redact.ts`): `formatError`/`redactSecrets` tested to never emit a token or cause
+      body; grep-proof confirmed (only CLI output is printed, from safe report objects).
 - [ ] ~~Manual smoke against live local Beeper Desktop~~ — **deferred**: Beeper Desktop not set up
       locally yet. Tracked in `STATUS.md`; run before Slice 1 is considered fully validated.
 
 ## Acceptance criteria
 
-- [ ] All adapter logic covered by fixture-based `bun test` suites; no test requires live Beeper.
-- [ ] With Beeper closed (or endpoint unreachable): `doctor` names the failure and exits non-zero
-      (PRD acceptance scenario 7) — provable without a live Beeper via the injected transport.
-- [ ] Grep-proof: no token value or message body in any log/error output path.
+- [x] All adapter logic covered by fixture-based `bun test` suites; no test requires live Beeper
+      (52 tests across the adapter + CLI).
+- [x] With Beeper closed (or endpoint unreachable): `doctor` names the failure and exits non-zero
+      (PRD acceptance scenario 7) — proven by a spawned-CLI test against a closed port.
+- [x] Grep-proof: no token value or message body in any log/error output path.
 - [ ] _(Deferred, needs live Beeper)_ `status` lists real connected accounts and the adapter fetches
       chats + recent messages for ≥2 networks — manual smoke once Desktop is set up.
 
