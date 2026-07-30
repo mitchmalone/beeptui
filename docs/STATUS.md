@@ -7,18 +7,18 @@
 
 ## Where we are
 
-**Slice 0 shipped (on branch `feat/slice-0-foundation`).** The Bun + TypeScript + OpenTUI scaffold
-is proven: `bun run dev` renders the hello-world three-pane TUI on macOS arm64 and `q` exits
-cleanly. `typecheck` / `lint` / `format:check` / `test` all pass; Husky hooks, gitleaks, and GitHub
-Actions CI are wired. `src/` skeleton stubs match the repo map.
+**Slice 0 merged to `main` (PR #1, CI green).** The Bun + TypeScript + OpenTUI scaffold is proven:
+`bun run dev` renders the hello-world three-pane TUI on macOS arm64 and `q` exits cleanly.
+`typecheck` / `lint` / `format:check` / `test` all pass locally and in CI (macOS arm64 + ubuntu);
+Husky hooks, gitleaks, and GitHub Actions are wired. `src/` skeleton stubs match the repo map.
 
 ## Next up
 
-- **Open the PR for Slice 0** and confirm the GitHub Actions run is green (CI hasn't run remotely
-  yet — it's authored, not yet observed).
 - Start **Slice 1 — Beeper adapter, config & doctor**
   (`plans/backlog/PLAN-slice-1-beeper-adapter-doctor.md`): move it to `active/`, set `status:
-active`, branch, and begin with reading the Beeper Desktop API docs (step 1).
+active`, branch, and begin with studying the Beeper Desktop API surface (step 1).
+- **Beeper Desktop is not set up locally yet** — Slice 1 builds against synthetic fixtures; live
+  smoke against a running Desktop is deferred until it's available.
 
 ## Pending decisions (from PRD "Open questions")
 
