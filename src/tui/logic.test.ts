@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { createStore } from '@/tui/store.ts'
 import { edgeSelection, moveSelection } from '@/tui/navigation.ts'
-import { KEYMAP, keyToken, resolveCommand } from '@/tui/keymap.ts'
+import { helpGroups, KEYMAP, keyToken, resolveCommand } from '@/tui/keymap.ts'
 import type { InboxRow } from '@/state/selectors.ts'
 
 const rows: InboxRow[] = ['a', 'b', 'c'].map((id) => ({
@@ -73,5 +73,17 @@ describe('keymap', () => {
       expect(b.description.length).toBeGreaterThan(0)
       expect(b.keys.length).toBeGreaterThan(0)
     }
+  })
+
+  test('resolves the search and help openers', () => {
+    expect(resolveCommand({ name: '/' })).toBe('search')
+    expect(resolveCommand({ name: '?' })).toBe('help')
+  })
+
+  test('helpGroups renders every keymap binding (no drift possible)', () => {
+    const rendered = new Set(helpGroups().flatMap((g) => g.bindings.map((b) => b.description)))
+    for (const b of KEYMAP) expect(rendered.has(b.description)).toBe(true)
+    // Grouped by context, and a Compose section is present.
+    expect(helpGroups().map((g) => g.title)).toContain('Compose')
   })
 })

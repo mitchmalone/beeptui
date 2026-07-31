@@ -20,6 +20,9 @@ export type MessageDeliveryStatus = 'sent' | 'pending' | 'failed'
 /** Which pane has keyboard focus. */
 export type FocusTarget = 'inbox' | 'conversation' | 'compose'
 
+/** Modal overlay on top of the panes, if any. */
+export type Overlay = 'none' | 'search' | 'help'
+
 /**
  * A message in state. Extends the adapter's summary with local delivery status
  * and, for optimistic sends, the `clientId` used to reconcile the server echo.
@@ -53,6 +56,10 @@ export interface AppState {
   conversationOffset: number
   /** True when messages arrived in the active chat while scrolled up. */
   newMessagesBelow: boolean
+  /** The open modal overlay (search palette / help), or 'none'. */
+  overlay: Overlay
+  /** Current chat-search query (only meaningful while the search overlay is open). */
+  searchQuery: string
   /** Per-chat draft text (state only; persistence is Slice 7). */
   drafts: Record<string, string>
   server: ServerInfo | null
@@ -70,6 +77,8 @@ export const initialState: AppState = {
   focus: 'inbox',
   conversationOffset: 0,
   newMessagesBelow: false,
+  overlay: 'none',
+  searchQuery: '',
   drafts: {},
   server: null,
   error: null,
@@ -97,6 +106,9 @@ export type AppEvent =
   | { type: 'chat/selected'; chatId: string | null }
   | { type: 'focus/changed'; focus: FocusTarget }
   | { type: 'conversation/scrolled'; delta: number }
+  | { type: 'overlay/opened'; overlay: Exclude<Overlay, 'none'> }
+  | { type: 'overlay/closed' }
+  | { type: 'search/queryChanged'; query: string }
   | { type: 'draft/changed'; chatId: string; text: string }
   | { type: 'send/requested'; chatId: string; clientId: string; text: string; timestamp: string }
   | { type: 'send/succeeded'; chatId: string; clientId: string; message: MessageSummary }

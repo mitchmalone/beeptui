@@ -245,6 +245,55 @@ describe('App shell', () => {
     })
   })
 
+  describe('overlays', () => {
+    test('/ opens search; typing filters; ⏎ jumps to the top match', async () => {
+      const store = seededStore()
+      const opened: string[] = []
+      const { renderOnce, captureCharFrame, mockInput } = await renderApp(store, {
+        onOpenChat: (id) => opened.push(id),
+      })
+      await renderOnce()
+      await mockInput.pressKey('/')
+      expect(store.getState().overlay).toBe('search')
+      await mockInput.pressKeys(['e', 'n', 'g'])
+      expect(store.getState().searchQuery).toBe('eng')
+      expect(captureCharFrame()).toContain('engineering')
+      await mockInput.pressKey('RETURN')
+      expect(opened).toEqual(['c2']) // 'engineering'
+      expect(store.getState().overlay).toBe('none')
+    })
+
+    test('Enter with no match closes search without jumping', async () => {
+      const store = seededStore()
+      const opened: string[] = []
+      const { renderOnce, mockInput } = await renderApp(store, {
+        onOpenChat: (id) => opened.push(id),
+      })
+      await renderOnce()
+      await mockInput.pressKey('/')
+      await mockInput.pressKeys(['z', 'z', 'z'])
+      expect(store.getState().searchQuery).toBe('zzz')
+      await mockInput.pressKey('RETURN')
+      expect(opened).toEqual([]) // no match → nothing opened
+      expect(store.getState().overlay).toBe('none') // but the overlay closes
+    })
+
+    test('? opens the help overlay listing bindings generated from the keymap', async () => {
+      const store = seededStore()
+      const { renderOnce, captureCharFrame, mockInput } = await renderApp(store)
+      await renderOnce()
+      await mockInput.pressKey('?')
+      expect(store.getState().overlay).toBe('help')
+      await renderOnce() // reflect the overlay in the captured frame
+      const frame = captureCharFrame()
+      expect(frame).toContain('Quit')
+      expect(frame).toContain('Search chats')
+      expect(frame).toContain('Compose')
+      await mockInput.pressKey('x') // any key dismisses help
+      expect(store.getState().overlay).toBe('none')
+    })
+  })
+
   test('q triggers the quit callback from either pane', async () => {
     let quit = 0
     const { renderOnce, mockInput } = await renderApp(seededStore(), { onQuit: () => quit++ })

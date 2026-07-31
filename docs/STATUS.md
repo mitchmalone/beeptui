@@ -13,12 +13,16 @@ backoff, gap-resync, scrolled-up "new messages" affordance) and **Slice 7 — lo
 drafts** were built **in parallel** (Slice 7 in a forked worktree) and both merged (PRs #9, #8). The
 `launch.ts` overlap reconciled cleanly. Integrated gate: **177 tests** green.
 
+**Slice 8 — chat search & help overlay** is done on `feat/slice-8-chat-search-help`: `/` fuzzy chat
+search (type → filter → `⏎` jumps), and `?` help overlay generated from the keymap (drift-proof).
+194 tests green.
+
 ## Next up
 
-- **Slice 8 — chat search & help overlay** (the help overlay generates from the existing keymap
-  table). Phase 1 then closes with **Slice 9 — validation & smoke harness**.
-- Slice 7 wired persistence into `launch.ts`; a live warm-launch check (drafts/inbox restore) folds
-  into Slice 9.
+- **Slice 9 — Phase 1 validation & smoke harness** closes Phase 1: terminal smoke tests for the key
+  flows, and validate WhatsApp/Slack/Telegram/Signal end-to-end. Fold in the deferred live checks:
+  warm-launch draft/inbox restore (Slice 7), mid-draft disconnect dance + cross-network send-echo id
+  (Slice 6), and `doctor` token-scope reporting.
 
 ## Deferred / follow-ups
 

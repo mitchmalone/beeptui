@@ -81,6 +81,13 @@ height})` gives a headless render; `captureCharFrame()` asserts content, `mockIn
 - **Modal input**: while the compose box is focused the global keymap must be fully bypassed
   (`if (focus === 'compose') return` before resolving any command) or letters like `q` fire commands
   instead of typing. Two `useKeyboard` handlers (App + Compose) coexist; each guards on focus.
+- **Read `store.getState()` inside the keyboard handler**, not the render-closure `state` —
+  `pressKeys([...])` (and fast real typing) fires several keys before React re-renders, so the
+  closure's `state`/selectors are stale (search "eng" landed as "g"). The App handler recomputes
+  `selectInboxRows(store.getState())` etc. per keypress; the render still uses `useSyncExternalStore`.
+- Overlay/search openers (`/`, `?`) are matched on `key.sequence` (the raw char), since terminals
+  report the _name_ inconsistently. Frame assertions after a key-driven state change need an extra
+  `await renderOnce()` to flush before `captureCharFrame()`.
 - Multiple `testRender`s + a second `useKeyboard` trip a benign "EventTarget memory leak … 11 entry
   listeners" warning — test-env noise, not a real leak.
 - Terminal **Esc is ambiguous** (the parser buffers it as an escape-sequence prefix), so it's
