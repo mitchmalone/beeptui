@@ -30,6 +30,14 @@
 - **Help overlay went two-column.** Adding bindings pushed it past a 24-row terminal; the nested
   flex group-boxes _overlap_ (not clip) when they can't fit, silently garbling rows. Splitting groups
   into two columns halves the height. Watch this ceiling as bindings grow.
+- **Archive "select next" must be computed _before_ the call, not after.** First cut read the list
+  after the reconcile and picked the row in the vacated slot — but Beeper's archived state can
+  propagate a beat late, so the row lingered, selection stayed on it, and when a live event finally
+  removed it the next keypress fell back to the top (`moveSelection`'s not-found → row[0]). Fix:
+  compute the neighbour (below, else above) from the pre-archive list and select it up front.
+- **Per-network colour** (`networkColor`, alongside `networkMarker` in `InboxPane.tsx`) tints the
+  network marker in the chat list, the rail, and the conversation header so networks are scannable.
+  Colours aren't visible in `captureCharFrame`, so it's covered by a pure unit test, not a render one.
 - **Title width gotcha:** an OpenTUI `box` `title` longer than the inner width silently renders
   blank. The width-8 rail dropped `'Net ●'` (5 chars) entirely; `'Net●'` (4) fits. Also `◂` didn't
   render in the test char-frame but `●` does — mirror ConversationView's proven `●` focus marker.
