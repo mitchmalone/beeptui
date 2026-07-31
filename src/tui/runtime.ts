@@ -15,6 +15,7 @@ import type { WatchEvent } from '@/beeper/watch-protocol.ts'
 import type { WatchStatus } from '@/beeper/watch.ts'
 import type { AppEvent, AppState, ConnectionState } from '@/state/types.ts'
 import { selectInboxRows, selectSelectedMessage } from '@/state/selectors.ts'
+import { checkCapability } from '@/state/capabilities.ts'
 import { localSearchMessages, toHit } from '@/tui/message-search.ts'
 
 /**
@@ -259,8 +260,9 @@ export async function archiveChat(
 ): Promise<void> {
   const chat = getState().chats[chatId]
   if (chat === undefined) return
-  if (chat.canArchive === false) {
-    dispatch({ type: 'notice/shown', message: `Archive isn't supported for ${chat.network}.` })
+  const capability = checkCapability(chat, 'archive')
+  if (!capability.allowed) {
+    dispatch({ type: 'notice/shown', message: capability.notice })
     return
   }
   const archived = !chat.isArchived

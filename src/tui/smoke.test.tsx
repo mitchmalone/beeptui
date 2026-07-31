@@ -234,6 +234,37 @@ describe('golden-path smoke', () => {
     expect(h.captureCharFrame()).toContain('new messages')
   })
 
+  test('scenario 3b: a burst of live inbound messages while scrolled up keeps reading position', async () => {
+    const h = await harness()
+    await h.mockInput.pressKey('j')
+    await h.mockInput.pressKey('RETURN')
+    await h.settle()
+
+    // Scroll up off the bottom, then take a burst on a busy channel.
+    await h.mockInput.pressKey('k')
+    await h.settle()
+    const offsetBefore = h.store.getState().conversationOffset
+    expect(offsetBefore).toBeGreaterThan(0)
+    const anchorId = h.store.getState().selectedChatId // unchanged marker
+
+    for (let i = 0; i < 12; i++) {
+      await applyWatchEvent(h.gateway, h.store.dispatch, {
+        kind: 'messages',
+        chatId: 'c-wa',
+        seq: 10 + i,
+        messages: [msg(`burst-${i}`, `burst ${i}`)],
+      })
+    }
+    await h.settle()
+
+    // Reading position holds: still scrolled up (offset grew with the burst, not
+    // reset to the bottom), the affordance is showing, and no snap to latest.
+    expect(h.store.getState().conversationOffset).toBeGreaterThanOrEqual(offsetBefore)
+    expect(h.store.getState().newMessagesBelow).toBe(true)
+    expect(h.store.getState().selectedChatId).toBe(anchorId)
+    expect(h.captureCharFrame()).toContain('new messages')
+  })
+
   test('scenario 4: disconnect keeps the draft and degrades visibly; reconnect recovers', async () => {
     const h = await harness()
     await h.mockInput.pressKey('j')
@@ -371,7 +402,7 @@ describe('golden-path smoke', () => {
     await h.mockInput.pressKey('r') // reply attempt
     await h.settle()
 
-    expect(h.captureCharFrame()).toContain("Replies aren't supported on Slack")
+    expect(h.captureCharFrame()).toContain('Replies not available for Slack via Beeper')
     expect(h.store.getState().replyTo).toBeNull() // no reply started
     expect(h.store.getState().focus).toBe('conversation') // no dead jump to compose
   })

@@ -9,6 +9,7 @@ import {
   selectNetworkRail,
   selectReplyContext,
 } from '@/state/selectors.ts'
+import { checkCapability } from '@/state/capabilities.ts'
 import { edgeSelection, moveSelection } from '@/tui/navigation.ts'
 import { helpGroups, resolveCommand } from '@/tui/keymap.ts'
 import { searchChats } from '@/tui/fuzzy.ts'
@@ -312,11 +313,9 @@ export function App({
         // Reply — capability-gated: a network that reports no reply support gets
         // a named notice, never a dead control (invariant 8).
         if (conv.chat !== null) {
-          if (conv.chat.canReply === false) {
-            store.dispatch({
-              type: 'notice/shown',
-              message: `Replies aren't supported on ${conv.chat.network}.`,
-            })
+          const capability = checkCapability(conv.chat, 'reply')
+          if (!capability.allowed) {
+            store.dispatch({ type: 'notice/shown', message: capability.notice })
           } else {
             store.dispatch({ type: 'reply/started', messageId: s.selectedMessageId })
             store.dispatch({ type: 'focus/changed', focus: 'compose' })

@@ -7,7 +7,7 @@
 
 ## Where we are
 
-**Phase 2 in progress — Slices 10 + 11 done, Slice 12 next** on
+**Phase 2 — Slices 10 + 11 done; Slice 12 code done, live matrix blocked** on
 `feat/slice-10-filters-message-search` (staying on the branch Mitch is testing; PR #12 open). A
 `slk`-style **leftmost network rail** scopes the inbox (All + per-network,
 unread dots) with archived (`a`) and unread-only (`U`) toggles. Per Mitch's live-use feedback the
@@ -29,6 +29,15 @@ attachment** via `assets.download` (OS side-effects injected; no path ever logge
 render in place** with `(edited)`. Help overlay rebalanced to two row-balanced columns so the new
 bindings don't overflow. **315 tests** green; typecheck + lint + format clean; 10 smoke scenarios.
 
+**Slice 12 (remaining networks & capability messaging) — code done, live matrix blocked.** The two
+capability-gated actions (reply, archive) now route through one shared `checkCapability` /
+`capabilityUnavailableMessage` (`src/state/capabilities.ts`) — honest, source-naming ("Replies not
+available for Slack via Beeper"), no ad-hoc strings. Added a burst-stability smoke scenario (12 rapid
+inbound while scrolled up keeps reading position). **320 tests** green. A **redacted live capability
+probe** on the 3 connected networks confirms the plumbing (reply reported-supported on WhatsApp +
+Facebook). The full Discord/Instagram/X matrix — and declaring Phase 2 complete — is **blocked** on
+those networks being connected (manual gate, Mitch).
+
 **🎉 Phase 1 complete — Slices 0–9 done (all merged to `main`).**
 The MVP is real and live-validated against Beeper Desktop 4.2.1004: browse the inbox, read history
 (paged), send real messages (a WhatsApp send received by Mitch), live updates over WebSocket, drafts
@@ -39,14 +48,18 @@ no silent failures. Fixed pagination resilience along the way. **199 tests** gre
 
 ## Next up
 
-- **Slice 12 (remaining networks)** — next. Depends on 10 + 11 (both done).
-- Re-plan Phase 3 (13–14) before starting; 14 is blocked on pending decision #6 (open-source flip).
+- **Slice 13 (remote endpoint & OAuth)** — Phase 3; unblocked code work (adapter/config/auth).
+- Slice 14 (polish & packaging) after. 14 is blocked on pending decision #6 (open-source flip).
 
-## Manual gate (Mitch)
+## Manual gates (Mitch) — needed to fully close Slices 11 + 12
 
 - **Slice 11 live reply send:** send a reply from the TUI on WhatsApp and confirm it lands threaded
   (invariant 5 forbids auto-sending a real message, so this can't be automated). Everything else in
   Slice 11 is done + green; the reply _adapter param_ and _attachment download_ are live-validated.
+- **Slice 12 live matrix:** connect Discord / Instagram DMs / X DMs in Beeper Desktop, then run the
+  validation matrix (list/read/send/reply/search/attachments) per network. The capability probe on
+  the currently-connected networks passed; the other three can't be exercised until connected. Once
+  done, `docs/STATUS.md` can declare **Phase 2 complete**.
 
 ## Deferred / follow-ups
 

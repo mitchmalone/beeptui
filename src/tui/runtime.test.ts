@@ -527,7 +527,7 @@ describe('archiveChat', () => {
     )
     expect(called).toBe(false)
     expect(h.events).toEqual([
-      { type: 'notice/shown', message: "Archive isn't supported for WhatsApp." },
+      { type: 'notice/shown', message: 'Archiving not available for WhatsApp via Beeper.' },
     ])
   })
 

@@ -5,6 +5,23 @@
 
 ---
 
+### 2026-07-31 — Slice 12: capability messaging unified; live matrix blocked on unconnected networks
+
+- **One capability-unavailable pattern.** Reply + archive were the only two gated actions, each with
+  its own ad-hoc notice string. Centralized into `src/state/capabilities.ts`: `checkCapability(chat,
+cap)` returns `{allowed}` or `{allowed:false, notice}`, and `capabilityUnavailableMessage` renders
+  one source-naming template ("Replies not available for Slack via Beeper" — PRD scenario 6). Absent
+  flag → allowed (attempt-then-degrade), only an explicit `false` blocks. Verb-agnostic phrasing so
+  one template covers plural (Replies) and singular (Archiving) capabilities.
+- **Live capability matrix (redacted, connected networks).** WhatsApp + Facebook **report** reply
+  support (all chats ✓); Beeper/Matrix doesn't report it; **archive is unreported on all three** →
+  the explicit-unsupported branch is fixture-covered, not live-hit here. Useful truth: the reply gate
+  is grounded in real data; archive leans on attempt-then-degrade for now.
+- **Blocked, honestly.** Discord/Instagram/X aren't connected on this Beeper, so the slice's headline
+  live matrix can't run and **Phase 2 isn't declarable complete**. Recorded as a manual gate rather
+  than faked. The code hardening (the durable deliverable) is done + tested; a burst smoke scenario
+  (12 rapid inbound while scrolled up) proves reading position holds under busy-channel load.
+
 ### 2026-07-31 — Slice 11: replies, edits & attachments
 
 - **Reply keys can't use `resolveCommand`.** The plan wanted `r` = reply, but `r` is the global
