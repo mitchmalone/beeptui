@@ -196,7 +196,7 @@ export type AppEvent =
   | { type: 'notice/cleared' }
   | { type: 'draft/changed'; chatId: string; text: string }
   | { type: 'send/requested'; chatId: string; clientId: string; text: string; timestamp: string }
-  | { type: 'send/succeeded'; chatId: string; clientId: string; message: MessageSummary }
+  | { type: 'send/succeeded'; chatId: string; clientId: string }
   | { type: 'send/failed'; chatId: string; clientId: string }
   | { type: 'send/retried'; chatId: string; clientId: string }
   | { type: 'error/raised'; kind: BeeperErrorKind; message: string }

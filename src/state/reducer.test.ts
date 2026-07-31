@@ -320,20 +320,16 @@ describe('optimistic send lifecycle', () => {
     })
   })
 
-  test('succeeded reconciles the pending into a sent server message', () => {
-    const s = run([
-      requested,
-      {
-        type: 'send/succeeded',
-        chatId: 'c1',
-        clientId: 'cid-1',
-        message: msg('server-9', '9', { isSender: true }),
-      },
-    ])
+  test('succeeded confirms the pending as sent, keeping its clientId until the echo', () => {
+    const s = run([requested, { type: 'send/succeeded', chatId: 'c1', clientId: 'cid-1' }])
     const items = s.messagesByChat.c1?.items ?? []
     expect(items).toHaveLength(1)
-    expect(items[0]).toMatchObject({ id: 'server-9', status: 'sent' })
-    expect(items[0]?.clientId).toBeUndefined()
+    expect(items[0]).toMatchObject({
+      id: 'cid-1',
+      status: 'sent',
+      clientId: 'cid-1',
+      text: 'On it.',
+    })
   })
 
   test('failed marks the pending visible-failed; retry returns it to pending', () => {
@@ -343,45 +339,71 @@ describe('optimistic send lifecycle', () => {
     expect(s.messagesByChat.c1?.items[0]?.status).toBe('pending')
   })
 
-  test('success after a failure still reconciles (race)', () => {
+  test('success after a failure still confirms as sent', () => {
     const s = run([
       requested,
       { type: 'send/failed', chatId: 'c1', clientId: 'cid-1' },
-      {
-        type: 'send/succeeded',
-        chatId: 'c1',
-        clientId: 'cid-1',
-        message: msg('server-9', '9', { isSender: true }),
-      },
+      { type: 'send/succeeded', chatId: 'c1', clientId: 'cid-1' },
     ])
     const items = s.messagesByChat.c1?.items ?? []
     expect(items).toHaveLength(1)
-    expect(items[0]).toMatchObject({ id: 'server-9', status: 'sent' })
+    expect(items[0]).toMatchObject({ status: 'sent', clientId: 'cid-1' })
   })
 
   test('duplicate succeeded does not duplicate the message', () => {
-    const succeed: AppEvent = {
-      type: 'send/succeeded',
-      chatId: 'c1',
-      clientId: 'cid-1',
-      message: msg('server-9', '9', { isSender: true }),
-    }
+    const succeed: AppEvent = { type: 'send/succeeded', chatId: 'c1', clientId: 'cid-1' }
     const s = run([requested, succeed, succeed])
     expect(s.messagesByChat.c1?.items).toHaveLength(1)
   })
 
-  test('a live echo of the same server id after success does not duplicate', () => {
+  test('the live echo replaces the optimistic message (own id + real sender) — no double-up', () => {
+    // The reported bug: the WS echo has its own server id and real sender name,
+    // so it must reconcile against our optimistic "You" message by text, not id.
+    const s = run([
+      requested, // optimistic "On it." (senderId 'me')
+      { type: 'send/succeeded', chatId: 'c1', clientId: 'cid-1' },
+      {
+        type: 'message/received',
+        message: msg('server-9', '9', {
+          isSender: true,
+          senderName: 'mitchmalone',
+          text: 'On it.',
+        }),
+      },
+    ])
+    const items = s.messagesByChat.c1?.items ?? []
+    expect(items).toHaveLength(1) // was 2: optimistic "You" + echo "mitchmalone"
+    expect(items[0]).toMatchObject({ id: 'server-9', senderName: 'mitchmalone', text: 'On it.' })
+    expect(items[0]?.clientId).toBeUndefined() // now the real server message
+  })
+
+  test('a live echo arriving before send/succeeded still reconciles to one', () => {
     const s = run([
       requested,
       {
-        type: 'send/succeeded',
-        chatId: 'c1',
-        clientId: 'cid-1',
-        message: msg('server-9', '9', { isSender: true }),
+        type: 'message/received',
+        message: msg('server-9', '9', { isSender: true, text: 'On it.' }),
       },
-      { type: 'message/received', message: msg('server-9', '9', { isSender: true }) },
+      { type: 'send/succeeded', chatId: 'c1', clientId: 'cid-1' },
     ])
-    expect(s.messagesByChat.c1?.items).toHaveLength(1)
+    const items = s.messagesByChat.c1?.items ?? []
+    expect(items).toHaveLength(1)
+    expect(items[0]?.id).toBe('server-9')
+  })
+
+  test('loading OLDER history with a repeated phrase does not evict a pending send', () => {
+    const s = run([
+      requested, // pending "On it."
+      {
+        type: 'messages/loaded',
+        chatId: 'c1',
+        page: 'older',
+        messages: [msg('old-1', '1', { isSender: true, text: 'On it.' })],
+      },
+    ])
+    const items = s.messagesByChat.c1?.items ?? []
+    expect(items).toHaveLength(2) // old sent one + our still-pending one
+    expect(items.some((m) => m.clientId === 'cid-1' && m.status === 'pending')).toBe(true)
   })
 })
 

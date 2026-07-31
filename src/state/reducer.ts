@@ -36,9 +36,15 @@ function toEntity(message: MessageSummary): MessageEntity {
   return { ...message, status: 'sent' }
 }
 
-/** Sort key that keeps pending (optimistic) messages after all server messages. */
+/** Sort key that keeps our own unconfirmed messages (still carrying a clientId,
+ *  whether pending, failed, or optimistically-sent) after all server messages,
+ *  until the real echo — which has no clientId and a real sortKey — replaces it. */
 function effectiveKey(message: MessageEntity): string {
-  if (message.status === 'pending' || message.status === 'failed') {
+  if (
+    message.clientId !== undefined ||
+    message.status === 'pending' ||
+    message.status === 'failed'
+  ) {
     return PENDING_SORT_PREFIX + (message.clientId ?? message.timestamp)
   }
   return message.sortKey
@@ -61,6 +67,25 @@ function mergeMessages(
 ): ChatMessages {
   const byId = new Map<string, MessageEntity>()
   for (const m of window?.items ?? []) byId.set(m.id, m)
+
+  // Reconcile optimistic sends against their real echo. A live echo of one of
+  // our own messages arrives as a self-message with NO clientId and its own
+  // server id; drop the optimistic placeholder we created (which keeps its
+  // clientId) so the two don't double up despite the differing ids. Matched by
+  // chat-local text, and only on the live/newer path so loading old history
+  // with a repeated phrase can't evict a genuine pending message.
+  if (page === 'newer') {
+    for (const inc of incoming) {
+      if (!inc.isSender || inc.clientId !== undefined) continue
+      for (const [id, existing] of byId) {
+        if (existing.clientId !== undefined && existing.isSender && existing.text === inc.text) {
+          byId.delete(id)
+          break
+        }
+      }
+    }
+  }
+
   for (const m of incoming) {
     const existing = byId.get(m.id)
     byId.set(m.id, existing ? { ...existing, ...m } : m)
@@ -212,16 +237,15 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     }
 
     case 'send/succeeded':
-      return withChatMessages(state, event.chatId, (window) => {
-        // Drop the optimistic placeholder, then merge the real server message
-        // (dedupes if a live echo already arrived).
-        const withoutPending: ChatMessages = {
-          items: (window?.items ?? []).filter((m) => m.clientId !== event.clientId),
-          hasMoreOlder: window?.hasMoreOlder ?? false,
-          olderCursor: window?.olderCursor ?? null,
-        }
-        return mergeMessages(withoutPending, [toEntity(event.message)], 'newer')
-      })
+      // Just confirm the optimistic message (keep its clientId + position). We do
+      // NOT synthesize a server message here — the real one arrives via the live
+      // `message/received` echo and reconciles against this placeholder by text
+      // (see mergeMessages). If the echo already arrived, this is a no-op.
+      return withChatMessages(state, event.chatId, (window) =>
+        mapWindowItems(window, (m) =>
+          m.clientId === event.clientId ? { ...m, status: 'sent' } : m
+        )
+      )
 
     case 'send/failed':
       return withChatMessages(state, event.chatId, (window) =>

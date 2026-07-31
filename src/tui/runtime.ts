@@ -4,21 +4,10 @@ import type {
   MessageSearchPage,
 } from '@/beeper/client.ts'
 import { BeeperError, normalizeError } from '@/beeper/errors.ts'
-import type {
-  Account,
-  ChatSummary,
-  MessageSummary,
-  SendResult,
-  ServerInfo,
-} from '@/beeper/types.ts'
+import type { Account, ChatSummary, SendResult, ServerInfo } from '@/beeper/types.ts'
 import type { WatchEvent } from '@/beeper/watch-protocol.ts'
 import type { WatchStatus } from '@/beeper/watch.ts'
-import {
-  PENDING_SORT_PREFIX,
-  type AppEvent,
-  type AppState,
-  type ConnectionState,
-} from '@/state/types.ts'
+import type { AppEvent, AppState, ConnectionState } from '@/state/types.ts'
 import { selectInboxRows } from '@/state/selectors.ts'
 import { localSearchMessages, toHit } from '@/tui/message-search.ts'
 
@@ -121,37 +110,18 @@ export async function openChat(
   }
 }
 
-/** Build the reconciled "sent" message from what we know locally + the server's
- *  pending id. A sentinel sortKey keeps it at the bottom until the real message
- *  arrives via live updates (Slice 6). */
-function sentMessage(params: SendParams, serverId: string): MessageSummary {
-  return {
-    id: serverId,
-    chatId: params.chatId,
-    accountId: '',
-    senderId: 'me',
-    timestamp: params.timestamp,
-    sortKey: PENDING_SORT_PREFIX + params.timestamp,
-    text: params.text,
-    isSender: true,
-    isUnread: false,
-  }
-}
-
-/** Attempt delivery, reconciling to sent or failed. Shared by send + retry. */
+/** Attempt delivery, reconciling to sent or failed. Shared by send + retry.
+ *  On success we only confirm the optimistic message (flip it to 'sent'); the
+ *  real server message arrives via the live echo and reconciles by text in the
+ *  reducer — so we never synthesize a duplicate with a guessed id. */
 async function attemptSend(
   gateway: Gateway,
   dispatch: Dispatch,
   params: SendParams
 ): Promise<void> {
   try {
-    const result = await gateway.sendMessage(params.chatId, params.text)
-    dispatch({
-      type: 'send/succeeded',
-      chatId: params.chatId,
-      clientId: params.clientId,
-      message: sentMessage(params, result.pendingMessageId),
-    })
+    await gateway.sendMessage(params.chatId, params.text)
+    dispatch({ type: 'send/succeeded', chatId: params.chatId, clientId: params.clientId })
   } catch {
     // A failed send stays visible on the message; never a silent success
     // (invariant 5). The error kind isn't surfaced globally — the message
