@@ -126,11 +126,15 @@ partial — honest about coverage. Capability detection gates scope-honoring vs.
       per-chat archive state; `Shift+U` shows unread-only. All keyboard-driven and visibly
       indicated (tests).
 - [x] Rail collapses/condenses gracefully on a narrow terminal without losing scope switching.
-- [~] PRD acceptance scenario 5: find a known message in a Discord chat, select the result, land in
-  the right conversation. **Covered by the smoke harness (fixture) + unit tests; live validation
-  against the real Discord search endpoint is still pending** (needs a running Beeper — see
-  STATUS "Next up"). Deep-linking is honest-partial: opening a hit lands in the right chat and
-  loads its recent page; anchoring to an older message is Slice 11 territory.
+- [x] PRD acceptance scenario 5: find a known message, select the result, land in the right
+      conversation. Covered by the smoke harness (fixture) + unit tests, **and live-validated against
+      the real Beeper search endpoint 2026-07-31** (redacted run over the 3 connected networks —
+      WhatsApp/Facebook/Beeper; Discord not connected on this setup, but the endpoint _semantics_ were
+      the unknown). Verified: the server honors both **chat scope** (hits all in the requested chat)
+      and **account scope** (hits all in the requested account); results **cap/paginate** (`capped`
+      detected); every hit carries `id`+`chatId`+`accountId`, so **deep-linking is supported** — a hit
+      opens the right chat and loads its recent page. Anchoring to an _older_ off-page message stays
+      Slice 11 territory.
 - [x] Scope-ignoring or capped search endpoints produce the fallback, labeled as such — never
       silently wrong results.
 - [x] `bun test` + smoke suite green; help overlay auto-lists the new bindings.

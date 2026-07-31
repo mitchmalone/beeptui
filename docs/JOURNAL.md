@@ -5,6 +5,23 @@
 
 ---
 
+### 2026-07-31 — Slice 10 done: search endpoint live-validated (scope + caps + deep-link)
+
+- Ran a **redacted** live probe against Beeper Desktop's real `messages.search` (3 connected
+  networks: WhatsApp/Facebook/Beeper). Findings that were "unknown until probed" in the plan:
+  - **Scope is genuinely honored server-side.** Chat-scoped search returned only hits in the
+    requested chat; account-scoped returned only hits in the requested account. Our
+    `scopeHonored` cross-check (every hit matches the requested chat/account) came back `true` for
+    both — so the labeled-fallback path is a real safety net, not the normal case, on these networks.
+  - **Results cap/paginate.** A broad query hit the 50-item limit → `capped=true`, as designed.
+  - **Deep-linking is supported.** Every hit carries `id`+`chatId`+`accountId`, so opening a result
+    lands in the right chat and loads its recent page. Anchoring to an _older, off-page_ message is
+    still Slice 11 (needs history paging to the match).
+- **Caveat:** Discord isn't connected on this setup, so the literal scenario-5 network wasn't
+  exercised; the endpoint _semantics_ (the actual risk) were, across three real networks.
+- Probe was throwaway (`local/`, gitignored); prints only counts/booleans/network-types — no message
+  text, ids, or names (invariant 9).
+
 ### 2026-07-31 — Slice 10 follow-up: sent messages showed twice
 
 - **Root cause:** the optimistic send path _synthesized_ a "sent" message with the server's
