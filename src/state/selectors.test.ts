@@ -6,6 +6,7 @@ import {
   selectConnectionBanner,
   selectDraft,
   selectInboxRows,
+  selectTotalUnread,
 } from '@/state/selectors.ts'
 import type { ChatSummary } from '@/beeper/types.ts'
 
@@ -49,6 +50,27 @@ describe('selectInboxRows', () => {
       network: 'WhatsApp',
     })
     expect(rows.find((r) => r.id === 'b')?.hasUnread).toBe(false)
+  })
+})
+
+describe('selectTotalUnread', () => {
+  test('sums unread across chats, excluding archived', () => {
+    const s = run([
+      {
+        type: 'chats/loaded',
+        chats: [
+          chat('a', { unreadCount: 3 }),
+          chat('b', { unreadCount: 0 }),
+          chat('c', { unreadCount: 5 }),
+          chat('d', { unreadCount: 9, isArchived: true }), // archived → excluded
+        ],
+      },
+    ])
+    expect(selectTotalUnread(s)).toBe(8)
+  })
+
+  test('is zero with no chats', () => {
+    expect(selectTotalUnread(initialState)).toBe(0)
   })
 })
 
