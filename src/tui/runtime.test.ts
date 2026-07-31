@@ -7,13 +7,15 @@ import {
   refreshChats,
   resyncAfterReconnect,
   retrySend,
+  runMessageSearch,
   submitSend,
   watchStatusToConnection,
   type Gateway,
 } from '@/tui/runtime.ts'
 import { BeeperError } from '@/beeper/errors.ts'
-import type { MessageHistoryPage } from '@/beeper/client.ts'
-import type { AppEvent } from '@/state/types.ts'
+import type { MessageHistoryPage, MessageSearchPage } from '@/beeper/client.ts'
+import { reduce } from '@/state/reducer.ts'
+import { initialState, type AppEvent, type AppState } from '@/state/types.ts'
 import type { Account, ChatSummary, MessageSummary, ServerInfo } from '@/beeper/types.ts'
 
 const server: ServerInfo = {
@@ -73,6 +75,7 @@ function gateway(over: Partial<Gateway> = {}): Gateway {
     listMessages: async () => historyPage,
     sendMessage: async () => ({ chatId: 'c1', pendingMessageId: 'srv-1' }),
     getChat: async () => chats[0]!,
+    searchMessages: async () => ({ messages: [], scopeHonored: true, capped: false }),
     ...over,
   }
 }
@@ -297,5 +300,128 @@ describe('loadOlderMessages', () => {
     )
     expect(usedCursor).toBe('CUR-2')
     expect(events[0]).toMatchObject({ type: 'messages/loaded', page: 'older', hasMoreOlder: false })
+  })
+})
+
+describe('runMessageSearch', () => {
+  // State with one chat + two loaded messages, for hit enrichment + local fallback.
+  const searchState: AppState = [
+    { type: 'chats/loaded', chats } as AppEvent,
+    {
+      type: 'messages/loaded',
+      chatId: 'c1',
+      page: 'initial',
+      messages: [
+        { ...historyMessages[0]!, id: 'm1', text: 'Friday works for me' },
+        { ...historyMessages[0]!, id: 'm2', text: 'Lunch?' },
+      ],
+    } as AppEvent,
+  ].reduce(reduce, initialState)
+
+  const getState = () => searchState
+
+  const page = (over: Partial<MessageSearchPage> = {}): MessageSearchPage => ({
+    messages: [],
+    scopeHonored: true,
+    capped: false,
+    ...over,
+  })
+
+  test('server results map to hits with chat context, not partial when uncapped', async () => {
+    const { dispatch, events } = capture()
+    await runMessageSearch(
+      gateway({
+        searchMessages: async () =>
+          page({ messages: [{ ...historyMessages[0]!, id: 's1', text: 'Friday!' }] }),
+      }),
+      dispatch,
+      getState,
+      'friday',
+      null
+    )
+    expect(events.map((e) => e.type)).toEqual([
+      'messageSearch/requested',
+      'messageSearch/resultsLoaded',
+    ])
+    const loaded = events[1] as Extract<AppEvent, { type: 'messageSearch/resultsLoaded' }>
+    expect(loaded.results[0]).toMatchObject({
+      messageId: 's1',
+      chatTitle: 'Grace',
+      network: 'WhatsApp',
+    })
+    expect(loaded.partial).toBe(false)
+  })
+
+  test('capped server results are flagged partial with a note', async () => {
+    const { dispatch, events } = capture()
+    await runMessageSearch(
+      gateway({ searchMessages: async () => page({ messages: [], capped: true }) }),
+      dispatch,
+      getState,
+      'x',
+      null
+    )
+    const loaded = events[1] as Extract<AppEvent, { type: 'messageSearch/resultsLoaded' }>
+    expect(loaded.partial).toBe(true)
+    expect(loaded.note).toContain('first')
+  })
+
+  test('a scope-ignoring server is scoped locally and labeled partial', async () => {
+    const { dispatch, events } = capture()
+    await runMessageSearch(
+      gateway({
+        searchMessages: async () =>
+          page({
+            scopeHonored: false,
+            messages: [
+              { ...historyMessages[0]!, id: 'in', chatId: 'c1', text: 'in scope' },
+              { ...historyMessages[0]!, id: 'out', chatId: 'other', text: 'out of scope' },
+            ],
+          }),
+      }),
+      dispatch,
+      getState,
+      'scope',
+      'c1'
+    )
+    const loaded = events[1] as Extract<AppEvent, { type: 'messageSearch/resultsLoaded' }>
+    expect(loaded.results.map((r) => r.messageId)).toEqual(['in']) // out-of-scope hit dropped
+    expect(loaded.partial).toBe(true)
+    expect(loaded.note).toContain('locally')
+  })
+
+  test('server failure falls back to loaded history, labeled partial', async () => {
+    const { dispatch, events } = capture()
+    await runMessageSearch(
+      gateway({
+        searchMessages: async () => {
+          throw new BeeperError('unreachable', 'down')
+        },
+      }),
+      dispatch,
+      getState,
+      'friday',
+      null
+    )
+    const loaded = events[1] as Extract<AppEvent, { type: 'messageSearch/resultsLoaded' }>
+    expect(loaded.results.map((r) => r.messageId)).toEqual(['m1']) // local match on 'Friday works'
+    expect(loaded.partial).toBe(true)
+    expect(loaded.note).toContain('unavailable')
+  })
+
+  test('server failure with no local match yields a named error state', async () => {
+    const { dispatch, events } = capture()
+    await runMessageSearch(
+      gateway({
+        searchMessages: async () => {
+          throw new BeeperError('unreachable', 'down')
+        },
+      }),
+      dispatch,
+      getState,
+      'zzz-nomatch',
+      null
+    )
+    expect(events[1]).toMatchObject({ type: 'messageSearch/failed' })
   })
 })

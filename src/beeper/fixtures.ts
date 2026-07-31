@@ -109,3 +109,34 @@ export const sendFixture: BeeperDesktop.MessageSendResponse = {
   chatID: '!wa-1:beeper.local',
   pendingMessageID: 'pending-abc123',
 }
+
+/** Search hits spanning two chats — used to exercise scope-honoring detection
+ *  (a server that ignores a chat scope returns the out-of-scope hit too). */
+export const searchFixture: BeeperDesktop.Message[] = [
+  {
+    id: 'search-wa-1',
+    accountID: 'local-whatsapp',
+    chatID: '!wa-1:beeper.local',
+    senderID: 'wa-grace',
+    senderName: 'Grace Hopper',
+    sortKey: '0000000010',
+    timestamp: '2026-07-30T03:00:00.000Z',
+    text: 'Are we still on for Friday?',
+    isSender: false,
+    isUnread: false,
+    type: 'TEXT',
+  },
+  {
+    id: 'search-slack-1',
+    accountID: 'slackgo.ACME-ada',
+    chatID: '!slack-1:beeper.local',
+    senderID: 'slack-bob',
+    senderName: 'Bob',
+    sortKey: '0000000011',
+    timestamp: '2026-07-30T03:05:00.000Z',
+    text: 'Friday deploy is green.',
+    isSender: false,
+    isUnread: false,
+    type: 'TEXT',
+  },
+]

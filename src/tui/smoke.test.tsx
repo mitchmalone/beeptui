@@ -2,8 +2,15 @@ import { describe, expect, test } from 'bun:test'
 import { testRender } from '@opentui/react/test-utils'
 import { App, type AppProps } from '@/tui/app.tsx'
 import { createStore } from '@/tui/store.ts'
-import { applyWatchEvent, bootstrap, openChat, submitSend, type Gateway } from '@/tui/runtime.ts'
-import type { MessageHistoryPage } from '@/beeper/client.ts'
+import {
+  applyWatchEvent,
+  bootstrap,
+  openChat,
+  runMessageSearch,
+  submitSend,
+  type Gateway,
+} from '@/tui/runtime.ts'
+import type { MessageHistoryPage, MessageSearchPage } from '@/beeper/client.ts'
 import type {
   Account,
   ChatSummary,
@@ -90,6 +97,11 @@ function fakeGateway(): Gateway {
     }),
     sendMessage: async (): Promise<SendResult> => ({ chatId: 'c-wa', pendingMessageId: 'srv-1' }),
     getChat: async () => chats[0]!,
+    searchMessages: async (query): Promise<MessageSearchPage> => ({
+      messages: history.filter((m) => (m.text ?? '').toLowerCase().includes(query.toLowerCase())),
+      scopeHonored: true,
+      capped: false,
+    }),
   }
 }
 
@@ -111,6 +123,8 @@ async function harness() {
         timestamp: '2026-07-31T02:05:00.000Z',
       }),
     onRetry: () => {},
+    onSearchMessages: (query, scopeChatId) =>
+      void runMessageSearch(gateway, store.dispatch, store.getState, query, scopeChatId),
   }
   const r = await testRender(<App {...props} />, { width: 100, height: 24 })
   const settle = async () => {
@@ -204,5 +218,57 @@ describe('golden-path smoke', () => {
     h.store.dispatch({ type: 'connection/changed', state: 'connected' })
     await h.settle()
     expect(h.store.getState().drafts['c-wa']).toBe('hi')
+  })
+
+  test('scenario 5: the network rail scopes the inbox, and archived view is honored', async () => {
+    const h = await harness()
+    // Both networks visible under "All".
+    expect(h.captureCharFrame()).toContain('Grace Hopper')
+    expect(h.captureCharFrame()).toContain('engineering')
+
+    // ] scopes to the first network (WhatsApp): the Slack chat drops out.
+    await h.mockInput.pressKey(']')
+    await h.settle()
+    expect(h.store.getState().filter.scope).toBe('wa')
+    let frame = h.captureCharFrame()
+    expect(frame).toContain('Grace Hopper')
+    expect(frame).not.toContain('engineering')
+
+    // ] again → Slack scope: the WhatsApp chat drops out.
+    await h.mockInput.pressKey(']')
+    await h.settle()
+    frame = h.captureCharFrame()
+    expect(frame).toContain('engineering')
+    expect(frame).not.toContain('Grace Hopper')
+
+    // [ back to All, then archived view: neither fixture chat is archived, so
+    // the list is empty and the rail names the archived mode — honest, not blank.
+    await h.mockInput.pressKey('[')
+    await h.mockInput.pressKey('a')
+    await h.settle()
+    expect(h.store.getState().filter.archived).toBe(true)
+    frame = h.captureCharFrame()
+    expect(frame).toContain('No chats to show')
+    expect(frame).toContain('archived') // status bar filter indicator
+  })
+
+  test('scenario 6: message search finds a message and lands in its conversation', async () => {
+    const h = await harness()
+    await h.mockInput.pressKey('S', { shift: true }) // open message search
+    await h.settle()
+    expect(h.store.getState().overlay).toBe('messageSearch')
+
+    await h.mockInput.pressKeys(['s', 'h', 'i', 'p'])
+    await h.mockInput.pressKey('RETURN') // run the search
+    await h.settle()
+    const frame = h.captureCharFrame()
+    expect(frame).toContain('Ship it.') // the matching snippet
+    expect(frame).toContain('Grace Hopper') // with chat context
+
+    await h.mockInput.pressKey('RETURN') // open the selected hit
+    await h.settle()
+    expect(h.store.getState().overlay).toBe('none')
+    expect(h.store.getState().selectedChatId).toBe('c-wa')
+    expect(h.captureCharFrame()).toContain('Ship it.') // landed in the conversation
   })
 })

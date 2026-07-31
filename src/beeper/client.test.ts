@@ -5,6 +5,7 @@ import {
   chatsFixture,
   infoFixture,
   messagesFixture,
+  searchFixture,
   sendFixture,
 } from '@/beeper/fixtures.ts'
 
@@ -94,6 +95,48 @@ describe('BeeperAdapter happy paths', () => {
     await a.listMessages('!wa-1:beeper.local', { cursor: 'CURSOR-1' })
     expect(sentQuery).toContain('cursor=CURSOR-1')
     expect(sentQuery).toContain('direction=before')
+  })
+
+  test('searchMessages returns mapped hits and reports scope honored when unscoped', async () => {
+    const a = adapter(
+      fakeFetch((_m, p) => (p.endsWith('/messages/search') ? page(searchFixture) : json({}, 404)))
+    )
+    const result = await a.searchMessages('Friday')
+    expect(result.messages.map((m) => m.id)).toEqual(['search-wa-1', 'search-slack-1'])
+    expect(result.scopeHonored).toBe(true) // nothing requested to honor
+    expect(result.capped).toBe(false)
+  })
+
+  test('searchMessages passes the query and chat scope', async () => {
+    let sentQuery = ''
+    const capturing = (async (input: string | URL | Request) => {
+      const url = new URL(typeof input === 'string' ? input : input.toString())
+      sentQuery = url.search
+      return page(searchFixture)
+    }) as unknown as typeof fetch
+    await adapter(capturing).searchMessages('Friday', { accountId: 'local-whatsapp' })
+    expect(sentQuery).toContain('query=Friday')
+    expect(sentQuery).toContain('local-whatsapp')
+  })
+
+  test('a scope-ignoring server is detected (scopeHonored false), never silently wrong', async () => {
+    // We ask for one chat; the server returns hits from another chat too.
+    const a = adapter(
+      fakeFetch((_m, p) => (p.endsWith('/messages/search') ? page(searchFixture) : json({}, 404)))
+    )
+    const result = await a.searchMessages('Friday', { chatId: '!wa-1:beeper.local' })
+    expect(result.messages.length).toBe(2) // includes the out-of-scope slack hit
+    expect(result.scopeHonored).toBe(false) // so the caller can fall back / label
+  })
+
+  test('a scope-honoring server reports scopeHonored true', async () => {
+    const onlyWa = searchFixture.filter((m) => m.chatID === '!wa-1:beeper.local')
+    const a = adapter(
+      fakeFetch((_m, p) => (p.endsWith('/messages/search') ? page(onlyWa) : json({}, 404)))
+    )
+    const result = await a.searchMessages('Friday', { chatId: '!wa-1:beeper.local' })
+    expect(result.scopeHonored).toBe(true)
+    expect(result.messages.map((m) => m.id)).toEqual(['search-wa-1'])
   })
 
   test('sendMessage posts and returns the pending id', async () => {

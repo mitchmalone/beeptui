@@ -1,4 +1,8 @@
-import type { MessageHistoryPage } from '@/beeper/client.ts'
+import type {
+  MessageHistoryPage,
+  MessageSearchOptions,
+  MessageSearchPage,
+} from '@/beeper/client.ts'
 import { BeeperError, normalizeError } from '@/beeper/errors.ts'
 import type {
   Account,
@@ -9,7 +13,13 @@ import type {
 } from '@/beeper/types.ts'
 import type { WatchEvent } from '@/beeper/watch-protocol.ts'
 import type { WatchStatus } from '@/beeper/watch.ts'
-import { PENDING_SORT_PREFIX, type AppEvent, type ConnectionState } from '@/state/types.ts'
+import {
+  PENDING_SORT_PREFIX,
+  type AppEvent,
+  type AppState,
+  type ConnectionState,
+} from '@/state/types.ts'
+import { localSearchMessages, toHit } from '@/tui/message-search.ts'
 
 /**
  * The adapter surface the runtime needs. `BeeperAdapter` satisfies it; tests
@@ -25,6 +35,7 @@ export interface Gateway {
   ): Promise<MessageHistoryPage>
   sendMessage(chatId: string, text: string): Promise<SendResult>
   getChat(chatId: string): Promise<ChatSummary>
+  searchMessages(query: string, options?: MessageSearchOptions): Promise<MessageSearchPage>
 }
 
 export interface SendParams {
@@ -176,6 +187,65 @@ export async function retrySend(
 ): Promise<void> {
   dispatch({ type: 'send/retried', chatId: params.chatId, clientId: params.clientId })
   await attemptSend(gateway, dispatch, params)
+}
+
+// ── Message search (Slice 10) ────────────────────────────────────────────
+
+/**
+ * Run a message search through the adapter and dispatch the results. Honest
+ * about coverage (invariant 8):
+ *  - server honored the scope → results as-is, flagged `partial` only if capped;
+ *  - server ignored a chat scope → filter to the scope locally and label it;
+ *  - server search failed → fall back to searching loaded history, labeled
+ *    partial, or a named error state when even that is empty.
+ * `getState` is read after the await so hits are enriched with current chats.
+ */
+export async function runMessageSearch(
+  gateway: Gateway,
+  dispatch: Dispatch,
+  getState: () => AppState,
+  query: string,
+  scopeChatId: string | null
+): Promise<void> {
+  dispatch({ type: 'messageSearch/requested' })
+  try {
+    const page = await gateway.searchMessages(
+      query,
+      scopeChatId !== null ? { chatId: scopeChatId } : {}
+    )
+    const state = getState()
+    if (scopeChatId !== null && !page.scopeHonored) {
+      const scoped = page.messages
+        .filter((m) => m.chatId === scopeChatId)
+        .map((m) => toHit(state, m))
+      dispatch({
+        type: 'messageSearch/resultsLoaded',
+        results: scoped,
+        partial: true,
+        note: 'Scoped locally — server search is chat-wide',
+      })
+      return
+    }
+    dispatch({
+      type: 'messageSearch/resultsLoaded',
+      results: page.messages.map((m) => toHit(state, m)),
+      partial: page.capped,
+      note: page.capped ? 'Showing first results' : null,
+    })
+  } catch {
+    // Server search unavailable: fall back to loaded history, clearly partial.
+    const local = localSearchMessages(getState(), query, scopeChatId)
+    if (local.length > 0) {
+      dispatch({
+        type: 'messageSearch/resultsLoaded',
+        results: local,
+        partial: true,
+        note: 'Local results — server search unavailable',
+      })
+    } else {
+      dispatch({ type: 'messageSearch/failed', note: 'Search unavailable' })
+    }
+  }
 }
 
 // ── Live updates (Slice 6) ───────────────────────────────────────────────

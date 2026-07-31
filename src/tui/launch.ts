@@ -14,6 +14,7 @@ import {
   refreshChats,
   resyncAfterReconnect,
   retrySend,
+  runMessageSearch,
   submitSend,
   watchStatusToConnection,
 } from '@/tui/runtime.ts'
@@ -69,9 +70,21 @@ export async function launch(): Promise<void> {
       timestamp: new Date().toISOString(),
     })
   }
+  const onSearchMessages = (query: string, scopeChatId: string | null) => {
+    void runMessageSearch(adapter, store.dispatch, store.getState, query, scopeChatId)
+  }
 
   createRoot(renderer).render(
-    createElement(App, { store, onQuit, onRefresh, onOpenChat, onLoadOlder, onSend, onRetry })
+    createElement(App, {
+      store,
+      onQuit,
+      onRefresh,
+      onOpenChat,
+      onLoadOlder,
+      onSend,
+      onRetry,
+      onSearchMessages,
+    })
   )
 
   // Fire-and-forget: bootstrap dispatches into the store, which re-renders the app.

@@ -21,7 +21,48 @@ export type MessageDeliveryStatus = 'sent' | 'pending' | 'failed'
 export type FocusTarget = 'inbox' | 'conversation' | 'compose'
 
 /** Modal overlay on top of the panes, if any. */
-export type Overlay = 'none' | 'search' | 'help'
+export type Overlay = 'none' | 'search' | 'help' | 'messageSearch'
+
+/** One message-search hit, enriched with the chat context the palette renders. */
+export interface MessageSearchHit {
+  messageId: string
+  chatId: string
+  chatTitle: string
+  network: string
+  senderName: string
+  timestamp: string
+  snippet: string
+}
+
+export type MessageSearchStatus = 'idle' | 'searching' | 'done' | 'error'
+
+/**
+ * Message-search overlay state. Unlike chat search (a pure local fuzzy filter),
+ * message search runs through the Beeper adapter, so it carries an async status
+ * and an honest `partial`/`note` for capped or fallback (local) results.
+ */
+export interface MessageSearchState {
+  query: string
+  status: MessageSearchStatus
+  results: MessageSearchHit[]
+  selectedIndex: number
+  /** Coverage is partial: a local fallback, or the server ignored our scope. */
+  partial: boolean
+  /** Short reason for partial/failed results, or null. */
+  note: string | null
+  /** Chat the search is scoped to (the active chat when opened), or null. */
+  scopeChatId: string | null
+}
+
+export const initialMessageSearch: MessageSearchState = {
+  query: '',
+  status: 'idle',
+  results: [],
+  selectedIndex: 0,
+  partial: false,
+  note: null,
+  scopeChatId: null,
+}
 
 /** Network-rail scope: 'all' networks, or a specific account id. */
 export type FilterScope = 'all' | (string & {})
@@ -76,6 +117,8 @@ export interface AppState {
   searchQuery: string
   /** Inbox filter driven by the network rail (scope / archived / unread). */
   filter: InboxFilter
+  /** Message-search overlay state (adapter-backed; see `initialMessageSearch`). */
+  messageSearch: MessageSearchState
   /** Per-chat draft text (state only; persistence is Slice 7). */
   drafts: Record<string, string>
   server: ServerInfo | null
@@ -96,6 +139,7 @@ export const initialState: AppState = {
   overlay: 'none',
   searchQuery: '',
   filter: { scope: 'all', archived: false, unreadOnly: false },
+  messageSearch: initialMessageSearch,
   drafts: {},
   server: null,
   error: null,
@@ -130,6 +174,18 @@ export type AppEvent =
   | { type: 'filter/scopeSelected'; scope: FilterScope }
   | { type: 'filter/archivedToggled' }
   | { type: 'filter/unreadToggled' }
+  | { type: 'messageSearch/opened'; scopeChatId: string | null }
+  | { type: 'messageSearch/queryChanged'; query: string }
+  | { type: 'messageSearch/requested' }
+  | {
+      type: 'messageSearch/resultsLoaded'
+      results: MessageSearchHit[]
+      partial: boolean
+      note: string | null
+    }
+  | { type: 'messageSearch/failed'; note: string }
+  | { type: 'messageSearch/selectionMoved'; delta: 1 | -1 }
+  | { type: 'messageSearch/closed' }
   | { type: 'draft/changed'; chatId: string; text: string }
   | { type: 'send/requested'; chatId: string; clientId: string; text: string; timestamp: string }
   | { type: 'send/succeeded'; chatId: string; clientId: string; message: MessageSummary }

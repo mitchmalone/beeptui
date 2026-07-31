@@ -18,6 +18,7 @@ import { StatusBar } from '@/tui/components/StatusBar.tsx'
 import { ConversationView } from '@/tui/components/ConversationView.tsx'
 import { Compose } from '@/tui/components/Compose.tsx'
 import { SearchPalette } from '@/tui/components/SearchPalette.tsx'
+import { MessageSearchPalette } from '@/tui/components/MessageSearchPalette.tsx'
 import { HelpOverlay } from '@/tui/components/HelpOverlay.tsx'
 
 /** Below this terminal width we collapse to a single pane. */
@@ -35,6 +36,8 @@ export interface AppProps {
   onSend: (chatId: string, text: string) => void
   /** Retry a previously failed send. */
   onRetry: (chatId: string, clientId: string, text: string) => void
+  /** Run a message search through the adapter (scoped to a chat when given). */
+  onSearchMessages: (query: string, scopeChatId: string | null) => void
 }
 
 /**
@@ -51,6 +54,7 @@ export function App({
   onLoadOlder,
   onSend,
   onRetry,
+  onSearchMessages,
 }: AppProps) {
   const state = useSyncExternalStore(store.subscribe, store.getState)
   const rows = selectInboxRows(state)
@@ -96,6 +100,37 @@ export function App({
       return
     }
 
+    if (s.overlay === 'messageSearch') {
+      const ms = s.messageSearch
+      if (key.name === 'escape') {
+        store.dispatch({ type: 'messageSearch/closed' })
+      } else if (key.name === 'up') {
+        store.dispatch({ type: 'messageSearch/selectionMoved', delta: -1 })
+      } else if (key.name === 'down') {
+        store.dispatch({ type: 'messageSearch/selectionMoved', delta: 1 })
+      } else if (key.name === 'return' || key.name === 'enter') {
+        // With results in hand, Enter opens the selected hit; otherwise it runs
+        // the search (only when there's a query to run).
+        if (ms.status === 'done' && ms.results.length > 0) {
+          const hit = ms.results[ms.selectedIndex]
+          if (hit) onOpenChat(hit.chatId)
+          store.dispatch({ type: 'messageSearch/closed' })
+        } else if (ms.query.trim().length > 0) {
+          onSearchMessages(ms.query, ms.scopeChatId)
+        }
+      } else if (key.name === 'backspace') {
+        store.dispatch({ type: 'messageSearch/queryChanged', query: ms.query.slice(0, -1) })
+      } else if (
+        !key.ctrl &&
+        !key.meta &&
+        (key.sequence?.length ?? 0) === 1 &&
+        (key.sequence ?? '') >= ' '
+      ) {
+        store.dispatch({ type: 'messageSearch/queryChanged', query: ms.query + key.sequence })
+      }
+      return
+    }
+
     // Compose owns every key while focused (letters must type, not run commands).
     if (s.focus === 'compose') return
 
@@ -107,6 +142,12 @@ export function App({
     }
     if (key.sequence === '?') {
       store.dispatch({ type: 'overlay/opened', overlay: 'help' })
+      return
+    }
+    // Message search scopes to the active chat when one is open, else searches all.
+    if (resolveCommand({ name: key.name, shift: key.shift }) === 'search-messages') {
+      const scopeChatId = s.focus === 'conversation' ? s.selectedChatId : null
+      store.dispatch({ type: 'messageSearch/opened', scopeChatId })
       return
     }
 
@@ -223,6 +264,8 @@ export function App({
       <HelpOverlay groups={helpGroups()} />
     ) : state.overlay === 'search' ? (
       <SearchPalette query={state.searchQuery} results={searchChats(state.searchQuery, rows)} />
+    ) : state.overlay === 'messageSearch' ? (
+      <MessageSearchPalette state={state.messageSearch} />
     ) : null
 
   return (

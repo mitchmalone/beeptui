@@ -22,6 +22,30 @@ export interface MessageHistoryPage {
   cursor: string | null
 }
 
+/** How to narrow a message search. Omit both to search everything. */
+export interface MessageSearchOptions {
+  /** Restrict to one chat (PRD: search scoped to the active chat when selected). */
+  chatId?: string
+  /** Restrict to one account/network. */
+  accountId?: string
+  limit?: number
+}
+
+/** Result of a message search through the Beeper API. */
+export interface MessageSearchPage {
+  messages: MessageSummary[]
+  /**
+   * Whether the server actually honored the requested scope — verified by
+   * checking every hit matches the chat/account we asked for. A server that
+   * ignores scope (returns cross-chat hits) reports `false`, so the caller can
+   * label the results honestly / fall back rather than show wrong results
+   * (CLAUDE.md invariant 8).
+   */
+  scopeHonored: boolean
+  /** True when the result was truncated at `limit` — more may exist server-side. */
+  capped: boolean
+}
+
 export interface BeeperAdapterOptions {
   endpoint: string
   /** Bearer token. Omit for an unauthenticated client (auth'd calls will 401). */
@@ -34,6 +58,7 @@ export interface BeeperAdapterOptions {
 
 const DEFAULT_TIMEOUT_MS = 30_000
 const DEFAULT_PAGE_LIMIT = 50
+const DEFAULT_SEARCH_LIMIT = 50
 
 /**
  * The typed adapter over the Beeper Desktop API — the only place the app talks
@@ -103,6 +128,33 @@ export class BeeperAdapter {
         hasMore: page.hasMore,
         cursor: page.oldestCursor,
       }
+    })
+  }
+
+  /**
+   * Search messages across chats through Beeper's search endpoint. Scoping is
+   * requested via `chatIDs` / `accountIDs`, but never trusted blindly: the
+   * result reports whether the server honored that scope so the caller can fall
+   * back to a labeled local search instead of surfacing cross-chat hits as if
+   * they were scoped.
+   */
+  async searchMessages(
+    query: string,
+    options: MessageSearchOptions = {}
+  ): Promise<MessageSearchPage> {
+    const limit = options.limit ?? DEFAULT_SEARCH_LIMIT
+    return this.#guard(async () => {
+      const params: BeeperDesktop.MessageSearchParams = { query }
+      if (options.chatId !== undefined) params.chatIDs = [options.chatId]
+      if (options.accountId !== undefined) params.accountIDs = [options.accountId]
+      const items = await this.#collect(this.#client.messages.search(params), limit)
+      const messages = items.map(mapMessage)
+      const scopeHonored = messages.every(
+        (m) =>
+          (options.chatId === undefined || m.chatId === options.chatId) &&
+          (options.accountId === undefined || m.accountId === options.accountId)
+      )
+      return { messages, scopeHonored, capped: messages.length >= limit }
     })
   }
 

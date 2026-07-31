@@ -1,5 +1,6 @@
 import type { Account, ChatSummary, MessageSummary } from '@/beeper/types.ts'
 import {
+  initialMessageSearch,
   MAX_MESSAGES_PER_CHAT,
   PENDING_SORT_PREFIX,
   type AppEvent,
@@ -261,6 +262,71 @@ export function reduce(state: AppState, event: AppEvent): AppState {
 
     case 'filter/unreadToggled':
       return { ...state, filter: { ...state.filter, unreadOnly: !state.filter.unreadOnly } }
+
+    case 'messageSearch/opened':
+      return {
+        ...state,
+        overlay: 'messageSearch',
+        messageSearch: { ...initialMessageSearch, scopeChatId: event.scopeChatId },
+      }
+
+    case 'messageSearch/queryChanged':
+      // Editing the query invalidates prior results (they must be re-fetched).
+      return {
+        ...state,
+        messageSearch: {
+          ...state.messageSearch,
+          query: event.query,
+          status: 'idle',
+          results: [],
+          selectedIndex: 0,
+          partial: false,
+          note: null,
+        },
+      }
+
+    case 'messageSearch/requested':
+      return { ...state, messageSearch: { ...state.messageSearch, status: 'searching' } }
+
+    case 'messageSearch/resultsLoaded':
+      return {
+        ...state,
+        messageSearch: {
+          ...state.messageSearch,
+          status: 'done',
+          results: event.results,
+          selectedIndex: 0,
+          partial: event.partial,
+          note: event.note,
+        },
+      }
+
+    case 'messageSearch/failed':
+      return {
+        ...state,
+        messageSearch: {
+          ...state.messageSearch,
+          status: 'error',
+          results: [],
+          selectedIndex: 0,
+          partial: false,
+          note: event.note,
+        },
+      }
+
+    case 'messageSearch/selectionMoved': {
+      const count = state.messageSearch.results.length
+      if (count === 0) return state
+      const max = count - 1
+      const selectedIndex = Math.min(
+        max,
+        Math.max(0, state.messageSearch.selectedIndex + event.delta)
+      )
+      return { ...state, messageSearch: { ...state.messageSearch, selectedIndex } }
+    }
+
+    case 'messageSearch/closed':
+      return { ...state, overlay: 'none', messageSearch: initialMessageSearch }
 
     case 'error/raised':
       return { ...state, error: { kind: event.kind, message: event.message } }

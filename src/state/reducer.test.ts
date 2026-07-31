@@ -464,3 +464,89 @@ describe('inbox filter (network rail)', () => {
     expect(s.filter.scope).toBe('all')
   })
 })
+
+describe('message search overlay', () => {
+  const hit = (id: string) => ({
+    messageId: id,
+    chatId: 'c1',
+    chatTitle: 'Chat',
+    network: 'WhatsApp',
+    senderName: 'Grace',
+    timestamp: '2026-07-30T00:00:00.000Z',
+    snippet: id,
+  })
+
+  test('opened sets the overlay and captures the scope', () => {
+    const s = reduce(initialState, { type: 'messageSearch/opened', scopeChatId: 'c1' })
+    expect(s.overlay).toBe('messageSearch')
+    expect(s.messageSearch.scopeChatId).toBe('c1')
+    expect(s.messageSearch.status).toBe('idle')
+  })
+
+  test('queryChanged invalidates prior results', () => {
+    const s = run([
+      { type: 'messageSearch/opened', scopeChatId: null },
+      { type: 'messageSearch/requested' },
+      { type: 'messageSearch/resultsLoaded', results: [hit('a')], partial: false, note: null },
+      { type: 'messageSearch/queryChanged', query: 'fri' },
+    ])
+    expect(s.messageSearch.query).toBe('fri')
+    expect(s.messageSearch.status).toBe('idle')
+    expect(s.messageSearch.results).toEqual([])
+  })
+
+  test('requested → resultsLoaded carries partial + note', () => {
+    const s = run([
+      { type: 'messageSearch/opened', scopeChatId: null },
+      { type: 'messageSearch/requested' },
+      {
+        type: 'messageSearch/resultsLoaded',
+        results: [hit('a'), hit('b')],
+        partial: true,
+        note: 'Local results',
+      },
+    ])
+    expect(s.messageSearch.status).toBe('done')
+    expect(s.messageSearch.results).toHaveLength(2)
+    expect(s.messageSearch.partial).toBe(true)
+    expect(s.messageSearch.note).toBe('Local results')
+  })
+
+  test('failed clears results and records a note', () => {
+    const s = run([
+      { type: 'messageSearch/opened', scopeChatId: null },
+      { type: 'messageSearch/failed', note: 'Search unavailable' },
+    ])
+    expect(s.messageSearch.status).toBe('error')
+    expect(s.messageSearch.results).toEqual([])
+    expect(s.messageSearch.note).toBe('Search unavailable')
+  })
+
+  test('selectionMoved clamps within results', () => {
+    const base = run([
+      { type: 'messageSearch/opened', scopeChatId: null },
+      {
+        type: 'messageSearch/resultsLoaded',
+        results: [hit('a'), hit('b')],
+        partial: false,
+        note: null,
+      },
+    ])
+    const up = reduce(base, { type: 'messageSearch/selectionMoved', delta: -1 })
+    expect(up.messageSearch.selectedIndex).toBe(0) // clamped at top
+    const down = reduce(base, { type: 'messageSearch/selectionMoved', delta: 1 })
+    expect(down.messageSearch.selectedIndex).toBe(1)
+    const past = reduce(down, { type: 'messageSearch/selectionMoved', delta: 1 })
+    expect(past.messageSearch.selectedIndex).toBe(1) // clamped at bottom
+  })
+
+  test('closed resets the overlay and search state', () => {
+    const s = run([
+      { type: 'messageSearch/opened', scopeChatId: 'c1' },
+      { type: 'messageSearch/closed' },
+    ])
+    expect(s.overlay).toBe('none')
+    expect(s.messageSearch.scopeChatId).toBeNull()
+    expect(s.messageSearch.results).toEqual([])
+  })
+})

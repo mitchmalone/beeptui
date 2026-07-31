@@ -53,6 +53,7 @@ async function renderApp(store: Store, over: Partial<AppProps> = {}) {
     onLoadOlder: noop,
     onSend: noop,
     onRetry: noop,
+    onSearchMessages: noop,
     ...over,
   }
   return testRender(<App {...props} />, { width: 100, height: 24 })
@@ -278,6 +279,60 @@ describe('App shell', () => {
       await mockInput.pressKey('RETURN')
       expect(opened).toEqual([]) // no match → nothing opened
       expect(store.getState().overlay).toBe('none') // but the overlay closes
+    })
+
+    test('S opens message search; typing then Enter runs the scoped search; Enter opens a hit', async () => {
+      const store = seededStore()
+      const searched: Array<[string, string | null]> = []
+      const opened: string[] = []
+      const { renderOnce, captureCharFrame, mockInput } = await renderApp(store, {
+        onSearchMessages: (q, scope) => {
+          searched.push([q, scope])
+          // Simulate the runtime dispatching a result back into the store.
+          store.dispatch({
+            type: 'messageSearch/resultsLoaded',
+            results: [
+              {
+                messageId: 'm9',
+                chatId: 'c2',
+                chatTitle: 'engineering',
+                network: 'Slack',
+                senderName: 'Bob',
+                timestamp: '2026-07-31T02:00:00.000Z',
+                snippet: 'Friday deploy is green',
+              },
+            ],
+            partial: false,
+            note: null,
+          })
+        },
+        onOpenChat: (id) => opened.push(id),
+      })
+      await renderOnce()
+      await mockInput.pressKey('S', { shift: true })
+      expect(store.getState().overlay).toBe('messageSearch')
+      await mockInput.pressKeys(['f', 'r', 'i'])
+      expect(store.getState().messageSearch.query).toBe('fri')
+      await mockInput.pressKey('RETURN') // runs the search
+      expect(searched).toEqual([['fri', null]]) // unscoped from the inbox
+      await renderOnce()
+      expect(captureCharFrame()).toContain('Friday deploy is green')
+      await mockInput.pressKey('RETURN') // opens the selected hit
+      expect(opened).toEqual(['c2'])
+      expect(store.getState().overlay).toBe('none')
+    })
+
+    test('message search from an open chat scopes to that chat', async () => {
+      const store = openChatStore() // c1 open, conversation focused
+      const searched: Array<[string, string | null]> = []
+      const { renderOnce, mockInput } = await renderApp(store, {
+        onSearchMessages: (q, scope) => searched.push([q, scope]),
+      })
+      await renderOnce()
+      await mockInput.pressKey('S', { shift: true })
+      await mockInput.pressKeys(['h', 'i'])
+      await mockInput.pressKey('RETURN')
+      expect(searched).toEqual([['hi', 'c1']]) // scoped to the active chat
     })
 
     test('? opens the help overlay listing bindings generated from the keymap', async () => {

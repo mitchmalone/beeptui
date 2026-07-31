@@ -15,6 +15,7 @@ export type Command =
   | 'compose'
   | 'retry'
   | 'search'
+  | 'search-messages'
   | 'help'
   | 'refresh'
   | 'network-cycle'
@@ -115,6 +116,13 @@ export const KEYMAP: readonly Binding[] = [
     context: 'global',
   },
   { keys: ['/'], display: '/', command: 'search', description: 'Search chats', context: 'global' },
+  {
+    keys: ['shift+s'],
+    display: 'S',
+    command: 'search-messages',
+    description: 'Search messages',
+    context: 'global',
+  },
   {
     keys: ['?'],
     display: '?',
