@@ -1,5 +1,18 @@
 import type { BeeperAdapter } from '@/beeper/client.ts'
 import { BeeperError } from '@/beeper/errors.ts'
+import type { ServerInfo } from '@/beeper/types.ts'
+
+/** Classify a configured endpoint as the local Desktop loopback or a remote
+ *  server, from its host — so `doctor` can name local-vs-remote failure modes
+ *  (Slice 13). A non-URL string is treated as local (the default path). */
+export function classifyEndpoint(endpoint: string): 'local' | 'remote' {
+  try {
+    const host = new URL(endpoint).hostname
+    return host === '127.0.0.1' || host === 'localhost' || host === '::1' ? 'local' : 'remote'
+  } catch {
+    return 'local'
+  }
+}
 
 export interface DoctorContext {
   endpoint: string
@@ -29,22 +42,40 @@ export async function runDoctor(ctx: DoctorContext): Promise<DoctorResult> {
   const checks: DoctorCheck[] = []
 
   // 1. Reachability — via the pre-auth /v1/info endpoint.
+  const kind = classifyEndpoint(ctx.endpoint)
   let reachable = false
+  let info: ServerInfo | null = null
   try {
-    await ctx.adapter.getInfo()
+    info = await ctx.adapter.getInfo()
     reachable = true
     checks.push({
-      name: 'Beeper Desktop reachable',
+      name: kind === 'remote' ? 'Remote endpoint reachable' : 'Beeper Desktop reachable',
       status: 'pass',
-      detail: `Reached the API at ${ctx.endpoint}.`,
+      detail: `Reached the ${kind} API at ${ctx.endpoint}.`,
     })
   } catch (err) {
-    const kind = err instanceof BeeperError ? err.kind : 'unknown'
+    const errorKind = err instanceof BeeperError ? err.kind : 'unknown'
     checks.push({
-      name: 'Beeper Desktop reachable',
+      name: kind === 'remote' ? 'Remote endpoint reachable' : 'Beeper Desktop reachable',
       status: 'fail',
-      detail: `Could not reach the API at ${ctx.endpoint} (${kind}).`,
-      remediation: 'Make sure Beeper Desktop is running and the API is enabled in its settings.',
+      detail: `Could not reach the ${kind} API at ${ctx.endpoint} (${errorKind}).`,
+      remediation:
+        kind === 'remote'
+          ? 'Check the remote endpoint URL, that the host is up, and that Beeper remote access is enabled there.'
+          : 'Make sure Beeper Desktop is running and the API is enabled in its settings.',
+    })
+  }
+
+  // 1b. Endpoint kind + remote-access posture (informational; helps distinguish
+  // a local-Desktop setup from a remote one when diagnosing).
+  if (info !== null) {
+    checks.push({
+      name: 'Endpoint',
+      status: 'pass',
+      detail:
+        kind === 'remote'
+          ? `Remote endpoint (server remote access: ${info.remoteAccessEnabled ? 'on' : 'off'}).`
+          : `Local Beeper Desktop (remote access: ${info.remoteAccessEnabled ? 'on' : 'off'}).`,
     })
   }
 
