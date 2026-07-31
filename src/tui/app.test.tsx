@@ -109,6 +109,20 @@ describe('App shell', () => {
     expect(opened).toEqual(['c2'])
   })
 
+  test('A archives the highlighted chat straight from the list (no need to open it)', async () => {
+    const store = seededStore()
+    const archived: string[] = []
+    const { renderOnce, mockInput } = await renderApp(store, {
+      onArchiveChat: (id) => archived.push(id),
+    })
+    await renderOnce()
+    await mockInput.pressKey('j') // highlight the first chat, still in the inbox
+    expect(store.getState().focus).toBe('inbox')
+    expect(store.getState().selectedChatId).toBe('c1')
+    await mockInput.pressKey('A', { shift: true })
+    expect(archived).toEqual(['c1'])
+  })
+
   test('conversation renders messages once loaded, and Esc returns focus to the inbox', async () => {
     const store = seededStore()
     store.dispatch({ type: 'chat/selected', chatId: 'c1' })

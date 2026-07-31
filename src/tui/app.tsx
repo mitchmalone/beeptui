@@ -243,6 +243,10 @@ export function App({
         case 'refresh':
           onRefresh()
           break
+        case 'archive-chat':
+          // Quick-archive the highlighted chat without opening it.
+          if (s.selectedChatId !== null) onArchiveChat(s.selectedChatId)
+          break
         case 'back':
           // Step out to the network rail (the outermost pane).
           store.dispatch({ type: 'focus/changed', focus: 'rail' })

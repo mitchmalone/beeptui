@@ -429,77 +429,102 @@ describe('runMessageSearch', () => {
 })
 
 describe('archiveChat', () => {
-  const stateWith = (over: Partial<ChatSummary>): AppState =>
-    reduce(initialState, { type: 'chats/loaded', chats: [{ ...chats[0]!, ...over }] })
+  const c = (over: Partial<ChatSummary>): ChatSummary => ({ ...chats[0]!, ...over })
 
-  test('archives an active chat: calls the adapter, reconciles, steps back to the list', async () => {
-    const { dispatch, events } = capture()
+  // Store-backed harness: dispatch threads through the real reducer so getState
+  // reflects the reconcile (the "select next" logic reads state post-upsert).
+  function harness(initialChats: ChatSummary[], selectedId: string | null = null) {
+    let state = reduce(initialState, { type: 'chats/loaded', chats: initialChats })
+    if (selectedId !== null) state = reduce(state, { type: 'chat/selected', chatId: selectedId })
+    const events: AppEvent[] = []
+    const dispatch = (e: AppEvent): void => {
+      events.push(e)
+      state = reduce(state, e)
+    }
+    return { events, dispatch, getState: () => state }
+  }
+
+  test('archives an active chat: calls the adapter, reconciles, returns to the list', async () => {
+    const h = harness([c({ id: 'c1', isArchived: false, canArchive: true })], 'c1')
     const archivedArgs: boolean[] = []
     await archiveChat(
       gateway({
-        setArchived: async (_id, archived) => {
-          archivedArgs.push(archived)
-        },
-        getChat: async () => ({ ...chats[0]!, isArchived: true }),
+        setArchived: async (_id, a) => void archivedArgs.push(a),
+        getChat: async () => c({ id: 'c1', isArchived: true, canArchive: true }),
       }),
-      dispatch,
-      () => stateWith({ isArchived: false, canArchive: true }),
+      h.dispatch,
+      h.getState,
       'c1'
     )
-    expect(archivedArgs).toEqual([true]) // toggled from active → archived
-    expect(events.map((e) => e.type)).toEqual([
-      'chats/upserted',
-      'chat/selected', // close the conversation
-      'focus/changed',
-      'notice/shown',
-    ])
-    expect(events.at(-1)).toMatchObject({ type: 'notice/shown', message: 'Chat archived.' })
-    expect(events).toContainEqual({ type: 'chat/selected', chatId: null })
-    expect(events[2]).toMatchObject({ type: 'focus/changed', focus: 'inbox' })
+    expect(archivedArgs).toEqual([true]) // toggled active → archived
+    expect(h.getState().chats.c1?.isArchived).toBe(true)
+    expect(h.getState().selectedChatId).toBeNull() // only chat → nothing to land on
+    expect(h.getState().focus).toBe('inbox')
+    expect(h.events.at(-1)).toMatchObject({ type: 'notice/shown', message: 'Chat archived.' })
+  })
+
+  test('keeps the list cursor: lands on the chat that takes the archived one’s place', async () => {
+    const h = harness(
+      [
+        c({ id: 'a', lastActivity: '2026-07-31T02:00:00.000Z', canArchive: true }),
+        c({ id: 'b', lastActivity: '2026-07-31T01:00:00.000Z', canArchive: true }),
+      ],
+      'a'
+    )
+    await archiveChat(
+      gateway({ getChat: async () => c({ id: 'a', isArchived: true, canArchive: true }) }),
+      h.dispatch,
+      h.getState,
+      'a'
+    )
+    expect(h.getState().selectedChatId).toBe('b') // successor selected, not a jump to top
   })
 
   test('unarchives an archived chat (toggles the other way)', async () => {
-    const { dispatch, events } = capture()
+    const h = harness([c({ id: 'c1', isArchived: true, canArchive: true })], 'c1')
     const archivedArgs: boolean[] = []
     await archiveChat(
-      gateway({ setArchived: async (_id, a) => void archivedArgs.push(a) }),
-      dispatch,
-      () => stateWith({ isArchived: true, canArchive: true }),
+      gateway({
+        setArchived: async (_id, a) => void archivedArgs.push(a),
+        getChat: async () => c({ id: 'c1', isArchived: false, canArchive: true }),
+      }),
+      h.dispatch,
+      h.getState,
       'c1'
     )
     expect(archivedArgs).toEqual([false])
-    expect(events.at(-1)).toMatchObject({ type: 'notice/shown', message: 'Chat unarchived.' })
+    expect(h.events.at(-1)).toMatchObject({ type: 'notice/shown', message: 'Chat unarchived.' })
   })
 
   test('unsupported capability → named notice, no adapter call (degrade visibly)', async () => {
-    const { dispatch, events } = capture()
+    const h = harness([c({ id: 'c1', canArchive: false })], 'c1')
     let called = false
     await archiveChat(
       gateway({ setArchived: async () => void (called = true) }),
-      dispatch,
-      () => stateWith({ canArchive: false }),
+      h.dispatch,
+      h.getState,
       'c1'
     )
     expect(called).toBe(false)
-    expect(events).toEqual([
+    expect(h.events).toEqual([
       { type: 'notice/shown', message: "Archive isn't supported for WhatsApp." },
     ])
   })
 
   test('a failed archive surfaces a notice and never fakes success', async () => {
-    const { dispatch, events } = capture()
+    const h = harness([c({ id: 'c1', isArchived: false, canArchive: true })], 'c1')
     await archiveChat(
       gateway({
         setArchived: async () => {
           throw new BeeperError('unreachable', 'down')
         },
       }),
-      dispatch,
-      () => stateWith({ isArchived: false, canArchive: true }),
+      h.dispatch,
+      h.getState,
       'c1'
     )
-    expect(events.map((e) => e.type)).toEqual(['notice/shown'])
-    expect(events[0]).toMatchObject({ type: 'notice/shown' })
-    expect((events[0] as { message: string }).message).toContain("Couldn't archive")
+    expect(h.events.map((e) => e.type)).toEqual(['notice/shown'])
+    expect((h.events[0] as { message: string }).message).toContain("Couldn't archive")
+    expect(h.getState().chats.c1?.isArchived).toBe(false) // untouched
   })
 })

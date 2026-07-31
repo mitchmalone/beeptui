@@ -68,6 +68,13 @@ export const KEYMAP: readonly Binding[] = [
     context: 'inbox',
   },
   {
+    keys: ['shift+a'],
+    display: 'A',
+    command: 'archive-chat',
+    description: 'Archive / unarchive the selected chat',
+    context: 'inbox',
+  },
+  {
     keys: ['escape', 'h', 'left'],
     display: 'Esc / h',
     command: 'back',

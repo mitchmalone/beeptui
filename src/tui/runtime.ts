@@ -19,6 +19,7 @@ import {
   type AppState,
   type ConnectionState,
 } from '@/state/types.ts'
+import { selectInboxRows } from '@/state/selectors.ts'
 import { localSearchMessages, toHit } from '@/tui/message-search.ts'
 
 /**
@@ -252,12 +253,15 @@ export async function runMessageSearch(
 // ── Archive (Slice 10 follow-up) ─────────────────────────────────────────
 
 /**
- * Archive or unarchive the open chat (toggles based on its current state).
- * Capability-gated: if the platform reports archive isn't supported for this
- * chat, we show a named notice and make no call (degrade visibly, invariant 8).
- * On success we refetch the chat (Beeper is the source of truth) and step back
- * to the list — the chat has left the current view. Never fakes success: a
- * failed call surfaces as a notice, and the chat's state is left untouched.
+ * Archive or unarchive a chat (toggles based on its current state). Works from
+ * either the chat list or an open conversation — the target is passed in, not
+ * assumed to be the open chat. Capability-gated: if the platform reports archive
+ * isn't supported, we show a named notice and make no call (degrade visibly,
+ * invariant 8). On success we refetch the chat (Beeper is the source of truth);
+ * since it has now left the current view, we move the selection to the chat that
+ * takes its place so the list cursor stays put (quick successive archiving), and
+ * return focus to the list. Never fakes success: a failed call surfaces as a
+ * notice and the chat's state is left untouched.
  */
 export async function archiveChat(
   gateway: Gateway,
@@ -272,16 +276,22 @@ export async function archiveChat(
     return
   }
   const archived = !chat.isArchived
+  // Where the target sits in the visible list now, so we can land on its
+  // successor once it drops out of view.
+  const index = selectInboxRows(getState()).findIndex((r) => r.id === chatId)
   try {
     await gateway.setArchived(chatId, archived)
-    // Reconcile from the server, then close the conversation and step out to the
-    // list — the chat has left the current view (gmail-style).
     try {
       dispatch({ type: 'chats/upserted', chat: await gateway.getChat(chatId) })
     } catch {
       // Non-fatal: the next refresh/live event reconciles the row.
     }
-    dispatch({ type: 'chat/selected', chatId: null }) // also clears any stale notice
+    // The target has left the current view; select whatever now occupies its
+    // slot (or the last row / nothing) so the cursor doesn't jump to the top.
+    const rows = selectInboxRows(getState())
+    const nextId =
+      rows.length === 0 ? null : (rows[Math.min(Math.max(index, 0), rows.length - 1)]?.id ?? null)
+    dispatch({ type: 'chat/selected', chatId: nextId }) // also clears any stale notice
     dispatch({ type: 'focus/changed', focus: 'inbox' })
     dispatch({ type: 'notice/shown', message: archived ? 'Chat archived.' : 'Chat unarchived.' })
   } catch (err) {
