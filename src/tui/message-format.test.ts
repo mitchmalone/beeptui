@@ -102,4 +102,16 @@ describe('messageLine', () => {
   test('omits the time prefix cleanly when the timestamp is unparseable', () => {
     expect(messageLine(message({ senderName: 'X', text: 'y', timestamp: '' }))).toBe('X: y')
   })
+
+  test('shows a ✓✓ read receipt on our own seen messages, not on inbound or unseen', () => {
+    expect(
+      messageLine(message({ isSender: true, senderName: 'You', text: 'hi', isSeen: true }))
+    ).toContain('✓✓')
+    // Not on an inbound message, even if flagged seen.
+    expect(messageLine(message({ isSender: false, text: 'hi', isSeen: true }))).not.toContain('✓✓')
+    // Not on our own message that isn't seen yet.
+    expect(messageLine(message({ isSender: true, senderName: 'You', text: 'hi' }))).not.toContain(
+      '✓✓'
+    )
+  })
 })

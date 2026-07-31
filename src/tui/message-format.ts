@@ -65,10 +65,18 @@ export function formatMessage(message: MessageEntity): FormattedMessage {
   }
 }
 
-/** Single-line rendering used by the conversation list. */
+/** Single-line rendering used by the conversation list. A read receipt (`✓✓`)
+ *  shows on our own delivered messages the recipient has seen (Slice 14). */
 export function messageLine(message: MessageEntity): string {
   const f = formatMessage(message)
-  const marker = f.status === 'failed' ? ' ⚠ failed' : f.status === 'pending' ? ' …' : ''
+  const marker =
+    f.status === 'failed'
+      ? ' ⚠ failed'
+      : f.status === 'pending'
+        ? ' …'
+        : message.isSender && message.isSeen === true
+          ? ' ✓✓'
+          : ''
   const time = f.time.length > 0 ? `${f.time} ` : ''
   return `${time}${f.sender}: ${f.body}${marker}`
 }

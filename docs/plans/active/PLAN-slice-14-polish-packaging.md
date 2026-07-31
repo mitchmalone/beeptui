@@ -29,10 +29,11 @@ between "works for Mitch's checkout" and "a tool someone installs".
 
 ## Candidate scope (split when re-planning)
 
-- [x] **Read-only reactions** where the API exposes them (`Message.reactions` → aggregated
-      `ReactionSummary`, rendered as a trailing `👍×2 🎉` in `formatMessage`). Edits/receipts:
-      edits already render (`(edited)`, Slice 11); read receipts (`seen`) still a candidate.
-      Reaction _actions_ remain out of scope (PRD ordering: display first).
+- [x] **Read-only reactions + edits + receipts** where the API exposes them. Reactions
+      (`Message.reactions` → aggregated `ReactionSummary`, trailing `👍×2 🎉`); edits (`(edited)`,
+      Slice 11); **read receipts** (`Message.seen`, collapsed to `isSeen` across the bool/string/
+      per-user shapes → `✓✓` on our own seen messages). Reaction/receipt _actions_ stay out of scope
+      (PRD ordering: display first).
 - [x] **Notification hooks**: `config.notify.command` runs on each new inbound message in a chat
       you're not reading (`src/tui/notify.ts` — pure decision + redacted args; `runNotifier` spawns
       argv-free). Payload is app + network only, never sender/chat/body (invariant 6). Config schema

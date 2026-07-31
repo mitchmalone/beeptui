@@ -103,6 +103,9 @@ export interface MessageSummary {
   attachments?: AttachmentSummary[]
   /** Reactions aggregated by key (read-only display, Slice 14). */
   reactions?: ReactionSummary[]
+  /** True when a read receipt reports this message as seen (read-only, Slice 14).
+   *  Only meaningful on our own sent messages. */
+  isSeen?: boolean
 }
 
 export interface SendResult {
@@ -193,6 +196,15 @@ function mapReactions(
   return [...byKey.values()]
 }
 
+/** Collapse the `seen` read-receipt shape (boolean | timestamp string | per-user
+ *  map) into a single "was this read" boolean. Any truthy signal counts. */
+function mapSeen(seen: BeeperDesktop.Message['seen']): boolean {
+  if (seen === undefined) return false
+  if (typeof seen === 'boolean') return seen
+  if (typeof seen === 'string') return seen.length > 0
+  return Object.values(seen).some((v) => v === true || (typeof v === 'string' && v.length > 0))
+}
+
 export function mapMessage(message: BeeperDesktop.Message): MessageSummary {
   const attachments = mapAttachments(message.attachments)
   const reactions = mapReactions(message.reactions)
@@ -211,6 +223,7 @@ export function mapMessage(message: BeeperDesktop.Message): MessageSummary {
     ...(message.linkedMessageID !== undefined ? { replyToId: message.linkedMessageID } : {}),
     ...(attachments !== undefined ? { attachments } : {}),
     ...(reactions !== undefined ? { reactions } : {}),
+    ...(mapSeen(message.seen) ? { isSeen: true } : {}),
   }
 }
 

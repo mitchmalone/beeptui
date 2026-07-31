@@ -131,6 +131,15 @@ describe('mapMessage', () => {
     ])
     expect(plain && 'reactions' in plain).toBe(false)
   })
+
+  test('collapses the seen read-receipt shape (bool / string / per-user map) to isSeen', () => {
+    const base = messagesFixture[1]! // plain outgoing message
+    expect(mapMessage({ ...base, seen: true }).isSeen).toBe(true)
+    expect(mapMessage({ ...base, seen: '2026-07-30T02:00:05Z' }).isSeen).toBe(true)
+    expect(mapMessage({ ...base, seen: { u1: true, u2: false } }).isSeen).toBe(true)
+    expect(mapMessage({ ...base, seen: false }).isSeen).toBeUndefined() // omitted when unseen
+    expect('isSeen' in mapMessage(base)).toBe(false) // absent → omitted
+  })
 })
 
 describe('mapSendResult', () => {
