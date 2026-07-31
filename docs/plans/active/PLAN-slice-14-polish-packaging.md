@@ -45,9 +45,11 @@ between "works for Mitch's checkout" and "a tool someone installs".
       channels; hit or beat the PRD timing criteria consistently.
 - [ ] **Richer media preview** integration where the terminal supports it (Kitty/iTerm2 image
       protocols) — optional, capability-detected.
-- [ ] **Packaging & install docs**: distributable install path (brew tap / `bun` build artifact),
-      pinned OpenTUI/Bun/Zig compatibility validated on macOS arm64 per the PRD risk note, README
-      install/usage docs, versioned releases.
+- [~] **Packaging & install docs**: `bun run build` compiles a **standalone binary**
+  (`dist/beeper-tui`, ~69 MB Mach-O arm64) that runs `--help`/`doctor`/TUI with no Bun at
+  runtime — **OpenTUI/Bun compat validated on macOS arm64** (the PRD risk note). `beeper-tui`
+  name + `bin` already set; README has install/usage docs. Remaining: brew tap / versioned
+  releases + the open-source/license call (#6) before public distribution.
 
 ## Acceptance criteria (draft)
 

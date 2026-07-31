@@ -37,6 +37,24 @@ bun run format       # prettier --write
 bun test             # bun:test
 ```
 
+## Install
+
+`beeper-tui` runs against a local Beeper Desktop (with the API enabled in its
+settings). Two ways to install:
+
+```bash
+# 1. A standalone binary (no Bun needed at runtime) — validated on macOS arm64.
+bun run build              # → dist/beeper-tui (a single ~69 MB executable)
+./dist/beeper-tui doctor   # verify the connection + auth
+./dist/beeper-tui          # launch the TUI
+
+# 2. Directly, if you have Bun.
+bunx beeper-tui doctor
+```
+
+Commands: `beeper-tui` (TUI), `beeper-tui status`, `beeper-tui doctor` (add
+`--json` for machine-readable output).
+
 ## Configuration
 
 Optional config lives at `$XDG_CONFIG_HOME/beeper-tui/config.json` (default
