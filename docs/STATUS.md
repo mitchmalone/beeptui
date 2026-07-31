@@ -7,22 +7,18 @@
 
 ## Where we are
 
-**Slices 0–7 merged to `main`; live-validated end-to-end (2026-07-31), incl. a real WhatsApp send.**
-**Slice 6 — live updates** (WebSocket `subscriptions.set` → `message.upserted` → store; reconnect +
-backoff, gap-resync, scrolled-up "new messages" affordance) and **Slice 7 — local SQLite store &
-drafts** were built **in parallel** (Slice 7 in a forked worktree) and both merged (PRs #9, #8). The
-`launch.ts` overlap reconciled cleanly. Integrated gate: **177 tests** green.
-
-**Slice 8 — chat search & help overlay** is done on `feat/slice-8-chat-search-help`: `/` fuzzy chat
-search (type → filter → `⏎` jumps), and `?` help overlay generated from the keymap (drift-proof).
-194 tests green.
+**🎉 Phase 1 complete — Slices 0–9 done (0–8 merged; Slice 9 on `feat/slice-9-phase1-validation`).**
+The MVP is real and live-validated against Beeper Desktop 4.2.1004: browse the inbox, read history
+(paged), send real messages (a WhatsApp send received by Mitch), live updates over WebSocket, drafts
+that persist restart, `/` fuzzy search, `?` help. **Slice 9** added a golden-path smoke harness
+(scenarios 1–4 via the headless renderer, +7 in the CLI test) and ran the redacted live matrix —
+launch-to-usable ~29ms (≤3s target), all connected networks (WhatsApp/Facebook/Beeper) list+read with
+no silent failures. Fixed pagination resilience along the way. **199 tests** green.
 
 ## Next up
 
-- **Slice 9 — Phase 1 validation & smoke harness** closes Phase 1: terminal smoke tests for the key
-  flows, and validate WhatsApp/Slack/Telegram/Signal end-to-end. Fold in the deferred live checks:
-  warm-launch draft/inbox restore (Slice 7), mid-draft disconnect dance + cross-network send-echo id
-  (Slice 6), and `doctor` token-scope reporting.
+- Land Slice 9, then **Phase 2 begins — Slice 10 (filters & message search)**, Slice 11 (replies,
+  edits & attachments), Slice 12 (remaining networks). Re-plan Phase 3 (13–14) before starting.
 
 ## Deferred / follow-ups
 
