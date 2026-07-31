@@ -135,12 +135,21 @@ partial — honest about coverage. Capability detection gates scope-honoring vs.
       silently wrong results.
 - [x] `bun test` + smoke suite green; help overlay auto-lists the new bindings.
 
+## Follow-up (2026-07-31, from live-use feedback)
+
+Two "Out of scope" items below were **pulled in after Mitch tested the build** (see `DECISIONS.md`):
+
+- **Rail is now a focus target** — `Esc`/`h`/`←` walks conversation → list → rail; `l`/`→`/`Enter`
+  drills back in; `j`/`k` switch networks. (Reverses "quick-keys only".)
+- **`Shift+A` archives/unarchives the open chat** via `chats.archive`, gated on
+  `chat.capabilities.archive` (named notice when unsupported), then returns to the list. (Reverses
+  "archive is view-only".) Added a `notice` status-bar primitive.
+
 ## Out of scope
 
-- **Archive/unarchive actions** (adapter write + per-network capability gating) — deferred; candidate
-  for its own slice or Slice 11/14. This slice only _filters by_ Beeper's archive state.
+- ~~Archive/unarchive actions~~ — **done in the follow-up above** (capability-gated).
 - Full-text indexing of message bodies locally (would violate the v1 cache decision).
-- Making the rail a focusable/arrowable pane (decision 1: quick-keys only).
+- ~~Making the rail a focusable/arrowable pane~~ — **done in the follow-up above.**
 
 ## Risks / open questions
 

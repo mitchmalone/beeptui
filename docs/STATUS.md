@@ -7,13 +7,15 @@
 
 ## Where we are
 
-**Phase 2 in progress — Slice 10 built** on `feat/slice-10-filters-message-search` (10a + 10b done;
-PR open). A `slk`-style **leftmost network rail** now scopes the inbox (All + per-network, unread
-dots) with archived (`a`) and unread-only (`U`) toggles — all quick-key driven (`[`/`]` cycle), the
-focus flow untouched. **Message search** (`S`) runs through the Beeper adapter with honest coverage:
-scope-honoring is verified (not trusted), and a labeled local fallback covers capped / scope-ignoring
-/ unavailable endpoints. **249 tests** green; typecheck + lint clean; 6 smoke scenarios (added rail
-scope + archived + search golden path). Live validation of the real search endpoint still pending.
+**Phase 2 in progress — Slice 10 built** on `feat/slice-10-filters-message-search` (10a + 10b + live
+feedback; PR #12 open). A `slk`-style **leftmost network rail** scopes the inbox (All + per-network,
+unread dots) with archived (`a`) and unread-only (`U`) toggles. Per Mitch's live-use feedback the
+rail is now a **real focus target**: `Esc`/`h`/`←` walks out (conversation → list → rail), `j`/`k`
+switch networks in the rail, `l`/`→`/`Enter` drill back in — quick-keys still work. **`Shift+A`
+archives/unarchives the open chat** via Beeper's endpoint, capability-gated (named notice when the
+platform can't), then returns to the list. **Message search** (`S`) runs through the adapter with
+verified scope + labeled local fallback. **261 tests** green; typecheck + lint clean; 7 smoke
+scenarios. Live validation of the real search endpoint still pending.
 
 **🎉 Phase 1 complete — Slices 0–9 done (all merged to `main`).**
 The MVP is real and live-validated against Beeper Desktop 4.2.1004: browse the inbox, read history

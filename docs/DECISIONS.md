@@ -6,6 +6,29 @@
 
 ---
 
+### 2026-07-31 · The network rail IS a focus target, and archive is an action (reverses the earlier same-day call)
+
+**Decision.** After live use of the Slice 10 build, reverse two decisions from the entry below:
+
+1. **The rail is a real focus target.** `FocusTarget` gains `'rail'` (ordered outer→inner: rail →
+   inbox → conversation → compose). `Esc`/`h`/`←` walks out one level (conversation → list → rail);
+   `l`/`→`/`Enter` drills back in; `j`/`k` switch networks while the rail is focused. The `[`/`]`
+   quick-keys still work from anywhere.
+2. **Archive is an action, not only a view.** `Shift+A` in a conversation archives/unarchives the
+   open chat via `chats.archive`, **gated on `chat.capabilities.archive`** — an unsupported platform
+   shows a named notice and makes no call. It's non-optimistic (await → refetch → reconcile; never
+   fake success), then deselects and returns to the list.
+
+**Why.** The quick-keys-only rail failed the hand test: a column you can see, you try to step into
+with `Esc`/`←`, and nothing happening reads as broken. And Mitch asked for an archive key directly.
+The original "view-only" scoping was a deferral, not a principle — the API supports the write and
+reports the capability, so doing it properly (capability-gated, visible degrade, no fake success)
+honors invariants 1 and 8 rather than violating them.
+
+**Consequence.** Adds a `notice` primitive (`state.notice`, shown in the status bar). The
+out-of-scope line in the Slice 10 plan (archive actions deferred) is superseded. Deep-linking in
+message search remains partial (Slice 11).
+
 ### 2026-07-31 · The network rail is a quick-key filter, not a fourth focus pane; archive is view-only
 
 **Decision.** The `slk`-style leftmost network rail (Slice 10) switches inbox scope via app-wide

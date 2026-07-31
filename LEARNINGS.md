@@ -44,6 +44,10 @@ chatIDs:[]}`; then send **`{type:'subscriptions.set', requestID, chatIDs:['*']}`
   scope** — the adapter verifies every hit matches the requested chat/account and reports
   `scopeHonored`; a server that ignores scope is handled, not surfaced as wrong results. Real-endpoint
   scope/cap/deep-link behavior per network is still unverified (live-validate before relying on it).
+- **Archive** = `chats.archive(chatID, { archived })` (dedicated endpoint, `POST …/archive`). Per-chat
+  support is reported at `chat.capabilities.archive` (boolean) → mapped to `ChatSummary.canArchive`;
+  gate the action on it (a `false` chat gets a named notice, no call). Absent capability = attempt +
+  degrade on error. `mark_read`/`mark_unread`/`delete` endpoints also exist for later slices.
 
 ## OpenTUI / rendering
 
@@ -74,6 +78,10 @@ height})` gives a headless render; `captureCharFrame()` asserts content, `mockIn
   from mock-input state updates — the assertions are still valid; ignore the warnings.
 - Style props differ by element: `box` takes `backgroundColor`; **`text` takes `fg`/`bg`**, not
   `backgroundColor` (tsc catches the mixup).
+- **A `box` `title` longer than the inner width renders blank** — no truncation, the whole title just
+  disappears. The width-8 network rail dropped a 5-char title (`'Net ●'`); a 4-char one (`'Net●'`)
+  fits. Also some glyphs don't render in the headless char-frame (`◂` blank, `●` fine) — reuse a
+  glyph already proven elsewhere in the UI.
 - **Shared test fixtures can hide inconsistencies until a filter exposes them.** `app.test.tsx`'s
   `seededStore` gave every chat `accountId:'a'` while assigning different networks — invisible until
   Slice 10's per-account scope tried to tell them apart. When adding a scope/filter feature, audit

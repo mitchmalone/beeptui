@@ -5,6 +5,26 @@
 
 ---
 
+### 2026-07-31 — Slice 10 follow-up: rail focus + archive action (live-use feedback)
+
+- **The quick-keys-only rail was wrong in the hand.** Live-testing, Mitch pressed `Esc`/`←` to step
+  into the leftmost column and nothing happened. Reversed the 10a decision: the rail is now a real
+  focus target. `FocusTarget` gained `'rail'` (ordered outer→inner: rail → inbox → conversation →
+  compose); `Esc`/`h`/`←` walks out one level, `l`/`→`/`Enter` drills back in. Lesson: a spatial UI
+  element people can _see_ they'll try to _enter_ — don't make it keys-only just to avoid a focus
+  state.
+- **Archive action pulled in from deferred.** `chats.archive(id, {archived})` exists, and the chat
+  payload reports `capabilities.archive` — so we gate honestly: `Shift+A` archives/unarchives the
+  open chat, but a platform that reports `archive:false` gets a named notice and no call (degrade
+  visibly). Non-optimistic (await the call, then refetch → `chats/upserted`) so we never fake
+  success; then deselect + focus the list (gmail-style close).
+- **Added a general `notice` primitive** (`state.notice`, shown in the status bar, cleared on
+  `chat/selected`) rather than overloading the connection `error`. Reusable for future per-action
+  feedback.
+- **Title width gotcha:** an OpenTUI `box` `title` longer than the inner width silently renders
+  blank. The width-8 rail dropped `'Net ●'` (5 chars) entirely; `'Net●'` (4) fits. Also `◂` didn't
+  render in the test char-frame but `●` does — mirror ConversationView's proven `●` focus marker.
+
 ### 2026-07-31 — Slice 10: network rail, filters & message search
 
 - **The rail is a filter, not a new focus target.** Scope (`[`/`]`), archived (`a`), unread-only
