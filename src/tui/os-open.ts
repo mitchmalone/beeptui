@@ -29,6 +29,22 @@ export async function openFile(localPath: string): Promise<void> {
   })
 }
 
+/** Run a notification command detached (Slice 14). Args are a fixed array — the
+ *  configured command + a redacted summary — passed with no shell, so nothing is
+ *  interpolated. Best-effort: a spawn error is swallowed (a missing notifier
+ *  must never crash the TUI). */
+export function runNotifier(args: string[]): void {
+  const [command, ...rest] = args
+  if (command === undefined) return
+  try {
+    const child = spawn(command, rest, { stdio: 'ignore', detached: true })
+    child.on('error', () => {}) // notifier not installed → ignore
+    child.unref()
+  } catch {
+    // never let a notifier failure surface
+  }
+}
+
 /** Copy a downloaded file into the user's Downloads directory, returning just
  *  the saved filename (never the full path — that's what the UI shows). */
 export async function saveToDownloads(

@@ -23,7 +23,8 @@ import {
   submitSend,
   watchStatusToConnection,
 } from '@/tui/runtime.ts'
-import { openFile, saveToDownloads } from '@/tui/os-open.ts'
+import { openFile, runNotifier, saveToDownloads } from '@/tui/os-open.ts'
+import { buildNotifyArgs, shouldNotify } from '@/tui/notify.ts'
 
 /**
  * Boot the TUI: build the adapter from config + credential store, create the
@@ -33,7 +34,7 @@ import { openFile, saveToDownloads } from '@/tui/os-open.ts'
  * `status`/`doctor` CLI never pulls in the native renderer.
  */
 export async function launch(): Promise<void> {
-  const { endpoint } = resolveConfig()
+  const { endpoint, notify } = resolveConfig()
   const token = resolveToken()
   const adapter = new BeeperAdapter({ endpoint, accessToken: token })
   const store = createStore()
@@ -125,6 +126,16 @@ export async function launch(): Promise<void> {
       accessToken: token,
       onEvent: (event) => {
         void applyWatchEvent(adapter, store.dispatch, event)
+        // Notification hook: fire the configured command for inbound messages in
+        // chats you're not currently reading. Redacted payload only (invariant 6).
+        if (notify !== null && event.kind === 'messages') {
+          const state = store.getState()
+          for (const message of event.messages) {
+            if (!shouldNotify(message, state.selectedChatId)) continue
+            const network = state.chats[message.chatId]?.network ?? 'a chat'
+            runNotifier(buildNotifyArgs(notify, network))
+          }
+        }
       },
       onStatus: (status) => {
         const connection = watchStatusToConnection(status)

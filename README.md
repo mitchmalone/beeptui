@@ -37,6 +37,23 @@ bun run format       # prettier --write
 bun test             # bun:test
 ```
 
+## Configuration
+
+Optional config lives at `$XDG_CONFIG_HOME/beeper-tui/config.json` (default
+`~/.config/beeper-tui/config.json`). It never holds secrets — tokens live in the
+platform credential store.
+
+```jsonc
+{
+  // Point at a non-default endpoint (env BEEPER_TUI_ENDPOINT takes precedence).
+  "endpoint": "http://127.0.0.1:23373",
+  // Run a command on each new inbound message in a chat you're not reading.
+  // The command receives ONE extra argument: "beeper-tui: new message on <Network>".
+  // Only the app name + network are ever passed — never a sender, chat, or message body.
+  "notify": { "command": ["terminal-notifier", "-title", "Beeper", "-message"] },
+}
+```
+
 ## Stack
 
 TypeScript (strict, ESM) · Bun · OpenTUI (`@opentui/react` + `@opentui/keymap`) · SQLite for local

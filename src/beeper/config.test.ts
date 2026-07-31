@@ -61,4 +61,31 @@ describe('resolveConfig', () => {
     })
     expect(JSON.stringify(cfg)).not.toContain('should-be-ignored')
   })
+
+  test('notify defaults to null and parses a valid command array', () => {
+    expect(resolveConfig({ env: {}, homedir: home, readFile: () => undefined }).notify).toBeNull()
+    const cfg = resolveConfig({
+      env: {},
+      homedir: home,
+      readFile: () => JSON.stringify({ notify: { command: ['terminal-notifier', '-message'] } }),
+    })
+    expect(cfg.notify).toEqual({ command: ['terminal-notifier', '-message'] })
+  })
+
+  test('rejects a malformed notify config with a clear error', () => {
+    expect(() =>
+      resolveConfig({
+        env: {},
+        homedir: home,
+        readFile: () => JSON.stringify({ notify: { command: [] } }),
+      })
+    ).toThrow(/notify\.command/)
+    expect(() =>
+      resolveConfig({
+        env: {},
+        homedir: home,
+        readFile: () => JSON.stringify({ notify: { command: 'not-an-array' } }),
+      })
+    ).toThrow(/notify\.command/)
+  })
 })

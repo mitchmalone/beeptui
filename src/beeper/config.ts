@@ -4,9 +4,18 @@ import { homedir as osHomedir } from 'node:os'
 /** Default local Beeper Desktop API endpoint (see docs/JOURNAL.md 2026-07-30). */
 export const DEFAULT_ENDPOINT = 'http://127.0.0.1:23373'
 
+/** User-configurable notification hook (Slice 14): a command run on a new
+ *  inbound message. Only a redacted summary (app + network) is ever passed —
+ *  never sender or message content (invariant 6). */
+export interface NotifyConfig {
+  command: string[]
+}
+
 export interface ResolvedConfig {
   endpoint: string
   configPath: string
+  /** Notification hook, or null when not configured. */
+  notify: NotifyConfig | null
 }
 
 export interface ResolveConfigDeps {
@@ -55,6 +64,7 @@ export function resolveConfig(deps: ResolveConfigDeps = {}): ResolvedConfig {
   const configPath = `${configHome}/beeper-tui/config.json`
 
   let fileEndpoint: string | undefined
+  let notify: NotifyConfig | null = null
   const raw = readFile(configPath)
   if (raw !== undefined) {
     let parsed: unknown
@@ -70,8 +80,30 @@ export function resolveConfig(deps: ResolveConfigDeps = {}): ResolvedConfig {
       }
       fileEndpoint = value
     }
+    notify = parseNotify(parsed, configPath)
   }
 
   const endpoint = validateEndpoint(env.BEEPER_TUI_ENDPOINT ?? fileEndpoint ?? DEFAULT_ENDPOINT)
-  return { endpoint, configPath }
+  return { endpoint, configPath, notify }
+}
+
+/** Parse + validate the optional `notify.command` (a non-empty string array).
+ *  Errors are explicit so a bad config never silently disables notifications. */
+function parseNotify(parsed: unknown, configPath: string): NotifyConfig | null {
+  if (parsed === null || typeof parsed !== 'object' || !('notify' in parsed)) return null
+  const notify = (parsed as { notify: unknown }).notify
+  if (notify === null || typeof notify !== 'object' || !('command' in notify)) {
+    throw new Error(`Invalid Beeper config file ("notify" must have a "command"): ${configPath}`)
+  }
+  const command = (notify as { command: unknown }).command
+  if (
+    !Array.isArray(command) ||
+    command.length === 0 ||
+    !command.every((c): c is string => typeof c === 'string')
+  ) {
+    throw new Error(
+      `Invalid Beeper config file ("notify.command" must be a non-empty string array): ${configPath}`
+    )
+  }
+  return { command }
 }
