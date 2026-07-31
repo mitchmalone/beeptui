@@ -14,10 +14,12 @@
    inbox → conversation → compose). `Esc`/`h`/`←` walks out one level (conversation → list → rail);
    `l`/`→`/`Enter` drills back in; `j`/`k` switch networks while the rail is focused. The `[`/`]`
    quick-keys still work from anywhere.
-2. **Archive is an action, not only a view.** `Shift+A` in a conversation archives/unarchives the
-   open chat via `chats.archive`, **gated on `chat.capabilities.archive`** — an unsupported platform
-   shows a named notice and makes no call. It's non-optimistic (await → refetch → reconcile; never
-   fake success), then deselects and returns to the list.
+2. **Archive is an action, not only a view.** `Shift+A` archives/unarchives a chat via
+   `chats.archive` — from the list (on the highlighted chat) or an open conversation — **gated on
+   `chat.capabilities.archive`**; an unsupported platform shows a named notice and makes no call.
+   It's non-optimistic (await → refetch → reconcile; never fake success), then selects the chat that
+   takes the archived one's slot and returns focus to the list (cursor stays put for rapid
+   archiving).
 
 **Why.** The quick-keys-only rail failed the hand test: a column you can see, you try to step into
 with `Esc`/`←`, and nothing happening reads as broken. And Mitch asked for an archive key directly.

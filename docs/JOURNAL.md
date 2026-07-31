@@ -21,6 +21,15 @@
 - **Added a general `notice` primitive** (`state.notice`, shown in the status bar, cleared on
   `chat/selected`) rather than overloading the connection `error`. Reusable for future per-action
   feedback.
+- **Archive works from the list too** (feedback: don't make me open a chat to archive it). `Shift+A`
+  is bound in both inbox and conversation contexts; `archiveChat` takes the target id (not "the open
+  chat") and, after the chat leaves the view, selects the chat that takes its slot so the cursor
+  doesn't jump to the top — quick successive archiving. Needed a store-threaded test harness: the
+  "select next" logic reads `getState()` _after_ the reconcile, which a fixed fake `getState` can't
+  model.
+- **Help overlay went two-column.** Adding bindings pushed it past a 24-row terminal; the nested
+  flex group-boxes _overlap_ (not clip) when they can't fit, silently garbling rows. Splitting groups
+  into two columns halves the height. Watch this ceiling as bindings grow.
 - **Title width gotcha:** an OpenTUI `box` `title` longer than the inner width silently renders
   blank. The width-8 rail dropped `'Net ●'` (5 chars) entirely; `'Net●'` (4) fits. Also `◂` didn't
   render in the test char-frame but `●` does — mirror ConversationView's proven `●` focus marker.
