@@ -57,6 +57,21 @@ describe('BeeperAdapter happy paths', () => {
     expect(chats[0]?.title).toBe('Grace Hopper')
   })
 
+  test('a failing pagination continuation returns the first page (not a hard error)', async () => {
+    let calls = 0
+    const flaky = (async (input: string | URL | Request) => {
+      const url = new URL(typeof input === 'string' ? input : input.toString())
+      if (url.pathname !== '/v1/chats') return json({}, 404)
+      calls += 1
+      return calls === 1
+        ? json({ items: chatsFixture, hasMore: true, oldestCursor: 'c', newestCursor: 'c' })
+        : json({ code: 'VALIDATION_ERROR', message: 'Invalid input' }, 400)
+    }) as unknown as typeof fetch
+    const chats = await adapter(flaky).listChats({ limit: 100 })
+    expect(chats).toHaveLength(chatsFixture.length) // first page survived the bad continuation
+    expect(calls).toBeGreaterThanOrEqual(2) // it did attempt the continuation
+  })
+
   test('listMessages returns a page of mapped messages with cursor + hasMore', async () => {
     const a = adapter(
       fakeFetch((_m, p) => (p.endsWith('/messages') ? page(messagesFixture) : json({}, 404)))

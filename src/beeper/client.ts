@@ -121,12 +121,20 @@ export class BeeperAdapter {
     }
   }
 
-  /** Drain an auto-paginating list up to `limit` items (bounded memory). */
+  /** Drain an auto-paginating list up to `limit` items (bounded memory). A
+   *  failure fetching a *continuation* page is non-fatal — we return what we
+   *  already collected (Beeper 4.2.x intermittently 400s on pagination
+   *  continuations; better to show the first page than fail the whole load). A
+   *  first-page failure still propagates so real errors surface. */
   async #collect<T>(iterable: AsyncIterable<T>, limit: number): Promise<T[]> {
     const out: T[] = []
-    for await (const item of iterable) {
-      out.push(item)
-      if (out.length >= limit) break
+    try {
+      for await (const item of iterable) {
+        out.push(item)
+        if (out.length >= limit) break
+      }
+    } catch (err) {
+      if (out.length === 0) throw err
     }
     return out
   }
