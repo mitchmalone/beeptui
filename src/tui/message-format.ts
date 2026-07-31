@@ -16,8 +16,23 @@ export function formatTime(timestamp: string): string {
   return match?.[1] ?? ''
 }
 
+/** Compact human-readable byte size (e.g. `20 KB`, `1.4 MB`). */
+export function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  const units = ['KB', 'MB', 'GB']
+  let size = bytes / 1024
+  let unit = 0
+  while (size >= 1024 && unit < units.length - 1) {
+    size /= 1024
+    unit += 1
+  }
+  const rounded = size >= 10 ? Math.round(size) : Math.round(size * 10) / 10
+  return `${rounded} ${units[unit]}`
+}
+
 function attachmentLabel(attachment: AttachmentSummary): string {
-  return attachment.fileName ? `${attachment.kind}: ${attachment.fileName}` : attachment.kind
+  const name = attachment.fileName ? `${attachment.kind}: ${attachment.fileName}` : attachment.kind
+  return attachment.fileSize !== undefined ? `${name} · ${formatSize(attachment.fileSize)}` : name
 }
 
 /**

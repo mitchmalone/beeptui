@@ -7,9 +7,9 @@
 
 ## Where we are
 
-**Phase 2 in progress — Slice 10 done, Slice 11 starting** on
-`feat/slice-10-filters-message-search` (10a + 10b + live feedback; PR #12 open). A `slk`-style
-**leftmost network rail** scopes the inbox (All + per-network,
+**Phase 2 in progress — Slices 10 + 11 done, Slice 12 next** on
+`feat/slice-10-filters-message-search` (staying on the branch Mitch is testing; PR #12 open). A
+`slk`-style **leftmost network rail** scopes the inbox (All + per-network,
 unread dots) with archived (`a`) and unread-only (`U`) toggles. Per Mitch's live-use feedback the
 rail is now a **real focus target**: `Esc`/`h`/`←` walks out (conversation → list → rail), `j`/`k`
 switch networks in the rail, `l`/`→`/`Enter` drill back in — quick-keys still work. **`Shift+A`
@@ -18,10 +18,16 @@ Beeper's endpoint — **optimistic** (instant flip, rolls back + notifies on fai
 lands on the neighbouring chat (below, else above) so you can archive several in a row. Network
 markers are **colour-tinted** (list, rail, conversation header) for scannability. Compose typing no
 longer re-renders the whole tree (panels are `memo`-ised on their exact state slices). **Message
-search** (`S`) runs through the adapter with verified scope + labeled local fallback. **281 tests**
-green; typecheck + lint clean; 7 smoke scenarios. **Search endpoint live-validated 2026-07-31**
-(redacted run, 3 connected networks): the real server honors chat- and account-scope, caps/paginates,
-and returns deep-linkable hits — Slice 10 is fully done.
+search** (`S`) runs through the adapter with verified scope + labeled local fallback. **Search
+endpoint live-validated 2026-07-31** (redacted run, 3 connected networks): the real server honors
+chat- and account-scope, caps/paginates, and returns deep-linkable hits — Slice 10 is fully done.
+
+**Slice 11 (replies, edits & attachments) done:** a message-selection cursor (`v`, `j`/`k`, `Esc`,
+highlighted row) drives three actions on the selected message — `r` **reply** (compose shows a quoted
+header; capability-gated on `canReply`; adapter carries `replyToMessageID`), and `o`/`s` **open/save
+attachment** via `assets.download` (OS side-effects injected; no path ever logged). Inbound **edits
+render in place** with `(edited)`. Help overlay rebalanced to two row-balanced columns so the new
+bindings don't overflow. **315 tests** green; typecheck + lint + format clean; 10 smoke scenarios.
 
 **🎉 Phase 1 complete — Slices 0–9 done (all merged to `main`).**
 The MVP is real and live-validated against Beeper Desktop 4.2.1004: browse the inbox, read history
@@ -33,10 +39,14 @@ no silent failures. Fixed pagination resilience along the way. **199 tests** gre
 
 ## Next up
 
-- **Slice 11 (replies, edits & attachments)** — in progress. Message-selection cursor, reply flow
-  (capability-gated), in-place edit rendering, attachment open/save.
-- Then Slice 12 (remaining networks — depends on 10 + 11). Re-plan Phase 3 (13–14) before starting;
-  14 is blocked on pending decision #6 (open-source flip).
+- **Slice 12 (remaining networks)** — next. Depends on 10 + 11 (both done).
+- Re-plan Phase 3 (13–14) before starting; 14 is blocked on pending decision #6 (open-source flip).
+
+## Manual gate (Mitch)
+
+- **Slice 11 live reply send:** send a reply from the TUI on WhatsApp and confirm it lands threaded
+  (invariant 5 forbids auto-sending a real message, so this can't be automated). Everything else in
+  Slice 11 is done + green; the reply _adapter param_ and _attachment download_ are live-validated.
 
 ## Deferred / follow-ups
 

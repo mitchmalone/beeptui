@@ -4,11 +4,17 @@ import type {
   MessageSearchPage,
 } from '@/beeper/client.ts'
 import { BeeperError, normalizeError } from '@/beeper/errors.ts'
-import type { Account, ChatSummary, SendResult, ServerInfo } from '@/beeper/types.ts'
+import type {
+  Account,
+  AttachmentSummary,
+  ChatSummary,
+  SendResult,
+  ServerInfo,
+} from '@/beeper/types.ts'
 import type { WatchEvent } from '@/beeper/watch-protocol.ts'
 import type { WatchStatus } from '@/beeper/watch.ts'
 import type { AppEvent, AppState, ConnectionState } from '@/state/types.ts'
-import { selectInboxRows } from '@/state/selectors.ts'
+import { selectInboxRows, selectSelectedMessage } from '@/state/selectors.ts'
 import { localSearchMessages, toHit } from '@/tui/message-search.ts'
 
 /**
@@ -23,10 +29,11 @@ export interface Gateway {
     chatId: string,
     options?: { limit?: number; cursor?: string }
   ): Promise<MessageHistoryPage>
-  sendMessage(chatId: string, text: string): Promise<SendResult>
+  sendMessage(chatId: string, text: string, options?: { replyToId?: string }): Promise<SendResult>
   getChat(chatId: string): Promise<ChatSummary>
   searchMessages(query: string, options?: MessageSearchOptions): Promise<MessageSearchPage>
   setArchived(chatId: string, archived: boolean): Promise<void>
+  downloadAttachment(id: string): Promise<{ localPath: string }>
 }
 
 export interface SendParams {
@@ -36,6 +43,8 @@ export interface SendParams {
   text: string
   /** ISO timestamp (injected by the caller so this stays deterministic). */
   timestamp: string
+  /** When present, send as a reply to this message id (capability-gated upstream). */
+  replyToId?: string
 }
 
 type Dispatch = (event: AppEvent) => void
@@ -120,7 +129,11 @@ async function attemptSend(
   params: SendParams
 ): Promise<void> {
   try {
-    await gateway.sendMessage(params.chatId, params.text)
+    await gateway.sendMessage(
+      params.chatId,
+      params.text,
+      params.replyToId !== undefined ? { replyToId: params.replyToId } : {}
+    )
     dispatch({ type: 'send/succeeded', chatId: params.chatId, clientId: params.clientId })
   } catch {
     // A failed send stays visible on the message; never a silent success
@@ -146,6 +159,7 @@ export async function submitSend(
     clientId: params.clientId,
     text: params.text,
     timestamp: params.timestamp,
+    ...(params.replyToId !== undefined ? { replyToId: params.replyToId } : {}),
   })
   dispatch({ type: 'draft/changed', chatId: params.chatId, text: '' })
   await attemptSend(gateway, dispatch, params)
@@ -272,6 +286,86 @@ export async function archiveChat(
       type: 'notice/shown',
       message: `Couldn't ${archived ? 'archive' : 'unarchive'} — ${error.message}`,
     })
+  }
+}
+
+// ── Attachments (Slice 11) ───────────────────────────────────────────────
+
+/** Opens a local file with the OS handler. Injected so the runtime stays pure /
+ *  testable; the launch layer supplies the real `open`/`xdg-open` implementation.
+ *  The path is passed as a process argument, never logged (invariant 6). */
+export type FileOpener = (localPath: string) => Promise<void>
+
+/** Copies a downloaded file into the user's Downloads dir, returning the saved
+ *  path (for the notice's *filename*, never the full path). Injected like `FileOpener`. */
+export type FileSaver = (localPath: string, fileName: string) => Promise<{ savedName: string }>
+
+/** The first attachment of the currently-selected message, or a reason it can't
+ *  be acted on. Pure — shared by open + save so their preconditions match. */
+function selectableAttachment(
+  getState: () => AppState
+): { attachment: AttachmentSummary } | { reason: string } {
+  const message = selectSelectedMessage(getState())
+  const attachment = message?.attachments?.[0]
+  if (attachment === undefined) return { reason: 'No attachment on the selected message.' }
+  if (attachment.id === undefined) return { reason: "This attachment can't be opened." }
+  return { attachment }
+}
+
+/**
+ * Download the selected message's first attachment and open it in the OS viewer.
+ * Progress + failure are surfaced as notices; a failure never fakes success
+ * (invariant 8) and no attachment path is ever put in a notice or log
+ * (invariant 6 — the notice names the file, not its location).
+ */
+export async function openAttachment(
+  gateway: Gateway,
+  dispatch: Dispatch,
+  getState: () => AppState,
+  opener: FileOpener
+): Promise<void> {
+  const picked = selectableAttachment(getState)
+  if ('reason' in picked) {
+    dispatch({ type: 'notice/shown', message: picked.reason })
+    return
+  }
+  const { attachment } = picked
+  dispatch({ type: 'notice/shown', message: 'Opening attachment…' })
+  try {
+    const { localPath } = await gateway.downloadAttachment(attachment.id as string)
+    await opener(localPath)
+    dispatch({ type: 'notice/shown', message: 'Opened attachment.' })
+  } catch (err) {
+    const error = normalizeError(err)
+    dispatch({ type: 'notice/shown', message: `Couldn't open attachment — ${error.message}` })
+  }
+}
+
+/**
+ * Download the selected message's first attachment and copy it to Downloads.
+ * Same honesty guarantees as `openAttachment`; the success notice names the
+ * saved file, not the path.
+ */
+export async function saveAttachment(
+  gateway: Gateway,
+  dispatch: Dispatch,
+  getState: () => AppState,
+  saver: FileSaver
+): Promise<void> {
+  const picked = selectableAttachment(getState)
+  if ('reason' in picked) {
+    dispatch({ type: 'notice/shown', message: picked.reason })
+    return
+  }
+  const { attachment } = picked
+  dispatch({ type: 'notice/shown', message: 'Saving attachment…' })
+  try {
+    const { localPath } = await gateway.downloadAttachment(attachment.id as string)
+    const { savedName } = await saver(localPath, attachment.fileName ?? attachment.kind)
+    dispatch({ type: 'notice/shown', message: `Saved ${savedName} to Downloads.` })
+  } catch (err) {
+    const error = normalizeError(err)
+    dispatch({ type: 'notice/shown', message: `Couldn't save attachment — ${error.message}` })
   }
 }
 

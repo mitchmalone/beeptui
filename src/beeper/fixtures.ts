@@ -70,7 +70,7 @@ export const chatsFixture: BeeperDesktop.Chat[] = [
     unreadCount: 0,
     isArchived: false,
     isMuted: true,
-    capabilities: { archive: false },
+    capabilities: { archive: false, reply: 2 },
     lastActivity: '2026-07-30T01:30:00.000Z',
   },
 ]
@@ -90,7 +90,15 @@ export const messagesFixture: BeeperDesktop.Message[] = [
     type: 'TEXT',
     editedTimestamp: '2026-07-30T01:59:30.000Z',
     linkedMessageID: 'msg-0',
-    attachments: [{ type: 'img', fileName: 'diagram.png' }],
+    attachments: [
+      {
+        type: 'img',
+        fileName: 'diagram.png',
+        id: 'mxc://beeper.local/diagram',
+        fileSize: 20480,
+        mimeType: 'image/png',
+      },
+    ],
   },
   {
     id: 'msg-2',

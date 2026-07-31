@@ -13,6 +13,7 @@ export type Command =
   | 'bottom'
   | 'load-older'
   | 'compose'
+  | 'select-message'
   | 'retry'
   | 'archive-chat'
   | 'search'
@@ -96,6 +97,13 @@ export const KEYMAP: readonly Binding[] = [
     context: 'conversation',
   },
   {
+    keys: ['v'],
+    display: 'v',
+    command: 'select-message',
+    description: 'Select messages (reply / open attachment)',
+    context: 'conversation',
+  },
+  {
     keys: ['shift+r'],
     display: 'R',
     command: 'retry',
@@ -157,6 +165,16 @@ export const COMPOSE_HELP: ReadonlyArray<{ display: string; description: string 
   { display: 'Esc / Tab', description: 'Back to conversation' },
 ]
 
+/** Message-selection keys (active after `v`); handled by raw match in the app so
+ *  they don't shadow the global `r`/`s`, and listed here for the help overlay. */
+export const MESSAGE_SELECT_HELP: ReadonlyArray<{ display: string; description: string }> = [
+  { display: 'j / k', description: 'Move selection newer / older' },
+  { display: 'r', description: 'Reply to the selected message' },
+  { display: 'o', description: 'Open its attachment' },
+  { display: 's', description: 'Save its attachment to Downloads' },
+  { display: 'Esc', description: 'Exit selection' },
+]
+
 const CONTEXT_TITLES: Record<KeyContext, string> = {
   global: 'Global',
   inbox: 'Inbox',
@@ -179,6 +197,7 @@ export function helpGroups(): HelpGroup[] {
       description: b.description,
     })),
   }))
+  groups.push({ title: 'Messages', bindings: MESSAGE_SELECT_HELP })
   groups.push({ title: CONTEXT_TITLES.compose, bindings: COMPOSE_HELP })
   return groups
 }

@@ -158,10 +158,41 @@ export class BeeperAdapter {
     })
   }
 
-  async sendMessage(chatID: string, text: string): Promise<SendResult> {
+  /**
+   * Send a message. Pass `replyToId` to send it as a reply to an existing
+   * message (the network must support replies — the caller gates on
+   * `chat.canReply`; Beeper still owns the final say).
+   */
+  async sendMessage(
+    chatID: string,
+    text: string,
+    options: { replyToId?: string } = {}
+  ): Promise<SendResult> {
     return this.#guard(async () =>
-      mapSendResult(await this.#client.messages.send(chatID, { text }))
+      mapSendResult(
+        await this.#client.messages.send(chatID, {
+          text,
+          ...(options.replyToId !== undefined ? { replyToMessageID: options.replyToId } : {}),
+        })
+      )
     )
+  }
+
+  /**
+   * Download a message attachment to Beeper's device and return the local file
+   * path. `id` is the attachment identifier (typically an `mxc://` URL) surfaced
+   * on `AttachmentSummary`. Throws a `BeeperError` if the download fails or the
+   * server returns no local path — the caller degrades visibly (invariant 8).
+   * The returned path is never logged (invariant 6).
+   */
+  async downloadAttachment(id: string): Promise<{ localPath: string }> {
+    return this.#guard(async () => {
+      const result = await this.#client.assets.download({ url: id })
+      if (result.error !== undefined || result.srcURL === undefined) {
+        throw new Error(result.error ?? 'Attachment download returned no file path')
+      }
+      return { localPath: result.srcURL }
+    })
   }
 
   /** Archive (or unarchive) a chat via Beeper's dedicated endpoint. Beeper owns

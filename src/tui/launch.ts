@@ -13,14 +13,17 @@ import {
   bootstrap,
   loadOlderMessages,
   archiveChat,
+  openAttachment,
   openChat,
   refreshChats,
   resyncAfterReconnect,
   retrySend,
   runMessageSearch,
+  saveAttachment,
   submitSend,
   watchStatusToConnection,
 } from '@/tui/runtime.ts'
+import { openFile, saveToDownloads } from '@/tui/os-open.ts'
 
 /**
  * Boot the TUI: build the adapter from config + credential store, create the
@@ -64,12 +67,13 @@ export async function launch(): Promise<void> {
   const onLoadOlder = (chatId: string, cursor: string) => {
     void loadOlderMessages(adapter, store.dispatch, chatId, cursor)
   }
-  const onSend = (chatId: string, text: string) => {
+  const onSend = (chatId: string, text: string, replyToId?: string) => {
     void submitSend(adapter, store.dispatch, {
       chatId,
       clientId: crypto.randomUUID(),
       text,
       timestamp: new Date().toISOString(),
+      ...(replyToId !== undefined ? { replyToId } : {}),
     })
   }
   const onRetry = (chatId: string, clientId: string, text: string) => {
@@ -86,6 +90,12 @@ export async function launch(): Promise<void> {
   const onArchiveChat = (chatId: string) => {
     void archiveChat(adapter, store.dispatch, store.getState, chatId)
   }
+  const onOpenAttachment = () => {
+    void openAttachment(adapter, store.dispatch, store.getState, openFile)
+  }
+  const onSaveAttachment = () => {
+    void saveAttachment(adapter, store.dispatch, store.getState, saveToDownloads)
+  }
 
   createRoot(renderer).render(
     createElement(App, {
@@ -98,6 +108,8 @@ export async function launch(): Promise<void> {
       onRetry,
       onSearchMessages,
       onArchiveChat,
+      onOpenAttachment,
+      onSaveAttachment,
     })
   )
 

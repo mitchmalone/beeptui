@@ -4,11 +4,13 @@ import {
   archiveChat,
   bootstrap,
   loadOlderMessages,
+  openAttachment,
   openChat,
   refreshChats,
   resyncAfterReconnect,
   retrySend,
   runMessageSearch,
+  saveAttachment,
   submitSend,
   watchStatusToConnection,
   type Gateway,
@@ -78,6 +80,7 @@ function gateway(over: Partial<Gateway> = {}): Gateway {
     getChat: async () => chats[0]!,
     searchMessages: async () => ({ messages: [], scopeHonored: true, capped: false }),
     setArchived: async () => {},
+    downloadAttachment: async () => ({ localPath: '/cache/beeper/file.png' }),
     ...over,
   }
 }
@@ -560,5 +563,150 @@ describe('archiveChat', () => {
     expect(h.getState().notice).toContain("Couldn't archive")
     const upserts = h.events.filter((e) => e.type === 'chats/upserted')
     expect(upserts).toHaveLength(2) // optimistic flip + rollback
+  })
+})
+
+describe('reply send (Slice 11)', () => {
+  test('carries replyToId to the adapter and into the send/requested event', async () => {
+    let sentOptions: { replyToId?: string } | undefined
+    const { dispatch, events } = capture()
+    await submitSend(
+      gateway({
+        sendMessage: async (_chatId, _text, options) => {
+          sentOptions = options
+          return { chatId: 'c1', pendingMessageId: 'srv-1' }
+        },
+      }),
+      dispatch,
+      { ...sendParams, replyToId: 'msg-orig' }
+    )
+    expect(sentOptions).toMatchObject({ replyToId: 'msg-orig' })
+    expect(events[0]).toMatchObject({ type: 'send/requested', replyToId: 'msg-orig' })
+  })
+})
+
+describe('attachments (Slice 11)', () => {
+  /** State with c1 open, a message selected that carries an image attachment. */
+  function withSelectedAttachment(attachmentOver: Record<string, unknown> = {}): AppState {
+    const message: MessageSummary = {
+      id: 'm1',
+      chatId: 'c1',
+      accountId: 'a',
+      senderId: 'x',
+      timestamp: 't',
+      sortKey: '1',
+      isSender: false,
+      isUnread: false,
+      attachments: [{ kind: 'image', fileName: 'pic.png', id: 'mxc://x/1', ...attachmentOver }],
+    }
+    const events: AppEvent[] = [
+      { type: 'chats/loaded', chats },
+      { type: 'chat/selected', chatId: 'c1' },
+      { type: 'messages/loaded', chatId: 'c1', page: 'initial', messages: [message] },
+      { type: 'messageSelection/started' },
+    ]
+    return events.reduce(reduce, initialState)
+  }
+
+  test('openAttachment downloads then opens the local path; path never appears in a notice', async () => {
+    const opened: string[] = []
+    const { dispatch, events } = capture()
+    await openAttachment(
+      gateway({ downloadAttachment: async () => ({ localPath: '/secret/cache/pic.png' }) }),
+      dispatch,
+      () => withSelectedAttachment(),
+      async (p) => {
+        opened.push(p)
+      }
+    )
+    expect(opened).toEqual(['/secret/cache/pic.png'])
+    const notices = events
+      .filter((e) => e.type === 'notice/shown')
+      .map((e) => (e as { message: string }).message)
+    expect(notices).toContain('Opened attachment.')
+    // invariant 6: the local path must never leak into a user-facing notice.
+    expect(notices.some((m) => m.includes('/secret/cache'))).toBe(false)
+  })
+
+  test('openAttachment reports a failure honestly and does not open anything', async () => {
+    let openerCalled = false
+    const { dispatch, events } = capture()
+    await openAttachment(
+      gateway({
+        downloadAttachment: async () => {
+          throw new BeeperError('unreachable', 'download failed')
+        },
+      }),
+      dispatch,
+      () => withSelectedAttachment(),
+      async () => {
+        openerCalled = true
+      }
+    )
+    expect(openerCalled).toBe(false)
+    const notices = events.map((e) => (e as { message?: string }).message)
+    expect(notices.some((m) => m?.startsWith("Couldn't open attachment"))).toBe(true)
+  })
+
+  test('openAttachment on a message with no attachment shows a named notice, no download', async () => {
+    let downloaded = false
+    const { dispatch, events } = capture()
+    const plain: AppState = [
+      { type: 'chats/loaded', chats } as AppEvent,
+      { type: 'chat/selected', chatId: 'c1' } as AppEvent,
+      {
+        type: 'messages/loaded',
+        chatId: 'c1',
+        page: 'initial',
+        messages: [
+          {
+            id: 'm1',
+            chatId: 'c1',
+            accountId: 'a',
+            senderId: 'x',
+            timestamp: 't',
+            sortKey: '1',
+            isSender: false,
+            isUnread: false,
+          },
+        ],
+      } as AppEvent,
+      { type: 'messageSelection/started' } as AppEvent,
+    ].reduce(reduce, initialState)
+    await openAttachment(
+      gateway({
+        downloadAttachment: async () => {
+          downloaded = true
+          return { localPath: '/x' }
+        },
+      }),
+      dispatch,
+      () => plain,
+      async () => {}
+    )
+    expect(downloaded).toBe(false)
+    expect((events[0] as { message: string }).message).toBe(
+      'No attachment on the selected message.'
+    )
+  })
+
+  test('saveAttachment copies to Downloads and names the saved file, not its path', async () => {
+    const saved: Array<{ path: string; name: string }> = []
+    const { dispatch, events } = capture()
+    await saveAttachment(
+      gateway({ downloadAttachment: async () => ({ localPath: '/secret/cache/pic.png' }) }),
+      dispatch,
+      () => withSelectedAttachment(),
+      async (path, name) => {
+        saved.push({ path, name })
+        return { savedName: name }
+      }
+    )
+    expect(saved).toEqual([{ path: '/secret/cache/pic.png', name: 'pic.png' }])
+    const notices = events
+      .filter((e) => e.type === 'notice/shown')
+      .map((e) => (e as { message: string }).message)
+    expect(notices).toContain('Saved pic.png to Downloads.')
+    expect(notices.some((m) => m.includes('/secret/cache'))).toBe(false)
   })
 })

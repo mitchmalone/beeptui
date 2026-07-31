@@ -5,6 +5,33 @@
 
 ---
 
+### 2026-07-31 — Slice 11: replies, edits & attachments
+
+- **Reply keys can't use `resolveCommand`.** The plan wanted `r` = reply, but `r` is the global
+  refresh binding and `s` collides with save; `resolveCommand` is context-blind (first match wins).
+  Fix: a message-selection _mode_ (entered with `v`, tracked by `state.selectedMessageId`), and while
+  it's active the app matches `r`/`o`/`s` on the **raw key** before falling through — so the global
+  bindings are untouched outside the mode. The mode keys are documented via a `MESSAGE_SELECT_HELP`
+  block (like `COMPOSE_HELP`), not real KEYMAP entries, to avoid the same collision in help.
+- **Edit-in-place was already free.** `mergeMessages` dedupes by id (`{...existing, ...incoming}`),
+  so an inbound edit with the same id replaces the row; `formatMessage` already appended `(edited)`
+  from `isEdited`. Slice 11 only needed a reducer test to lock it in — no new machinery.
+- **Reply capability is a −2..2 scale.** `chat.capabilities.reply` (−2 rejected … 2 fully) maps to
+  `canReply = reply >= 1`. Gate like archive: `canReply === false` → named notice, else attempt.
+  `undefined` (not reported) → attempt-then-degrade, consistent with archive.
+- **Attachment open/save side-effects are injected.** `openAttachment`/`saveAttachment` (runtime)
+  take a `FileOpener`/`FileSaver` so they stay pure + unit-testable; the real `open`/`xdg-open` +
+  copy-to-Downloads live in `os-open.ts`, wired only in `launch.ts`. Invariant 6: the local path is
+  passed to the OS as a process **argument**, never through a shell or a notice — tests assert the
+  path never appears in any `notice/shown` message (the notice names the _file_, not its location).
+- **Live-validated the read-only halves:** `messages.send`'s `replyToMessageID` param shape, and
+  `assets.download` returning a local path for a real image attachment (redacted). **Did NOT** send a
+  live reply — that posts a real message to a contact (invariant 5), so it's a manual gate for Mitch.
+- **Help overlay overflow (again).** The two-column split was by group _count_; a 5th group made the
+  left column 3 heavy groups tall and its flex boxes **overlapped** (OpenTUI boxes overlap, not clip
+  — the garble the earlier note warned about). Fixed by balancing columns by **row weight** (greedy:
+  each group joins the shorter column). Added a `HelpOverlay` test asserting the balance invariant.
+
 ### 2026-07-31 — Slice 10 done: search endpoint live-validated (scope + caps + deep-link)
 
 - Ran a **redacted** live probe against Beeper Desktop's real `messages.search` (3 connected

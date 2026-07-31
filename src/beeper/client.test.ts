@@ -168,6 +168,48 @@ describe('BeeperAdapter happy paths', () => {
     expect(sawPost).toBe(true)
     expect(result.pendingMessageId).toBe('pending-abc123')
   })
+
+  test('sendMessage carries replyToMessageID when replying', async () => {
+    let body: Record<string, unknown> | null = null
+    const capturing = (async (_input: string | URL | Request, init?: RequestInit) => {
+      body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : null
+      return json(sendFixture)
+    }) as unknown as typeof fetch
+    await adapter(capturing).sendMessage('!wa-1:beeper.local', 'On it.', {
+      replyToId: 'msg-original',
+    })
+    expect(body).toMatchObject({ text: 'On it.', replyToMessageID: 'msg-original' })
+  })
+
+  test('sendMessage omits replyToMessageID for a plain send', async () => {
+    let body: Record<string, unknown> | null = null
+    const capturing = (async (_input: string | URL | Request, init?: RequestInit) => {
+      body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : null
+      return json(sendFixture)
+    }) as unknown as typeof fetch
+    await adapter(capturing).sendMessage('!wa-1:beeper.local', 'Hi.')
+    expect(body).not.toHaveProperty('replyToMessageID')
+  })
+
+  test('downloadAttachment posts the id and returns the local path', async () => {
+    let path = ''
+    let body: Record<string, unknown> | null = null
+    const capturing = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(typeof input === 'string' ? input : input.toString())
+      path = url.pathname
+      body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : null
+      return json({ srcURL: '/cache/beeper/file.png' })
+    }) as unknown as typeof fetch
+    const result = await adapter(capturing).downloadAttachment('mxc://beeper.local/abc')
+    expect(path).toContain('/assets/download')
+    expect(body).toMatchObject({ url: 'mxc://beeper.local/abc' })
+    expect(result.localPath).toBe('/cache/beeper/file.png')
+  })
+
+  test('downloadAttachment throws when the server reports an error', async () => {
+    const a = adapter(fakeFetch(() => json({ error: 'not found' })))
+    await expect(a.downloadAttachment('mxc://beeper.local/missing')).rejects.toBeTruthy()
+  })
 })
 
 describe('BeeperAdapter error normalization', () => {

@@ -115,6 +115,8 @@ export interface ActiveConversation {
   olderCursor: string | null
   scrollOffset: number
   newMessagesBelow: boolean
+  /** Id of the message cursor (Slice 11 selection), or null when scrolling. */
+  selectedMessageId: string | null
 }
 
 export function selectActiveConversation(state: AppState): ActiveConversation {
@@ -127,6 +129,7 @@ export function selectActiveConversation(state: AppState): ActiveConversation {
       olderCursor: null,
       scrollOffset: 0,
       newMessagesBelow: false,
+      selectedMessageId: null,
     }
   }
   const window = state.messagesByChat[id]
@@ -137,7 +140,36 @@ export function selectActiveConversation(state: AppState): ActiveConversation {
     olderCursor: window?.olderCursor ?? null,
     scrollOffset: state.conversationOffset,
     newMessagesBelow: state.newMessagesBelow,
+    selectedMessageId: state.selectedMessageId,
   }
+}
+
+/** The message the cursor is on in the active conversation, or null. */
+export function selectSelectedMessage(state: AppState): MessageEntity | null {
+  const id = state.selectedChatId
+  if (id === null || state.selectedMessageId === null) return null
+  const items = state.messagesByChat[id]?.items ?? []
+  return items.find((m) => m.id === state.selectedMessageId) ?? null
+}
+
+export interface ReplyContext {
+  messageId: string
+  sender: string
+  snippet: string
+}
+
+/** Reply preview shown above the compose box while replying, or null when not
+ *  replying (or the target message isn't loaded). Sender + a short text snippet
+ *  the user recognizes — their own conversation, rendered in their own terminal. */
+export function selectReplyContext(state: AppState): ReplyContext | null {
+  const id = state.selectedChatId
+  if (id === null || state.replyTo === null) return null
+  const target = (state.messagesByChat[id]?.items ?? []).find((m) => m.id === state.replyTo)
+  if (target === undefined) return null
+  const sender = target.senderName ?? (target.isSender ? 'You' : target.senderId)
+  const text = target.text ?? (target.attachments?.length ? `[${target.attachments[0]?.kind}]` : '')
+  const snippet = text.length > 60 ? `${text.slice(0, 57)}…` : text
+  return { messageId: target.id, sender, snippet }
 }
 
 export interface ConnectionBanner {

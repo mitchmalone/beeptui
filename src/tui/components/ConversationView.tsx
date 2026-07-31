@@ -17,7 +17,9 @@ export interface ConversationViewProps {
  *  takes from the terminal height, leaving the rest for messages. */
 const CHROME_ROWS = 9
 
-function rowStyle(message: MessageEntity): { fg?: string } {
+function rowStyle(message: MessageEntity, selected: boolean): { fg?: string; bg?: string } {
+  // Selection highlight wins visually — it's the active cursor.
+  if (selected) return { fg: '#0f172a', bg: '#38bdf8' }
   if (message.status === 'failed') return { fg: '#f87171' }
   if (message.status === 'pending') return { fg: '#94a3b8' }
   return {}
@@ -34,7 +36,8 @@ export const ConversationView = memo(function ConversationView({
   capacityOverride,
 }: ConversationViewProps) {
   const { height } = useTerminalDimensions()
-  const { chat, messages, hasMoreOlder, scrollOffset, newMessagesBelow } = conversation
+  const { chat, messages, hasMoreOlder, scrollOffset, newMessagesBelow, selectedMessageId } =
+    conversation
 
   if (chat === null) {
     return (
@@ -69,13 +72,17 @@ export const ConversationView = memo(function ConversationView({
           <text>No messages yet.</text>
         ) : (
           visible.map((message) => (
-            <text key={message.id} style={rowStyle(message)}>
+            <text key={message.id} style={rowStyle(message, message.id === selectedMessageId)}>
               {messageLine(message)}
             </text>
           ))
         )}
       </box>
-      {newMessagesBelow ? (
+      {selectedMessageId !== null ? (
+        <text style={{ flexShrink: 0, fg: '#38bdf8' }}>
+          — selecting: r reply · o open · s save · Esc exit —
+        </text>
+      ) : newMessagesBelow ? (
         <text style={{ flexShrink: 0, fg: '#38bdf8' }}>
           — ↓ new messages — press G for latest —
         </text>

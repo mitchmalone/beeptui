@@ -38,6 +38,9 @@ export interface ChatSummary {
   /** Whether the platform supports archive/unarchive for this chat. Absent when
    *  the API didn't report the capability (treated as "attempt, then degrade"). */
   canArchive?: boolean
+  /** Whether the platform supports replying to a message (capability `reply` >= 1:
+   *  partially/fully supported). Absent when the API didn't report it. */
+  canReply?: boolean
   lastActivity?: string
 }
 
@@ -46,6 +49,13 @@ export type AttachmentKind = 'image' | 'video' | 'audio' | 'file'
 export interface AttachmentSummary {
   kind: AttachmentKind
   fileName?: string
+  /** Attachment identifier (typically an `mxc://` URL) — pass to the download
+   *  endpoint to fetch a local file path. Absent when the API didn't report it. */
+  id?: string
+  /** File size in bytes, when known. */
+  fileSize?: number
+  /** MIME type, when known (e.g. `image/png`). */
+  mimeType?: string
 }
 
 export interface MessageSummary {
@@ -107,6 +117,9 @@ export function mapChat(chat: BeeperDesktop.Chat): ChatSummary {
     isMuted: chat.isMuted ?? false,
     // `exactOptionalPropertyTypes` — omit the key entirely rather than set undefined.
     ...(chat.capabilities?.archive !== undefined ? { canArchive: chat.capabilities.archive } : {}),
+    // reply capability is a -2..2 scale (-2 rejected … 2 fully supported); treat
+    // >= 1 (partially/fully) as supported. Omit when the platform didn't report it.
+    ...(chat.capabilities?.reply !== undefined ? { canReply: chat.capabilities.reply >= 1 } : {}),
     ...(chat.lastActivity !== undefined ? { lastActivity: chat.lastActivity } : {}),
   }
 }
@@ -124,6 +137,9 @@ function mapAttachments(
   return attachments.map((a) => ({
     kind: ATTACHMENT_KIND[a.type] ?? 'file',
     ...(a.fileName !== undefined ? { fileName: a.fileName } : {}),
+    ...(a.id !== undefined ? { id: a.id } : {}),
+    ...(a.fileSize !== undefined ? { fileSize: a.fileSize } : {}),
+    ...(a.mimeType !== undefined ? { mimeType: a.mimeType } : {}),
   }))
 }
 

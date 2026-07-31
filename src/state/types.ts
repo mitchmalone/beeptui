@@ -107,6 +107,13 @@ export interface AppState {
   chatOrder: string[]
   messagesByChat: Record<string, ChatMessages>
   selectedChatId: string | null
+  /** Id of the message cursor within the active conversation (Slice 11 message
+   *  selection), or null when scrolling normally. Cleared on chat change. */
+  selectedMessageId: string | null
+  /** Id of the message being replied to in the active conversation, or null.
+   *  When set, the compose box shows the quoted reply context. Cleared on chat
+   *  change, on send, and on cancel. */
+  replyTo: string | null
   /** Which pane the keyboard drives. */
   focus: FocusTarget
   /** Rows the active conversation is scrolled up from the newest message. */
@@ -138,6 +145,8 @@ export const initialState: AppState = {
   chatOrder: [],
   messagesByChat: {},
   selectedChatId: null,
+  selectedMessageId: null,
+  replyTo: null,
   focus: 'inbox',
   conversationOffset: 0,
   newMessagesBelow: false,
@@ -171,6 +180,11 @@ export type AppEvent =
     }
   | { type: 'message/received'; message: MessageSummary }
   | { type: 'chat/selected'; chatId: string | null }
+  | { type: 'messageSelection/started' }
+  | { type: 'messageSelection/moved'; delta: 1 | -1 }
+  | { type: 'messageSelection/cleared' }
+  | { type: 'reply/started'; messageId: string }
+  | { type: 'reply/cancelled' }
   | { type: 'focus/changed'; focus: FocusTarget }
   | { type: 'conversation/scrolled'; delta: number }
   | { type: 'overlay/opened'; overlay: Exclude<Overlay, 'none'> }
@@ -195,7 +209,15 @@ export type AppEvent =
   | { type: 'notice/shown'; message: string }
   | { type: 'notice/cleared' }
   | { type: 'draft/changed'; chatId: string; text: string }
-  | { type: 'send/requested'; chatId: string; clientId: string; text: string; timestamp: string }
+  | {
+      type: 'send/requested'
+      chatId: string
+      clientId: string
+      text: string
+      timestamp: string
+      /** When present, this send is a reply to the given message id. */
+      replyToId?: string
+    }
   | { type: 'send/succeeded'; chatId: string; clientId: string }
   | { type: 'send/failed'; chatId: string; clientId: string }
   | { type: 'send/retried'; chatId: string; clientId: string }

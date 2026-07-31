@@ -6,8 +6,10 @@ import {
   applyWatchEvent,
   archiveChat,
   bootstrap,
+  openAttachment,
   openChat,
   runMessageSearch,
+  saveAttachment,
   submitSend,
   type Gateway,
 } from '@/tui/runtime.ts'
@@ -55,6 +57,7 @@ const chats: ChatSummary[] = [
     unreadCount: 2,
     isArchived: false,
     isMuted: false,
+    canReply: true,
     lastActivity: '2026-07-31T02:00:00.000Z',
   },
   {
@@ -66,6 +69,7 @@ const chats: ChatSummary[] = [
     unreadCount: 0,
     isArchived: false,
     isMuted: false,
+    canReply: false,
     lastActivity: '2026-07-31T01:00:00.000Z',
   },
 ]
@@ -84,7 +88,14 @@ function msg(id: string, text: string, over: Partial<MessageSummary> = {}): Mess
     ...over,
   }
 }
-const history: MessageSummary[] = [msg('m1', 'Ship it.'), msg('m2', 'Right behind you.')]
+const history: MessageSummary[] = [
+  msg('m1', 'Ship it.'),
+  msg('m2', 'Right behind you.', {
+    attachments: [
+      { kind: 'image', fileName: 'diagram.png', id: 'mxc://x/diagram', fileSize: 20480 },
+    ],
+  }),
+]
 
 function fakeGateway(): Gateway {
   // Per-harness archive state so the archive golden path reflects a real
@@ -113,6 +124,7 @@ function fakeGateway(): Gateway {
       if (archived) archivedIds.add(id)
       else archivedIds.delete(id)
     },
+    downloadAttachment: async () => ({ localPath: '/cache/beeper/att.png' }),
   }
 }
 
@@ -120,23 +132,35 @@ function fakeGateway(): Gateway {
 async function harness() {
   const store = createStore()
   const gateway = fakeGateway()
+  const opened: string[] = []
+  const saved: string[] = []
   const props: AppProps = {
     store,
     onQuit: () => {},
     onRefresh: () => {},
     onOpenChat: (id) => void openChat(gateway, store.dispatch, id),
     onLoadOlder: () => {},
-    onSend: (chatId, text) =>
+    onSend: (chatId, text, replyToId) =>
       void submitSend(gateway, store.dispatch, {
         chatId,
         clientId: 'cid-1',
         text,
         timestamp: '2026-07-31T02:05:00.000Z',
+        ...(replyToId !== undefined ? { replyToId } : {}),
       }),
     onRetry: () => {},
     onSearchMessages: (query, scopeChatId) =>
       void runMessageSearch(gateway, store.dispatch, store.getState, query, scopeChatId),
     onArchiveChat: (chatId) => void archiveChat(gateway, store.dispatch, store.getState, chatId),
+    onOpenAttachment: () =>
+      void openAttachment(gateway, store.dispatch, store.getState, async (p) => {
+        opened.push(p)
+      }),
+    onSaveAttachment: () =>
+      void saveAttachment(gateway, store.dispatch, store.getState, async (_p, name) => {
+        saved.push(name)
+        return { savedName: name }
+      }),
   }
   const r = await testRender(<App {...props} />, { width: 100, height: 24 })
   const settle = async () => {
@@ -146,7 +170,7 @@ async function harness() {
   }
   await bootstrap(gateway, store.dispatch)
   await settle()
-  return { store, gateway, settle, ...r }
+  return { store, gateway, settle, opened, saved, ...r }
 }
 
 describe('golden-path smoke', () => {
@@ -306,5 +330,73 @@ describe('golden-path smoke', () => {
     await h.mockInput.pressKey('a')
     await h.settle()
     expect(h.captureCharFrame()).toContain('Grace Hopper')
+  })
+
+  test('scenario 8: reply on a supporting network quotes the message and threads the send', async () => {
+    const h = await harness()
+    await h.mockInput.pressKey('j') // Grace Hopper (WhatsApp, canReply)
+    await h.mockInput.pressKey('RETURN')
+    await h.settle()
+
+    await h.mockInput.pressKey('v') // enter selection (newest message)
+    await h.settle()
+    await h.mockInput.pressKey('r') // reply → focus compose
+    await h.settle()
+
+    expect(h.store.getState().focus).toBe('compose')
+    expect(h.store.getState().replyTo).toBe('m2')
+    expect(h.captureCharFrame()).toContain('Replying to')
+
+    await h.mockInput.pressKeys(['s', 'u', 'r', 'e'])
+    await h.settle()
+    await h.mockInput.pressKey('RETURN') // send the reply
+    await h.settle()
+
+    const items = h.store.getState().messagesByChat['c-wa']?.items ?? []
+    const reply = items.find((m) => m.text === 'sure')
+    expect(reply?.replyToId).toBe('m2') // threaded to the selected message
+    expect(h.store.getState().replyTo).toBeNull() // reply context consumed
+  })
+
+  test('scenario 8b: a non-supporting network names the missing reply capability', async () => {
+    const h = await harness()
+    await h.mockInput.pressKey('j')
+    await h.mockInput.pressKey('j') // engineering (Slack, canReply: false)
+    await h.mockInput.pressKey('RETURN')
+    await h.settle()
+    expect(h.captureCharFrame()).toContain('engineering')
+
+    await h.mockInput.pressKey('v') // select
+    await h.settle()
+    await h.mockInput.pressKey('r') // reply attempt
+    await h.settle()
+
+    expect(h.captureCharFrame()).toContain("Replies aren't supported on Slack")
+    expect(h.store.getState().replyTo).toBeNull() // no reply started
+    expect(h.store.getState().focus).toBe('conversation') // no dead jump to compose
+  })
+
+  test('scenario 9: open + save an attachment; the notice names the file, never the path', async () => {
+    const h = await harness()
+    await h.mockInput.pressKey('j') // Grace Hopper
+    await h.mockInput.pressKey('RETURN')
+    await h.settle()
+
+    await h.mockInput.pressKey('v') // select newest (m2 has an attachment)
+    await h.settle()
+    await h.mockInput.pressKey('o') // open it
+    await h.settle()
+
+    expect(h.opened).toEqual(['/cache/beeper/att.png'])
+    let frame = h.captureCharFrame()
+    expect(frame).toContain('Opened attachment')
+    expect(frame).not.toContain('/cache/beeper') // path must never surface (invariant 6)
+
+    await h.mockInput.pressKey('s') // save to Downloads
+    await h.settle()
+    expect(h.saved).toEqual(['diagram.png'])
+    frame = h.captureCharFrame()
+    expect(frame).toContain('Saved diagram.png to Downloads')
+    expect(frame).not.toContain('/cache/beeper')
   })
 })

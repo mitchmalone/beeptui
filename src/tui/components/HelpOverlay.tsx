@@ -15,12 +15,40 @@ function GroupBlock({ group }: { group: HelpGroup }) {
   )
 }
 
+/** Rows a group occupies: title + one per binding + the trailing margin. */
+function groupHeight(group: HelpGroup): number {
+  return group.bindings.length + 2
+}
+
+/**
+ * Split groups across two columns balancing total *rows*, not group count — an
+ * even count split leaves one column much taller and its group-boxes overlap
+ * (they don't clip) on a short terminal, garbling rows (see docs/JOURNAL.md).
+ * Greedy: each group joins the currently-shorter column, preserving order.
+ */
+function balanceColumns(groups: HelpGroup[]): [HelpGroup[], HelpGroup[]] {
+  const left: HelpGroup[] = []
+  const right: HelpGroup[] = []
+  let leftHeight = 0
+  let rightHeight = 0
+  for (const group of groups) {
+    if (leftHeight <= rightHeight) {
+      left.push(group)
+      leftHeight += groupHeight(group)
+    } else {
+      right.push(group)
+      rightHeight += groupHeight(group)
+    }
+  }
+  return [left, right]
+}
+
 /** The `?` help overlay. Content comes from `helpGroups()` (generated from the
  *  keymap), so it can never drift from the actual bindings. Laid out in two
- *  columns so the full binding set fits a short terminal without overflowing. */
+ *  row-balanced columns so the full binding set fits a short terminal without
+ *  overflowing. */
 export function HelpOverlay({ groups }: HelpOverlayProps) {
-  const mid = Math.ceil(groups.length / 2)
-  const columns = [groups.slice(0, mid), groups.slice(mid)]
+  const columns = balanceColumns(groups)
   return (
     <box
       title="Keys — ? or Esc to close"

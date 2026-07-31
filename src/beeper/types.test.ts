@@ -61,6 +61,21 @@ describe('mapChat', () => {
     expect(slack?.canArchive).toBe(false) // capabilities.archive: false
     expect(wa && 'canArchive' in wa).toBe(false) // no capabilities → key omitted
   })
+
+  test('surfaces the reply capability (>= 1 supported) when reported, omits it when absent', () => {
+    const [wa, slack] = chatsFixture.map(mapChat)
+    expect(slack?.canReply).toBe(true) // capabilities.reply: 2 → supported
+    expect(wa && 'canReply' in wa).toBe(false) // no capabilities → key omitted
+  })
+
+  test('maps a non-supporting reply capability (< 1) to canReply false', () => {
+    const [rejected, dropped] = [
+      mapChat({ ...chatsFixture[1]!, capabilities: { reply: 0 } }),
+      mapChat({ ...chatsFixture[1]!, capabilities: { reply: -2 } }),
+    ]
+    expect(rejected.canReply).toBe(false)
+    expect(dropped.canReply).toBe(false)
+  })
 })
 
 describe('mapMessage', () => {
@@ -83,7 +98,15 @@ describe('mapMessage', () => {
     expect(withMeta).toMatchObject({
       isEdited: true,
       replyToId: 'msg-0',
-      attachments: [{ kind: 'image', fileName: 'diagram.png' }],
+      attachments: [
+        {
+          kind: 'image',
+          fileName: 'diagram.png',
+          id: 'mxc://beeper.local/diagram',
+          fileSize: 20480,
+          mimeType: 'image/png',
+        },
+      ],
     })
     // Plain message carries none of the optional keys.
     expect(plain && 'isEdited' in plain).toBe(false)

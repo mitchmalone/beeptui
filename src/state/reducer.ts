@@ -183,14 +183,52 @@ export function reduce(state: AppState, event: AppEvent): AppState {
 
     case 'chat/selected':
       // Reset scroll to the newest message when the selection changes, and clear
-      // any transient notice (it belonged to the previous view).
+      // any transient notice (it belonged to the previous view). Message
+      // selection and any pending reply belong to the old chat — clear them too.
       return {
         ...state,
         selectedChatId: event.chatId,
+        selectedMessageId: null,
+        replyTo: null,
         conversationOffset: 0,
         newMessagesBelow: false,
         notice: null,
       }
+
+    case 'messageSelection/started': {
+      // Enter selection at the newest loaded message of the active chat.
+      const items =
+        state.selectedChatId === null
+          ? []
+          : (state.messagesByChat[state.selectedChatId]?.items ?? [])
+      const newest = items[items.length - 1]
+      if (newest === undefined) return state
+      return { ...state, selectedMessageId: newest.id }
+    }
+
+    case 'messageSelection/moved': {
+      const items =
+        state.selectedChatId === null
+          ? []
+          : (state.messagesByChat[state.selectedChatId]?.items ?? [])
+      if (items.length === 0) return state
+      const current = items.findIndex((m) => m.id === state.selectedMessageId)
+      // From no selection, a move starts at the newest message.
+      const from = current === -1 ? items.length - 1 : current
+      const next = Math.min(items.length - 1, Math.max(0, from + event.delta))
+      return { ...state, selectedMessageId: items[next]?.id ?? state.selectedMessageId }
+    }
+
+    case 'messageSelection/cleared':
+      return { ...state, selectedMessageId: null }
+
+    case 'reply/started':
+      // Begin replying: record the target, leave selection mode (focus moves to
+      // compose, handled by the caller).
+      return { ...state, replyTo: event.messageId, selectedMessageId: null }
+
+    case 'reply/cancelled':
+      return { ...state, replyTo: null }
 
     case 'focus/changed':
       return { ...state, focus: event.focus }
@@ -230,8 +268,13 @@ export function reduce(state: AppState, event: AppEvent): AppState {
         isSender: true,
         isUnread: false,
         status: 'pending',
+        // A reply carries its target so the optimistic bubble shows the ↩ marker
+        // immediately (invariant 5: only ever on an explicit send).
+        ...(event.replyToId !== undefined ? { replyToId: event.replyToId } : {}),
       }
-      return withChatMessages(state, event.chatId, (window) =>
+      // The reply is consumed by this send — clear the pending reply context.
+      const next = event.replyToId !== undefined ? { ...state, replyTo: null } : state
+      return withChatMessages(next, event.chatId, (window) =>
         mergeMessages(window, [pending], 'newer')
       )
     }

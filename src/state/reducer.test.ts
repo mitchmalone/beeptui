@@ -603,3 +603,100 @@ describe('notice', () => {
     expect(reduce(shown, { type: 'chat/selected', chatId: 'c9' }).notice).toBeNull()
   })
 })
+
+describe('message selection + reply (Slice 11)', () => {
+  /** A chat c1 selected with three loaded messages (oldest → newest: m1,m2,m3). */
+  function seeded(): AppState {
+    return run([
+      { type: 'chats/loaded', chats: [chat('c1')] },
+      { type: 'chat/selected', chatId: 'c1' },
+      {
+        type: 'messages/loaded',
+        chatId: 'c1',
+        messages: [msg('m1', '1'), msg('m2', '2'), msg('m3', '3')],
+        page: 'initial',
+      },
+    ])
+  }
+
+  test('started selects the newest loaded message', () => {
+    const s = reduce(seeded(), { type: 'messageSelection/started' })
+    expect(s.selectedMessageId).toBe('m3')
+  })
+
+  test('started is a no-op when the active chat has no messages', () => {
+    const empty = run([
+      { type: 'chats/loaded', chats: [chat('c1')] },
+      { type: 'chat/selected', chatId: 'c1' },
+    ])
+    expect(reduce(empty, { type: 'messageSelection/started' }).selectedMessageId).toBeNull()
+  })
+
+  test('moved from no selection starts at the newest, then walks older/newer and clamps', () => {
+    let s = reduce(seeded(), { type: 'messageSelection/moved', delta: -1 })
+    expect(s.selectedMessageId).toBe('m2') // newest is m3; -1 → m2
+    s = reduce(s, { type: 'messageSelection/moved', delta: -1 })
+    expect(s.selectedMessageId).toBe('m1')
+    s = reduce(s, { type: 'messageSelection/moved', delta: -1 })
+    expect(s.selectedMessageId).toBe('m1') // clamped at the oldest
+    s = reduce(s, { type: 'messageSelection/moved', delta: 1 })
+    expect(s.selectedMessageId).toBe('m2')
+  })
+
+  test('cleared drops the selection', () => {
+    const s = reduce(seeded(), { type: 'messageSelection/started' })
+    expect(reduce(s, { type: 'messageSelection/cleared' }).selectedMessageId).toBeNull()
+  })
+
+  test('reply/started records the target and exits selection mode', () => {
+    const s = reduce(seeded(), { type: 'messageSelection/started' })
+    const replying = reduce(s, { type: 'reply/started', messageId: 'm2' })
+    expect(replying.replyTo).toBe('m2')
+    expect(replying.selectedMessageId).toBeNull()
+  })
+
+  test('reply/cancelled clears the reply target', () => {
+    const s = reduce(seeded(), { type: 'reply/started', messageId: 'm2' })
+    expect(reduce(s, { type: 'reply/cancelled' }).replyTo).toBeNull()
+  })
+
+  test('selecting another chat clears selection + reply', () => {
+    const s = run(
+      [{ type: 'messageSelection/started' }, { type: 'reply/started', messageId: 'm3' }],
+      seeded()
+    )
+    // reply/started already cleared selection; set one again to prove chat switch clears both.
+    const withBoth = reduce(s, { type: 'messageSelection/started' })
+    const switched = reduce(withBoth, { type: 'chat/selected', chatId: 'c2' })
+    expect(switched.selectedMessageId).toBeNull()
+    expect(switched.replyTo).toBeNull()
+  })
+
+  test('an edited inbound message updates in place with the edit marker (no duplicate)', () => {
+    const base = seeded()
+    const edited = reduce(base, {
+      type: 'message/received',
+      message: msg('m2', '2', { text: 'edited body', isEdited: true }),
+    })
+    const items = edited.messagesByChat['c1']?.items ?? []
+    expect(items).toHaveLength(3) // replaced in place, not appended
+    const m2 = items.find((m) => m.id === 'm2')
+    expect(m2?.text).toBe('edited body')
+    expect(m2?.isEdited).toBe(true)
+  })
+
+  test('send/requested with a reply carries the target and consumes the reply context', () => {
+    const s = reduce(seeded(), { type: 'reply/started', messageId: 'm2' })
+    const sent = reduce(s, {
+      type: 'send/requested',
+      chatId: 'c1',
+      clientId: 'cid-1',
+      text: 'sure',
+      timestamp: '2026-07-30T02:00:10.000Z',
+      replyToId: 'm2',
+    })
+    expect(sent.replyTo).toBeNull()
+    const pending = sent.messagesByChat['c1']?.items.find((m) => m.clientId === 'cid-1')
+    expect(pending?.replyToId).toBe('m2')
+  })
+})

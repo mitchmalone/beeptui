@@ -7,6 +7,7 @@ import {
   selectInboxRows,
   selectLastFailedSend,
   selectNetworkRail,
+  selectReplyContext,
 } from '@/state/selectors.ts'
 import { edgeSelection, moveSelection } from '@/tui/navigation.ts'
 import { helpGroups, resolveCommand } from '@/tui/keymap.ts'
@@ -32,14 +33,19 @@ export interface AppProps {
   onOpenChat: (chatId: string) => void
   /** Page older history for a chat using its stored cursor. */
   onLoadOlder: (chatId: string, cursor: string) => void
-  /** Send the composed text to a chat (explicit user action, invariant 5). */
-  onSend: (chatId: string, text: string) => void
+  /** Send the composed text to a chat (explicit user action, invariant 5).
+   *  `replyToId` carries an in-progress reply's target when present. */
+  onSend: (chatId: string, text: string, replyToId?: string) => void
   /** Retry a previously failed send. */
   onRetry: (chatId: string, clientId: string, text: string) => void
   /** Run a message search through the adapter (scoped to a chat when given). */
   onSearchMessages: (query: string, scopeChatId: string | null) => void
   /** Archive / unarchive a chat (capability-gated in the runtime). */
   onArchiveChat: (chatId: string) => void
+  /** Open the selected message's attachment in the OS viewer. */
+  onOpenAttachment: () => void
+  /** Save the selected message's attachment to Downloads. */
+  onSaveAttachment: () => void
 }
 
 /**
@@ -58,6 +64,8 @@ export function App({
   onRetry,
   onSearchMessages,
   onArchiveChat,
+  onOpenAttachment,
+  onSaveAttachment,
 }: AppProps) {
   const state = useSyncExternalStore(store.subscribe, store.getState)
   // Memoize the derived views on the specific state slices they depend on, so
@@ -82,6 +90,7 @@ export function App({
     () => selectActiveConversation(state),
     [
       state.selectedChatId,
+      state.selectedMessageId,
       state.messagesByChat,
       state.conversationOffset,
       state.newMessagesBelow,
@@ -282,6 +291,50 @@ export function App({
       return
     }
 
+    // Message-selection mode (entered with `v`): j/k move the cursor, Esc exits,
+    // and r/o/s act on the selected message. Matched on the raw key so the
+    // reply/open/save letters don't shadow the global `r`/`s` bindings.
+    if (s.selectedMessageId !== null) {
+      switch (command) {
+        case 'move-up':
+          store.dispatch({ type: 'messageSelection/moved', delta: -1 })
+          return
+        case 'move-down':
+          store.dispatch({ type: 'messageSelection/moved', delta: 1 })
+          return
+        case 'back':
+          store.dispatch({ type: 'messageSelection/cleared' })
+          return
+        default:
+          break
+      }
+      if (key.sequence === 'r') {
+        // Reply — capability-gated: a network that reports no reply support gets
+        // a named notice, never a dead control (invariant 8).
+        if (conv.chat !== null) {
+          if (conv.chat.canReply === false) {
+            store.dispatch({
+              type: 'notice/shown',
+              message: `Replies aren't supported on ${conv.chat.network}.`,
+            })
+          } else {
+            store.dispatch({ type: 'reply/started', messageId: s.selectedMessageId })
+            store.dispatch({ type: 'focus/changed', focus: 'compose' })
+          }
+        }
+        return
+      }
+      if (key.sequence === 'o') {
+        onOpenAttachment()
+        return
+      }
+      if (key.sequence === 's') {
+        onSaveAttachment()
+        return
+      }
+      return // swallow other keys while selecting
+    }
+
     // Conversation focus: scroll, page older, compose, retry, and back.
     switch (command) {
       case 'move-up':
@@ -295,6 +348,9 @@ export function App({
         break
       case 'bottom':
         store.dispatch({ type: 'conversation/scrolled', delta: -conv.messages.length })
+        break
+      case 'select-message':
+        store.dispatch({ type: 'messageSelection/started' })
         break
       case 'compose':
         if (conv.chat !== null) store.dispatch({ type: 'focus/changed', focus: 'compose' })
@@ -320,15 +376,18 @@ export function App({
     }
   })
 
+  const replyContext = selectReplyContext(state)
   const composePane = chatOpen ? (
     <Compose
       key={selectedChatId}
       draft={selectDraft(state, selectedChatId)}
       focused={focus === 'compose'}
       hasFailedSend={failedSend !== null}
+      replyContext={replyContext}
       onEdit={(text) => store.dispatch({ type: 'draft/changed', chatId: selectedChatId, text })}
-      onSend={(text) => onSend(selectedChatId, text)}
+      onSend={(text) => onSend(selectedChatId, text, store.getState().replyTo ?? undefined)}
       onBlur={() => store.dispatch({ type: 'focus/changed', focus: 'conversation' })}
+      onCancelReply={() => store.dispatch({ type: 'reply/cancelled' })}
     />
   ) : null
 

@@ -55,6 +55,8 @@ async function renderApp(store: Store, over: Partial<AppProps> = {}) {
     onRetry: noop,
     onSearchMessages: noop,
     onArchiveChat: noop,
+    onOpenAttachment: noop,
+    onSaveAttachment: noop,
     ...over,
   }
   return testRender(<App {...props} />, { width: 100, height: 24 })
