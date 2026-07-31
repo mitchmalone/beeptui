@@ -25,6 +25,7 @@ import {
 } from '@/tui/runtime.ts'
 import { openFile, runNotifier, saveToDownloads } from '@/tui/os-open.ts'
 import { buildNotifyArgs, shouldNotify } from '@/tui/notify.ts'
+import { applyKeymapOverrides, KEYMAP } from '@/tui/keymap.ts'
 
 /**
  * Boot the TUI: build the adapter from config + credential store, create the
@@ -34,8 +35,11 @@ import { buildNotifyArgs, shouldNotify } from '@/tui/notify.ts'
  * `status`/`doctor` CLI never pulls in the native renderer.
  */
 export async function launch(): Promise<void> {
-  const { endpoint, notify } = resolveConfig()
+  const { endpoint, notify, keymap: keymapOverrides } = resolveConfig()
   const token = resolveToken()
+  // A bad rebind (unknown command / empty keys) is fatal with a clear message —
+  // better than silently ignoring the user's config.
+  const keymap = keymapOverrides === null ? KEYMAP : applyKeymapOverrides(keymapOverrides)
   const adapter = new BeeperAdapter({ endpoint, accessToken: token })
   const store = createStore()
 
@@ -111,6 +115,7 @@ export async function launch(): Promise<void> {
       onArchiveChat,
       onOpenAttachment,
       onSaveAttachment,
+      keymap,
     })
   )
 

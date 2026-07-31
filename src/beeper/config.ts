@@ -16,6 +16,9 @@ export interface ResolvedConfig {
   configPath: string
   /** Notification hook, or null when not configured. */
   notify: NotifyConfig | null
+  /** Raw keymap overrides (command name → key tokens), or null. Shape-validated
+   *  here; command names are validated by the keymap layer when applied. */
+  keymap: Record<string, string[]> | null
 }
 
 export interface ResolveConfigDeps {
@@ -65,6 +68,7 @@ export function resolveConfig(deps: ResolveConfigDeps = {}): ResolvedConfig {
 
   let fileEndpoint: string | undefined
   let notify: NotifyConfig | null = null
+  let keymap: Record<string, string[]> | null = null
   const raw = readFile(configPath)
   if (raw !== undefined) {
     let parsed: unknown
@@ -81,10 +85,35 @@ export function resolveConfig(deps: ResolveConfigDeps = {}): ResolvedConfig {
       fileEndpoint = value
     }
     notify = parseNotify(parsed, configPath)
+    keymap = parseKeymap(parsed, configPath)
   }
 
   const endpoint = validateEndpoint(env.BEEPER_TUI_ENDPOINT ?? fileEndpoint ?? DEFAULT_ENDPOINT)
-  return { endpoint, configPath, notify }
+  return { endpoint, configPath, notify, keymap }
+}
+
+/** Shape-validate the optional `keymap` overrides: an object of command name →
+ *  non-empty string array. Command-name validity is checked by the keymap layer. */
+function parseKeymap(parsed: unknown, configPath: string): Record<string, string[]> | null {
+  if (parsed === null || typeof parsed !== 'object' || !('keymap' in parsed)) return null
+  const keymap = (parsed as { keymap: unknown }).keymap
+  if (keymap === null || typeof keymap !== 'object' || Array.isArray(keymap)) {
+    throw new Error(`Invalid Beeper config file ("keymap" must be an object): ${configPath}`)
+  }
+  const out: Record<string, string[]> = {}
+  for (const [command, keys] of Object.entries(keymap)) {
+    if (
+      !Array.isArray(keys) ||
+      keys.length === 0 ||
+      !keys.every((k): k is string => typeof k === 'string')
+    ) {
+      throw new Error(
+        `Invalid Beeper config file ("keymap.${command}" must be a non-empty string array): ${configPath}`
+      )
+    }
+    out[command] = keys
+  }
+  return out
 }
 
 /** Parse + validate the optional `notify.command` (a non-empty string array).

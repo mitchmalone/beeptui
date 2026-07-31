@@ -187,15 +187,15 @@ export interface HelpGroup {
   bindings: ReadonlyArray<{ display: string; description: string }>
 }
 
-/** The help overlay content, generated from the keymap so it can never drift. */
-export function helpGroups(): HelpGroup[] {
+/** The help overlay content, generated from the keymap so it can never drift.
+ *  Pass the effective keymap so rebinds show their configured keys. */
+export function helpGroups(keymap: readonly Binding[] = KEYMAP): HelpGroup[] {
   const order: KeyContext[] = ['global', 'inbox', 'conversation']
   const groups: HelpGroup[] = order.map((context) => ({
     title: CONTEXT_TITLES[context],
-    bindings: KEYMAP.filter((b) => b.context === context).map((b) => ({
-      display: b.display,
-      description: b.description,
-    })),
+    bindings: keymap
+      .filter((b) => b.context === context)
+      .map((b) => ({ display: b.display, description: b.description })),
   }))
   groups.push({ title: 'Messages', bindings: MESSAGE_SELECT_HELP })
   groups.push({ title: CONTEXT_TITLES.compose, bindings: COMPOSE_HELP })
@@ -209,8 +209,62 @@ export function keyToken(key: { name: string; shift?: boolean }): string {
   return key.shift && name.length === 1 ? `shift+${name}` : name
 }
 
-/** Resolve a key event to a command, or null if unbound. */
-export function resolveCommand(key: { name: string; shift?: boolean }): Command | null {
+/** Resolve a key event to a command, or null if unbound. Pass an effective
+ *  keymap (base + user overrides) to honour config-file rebinds. */
+export function resolveCommand(
+  key: { name: string; shift?: boolean },
+  keymap: readonly Binding[] = KEYMAP
+): Command | null {
   const token = keyToken(key)
-  return KEYMAP.find((b) => b.keys.includes(token))?.command ?? null
+  return keymap.find((b) => b.keys.includes(token))?.command ?? null
+}
+
+/** The set of valid command names, for validating config overrides. */
+export const COMMANDS: ReadonlySet<Command> = new Set(KEYMAP.map((b) => b.command))
+
+/** User keymap overrides from config: command name → replacement key tokens. */
+export type KeymapOverrides = Record<string, string[]>
+
+/** Pretty display string for a set of key tokens (used when an override replaces
+ *  a binding's hand-written display). */
+function keysToDisplay(keys: string[]): string {
+  const pretty: Record<string, string> = {
+    return: '⏎',
+    enter: '⏎',
+    up: '↑',
+    down: '↓',
+    left: '←',
+    right: '→',
+    escape: 'Esc',
+    tab: 'Tab',
+    space: '␣',
+  }
+  return keys
+    .map((k) => pretty[k] ?? (k.startsWith('shift+') ? k.slice(6).toUpperCase() : k))
+    .join(' / ')
+}
+
+/**
+ * Build the effective keymap from the base bindings plus user overrides. Each
+ * override replaces a command's keys (and regenerates its help display). An
+ * override for an unknown command throws with a clear message so a config typo
+ * surfaces instead of silently doing nothing (Slice 14: validated config).
+ */
+export function applyKeymapOverrides(
+  overrides: KeymapOverrides,
+  base: readonly Binding[] = KEYMAP
+): Binding[] {
+  for (const command of Object.keys(overrides)) {
+    if (!COMMANDS.has(command as Command)) {
+      throw new Error(`Unknown keymap command in config: "${command}"`)
+    }
+    const keys = overrides[command]
+    if (!Array.isArray(keys) || keys.length === 0) {
+      throw new Error(`Keymap override for "${command}" must be a non-empty array of key tokens`)
+    }
+  }
+  return base.map((binding) => {
+    const keys = overrides[binding.command]
+    return keys === undefined ? binding : { ...binding, keys, display: keysToDisplay(keys) }
+  })
 }

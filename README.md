@@ -69,6 +69,10 @@ platform credential store.
   // The command receives ONE extra argument: "beeper-tui: new message on <Network>".
   // Only the app name + network are ever passed — never a sender, chat, or message body.
   "notify": { "command": ["terminal-notifier", "-title", "Beeper", "-message"] },
+  // Rebind keys: command name → key tokens (e.g. "down", "shift+j", "ctrl+n").
+  // Unknown commands or empty lists fail fast with a clear error. Press ? for the
+  // command list; the help overlay reflects your overrides.
+  "keymap": { "quit": ["x"], "refresh": ["ctrl+r"] },
 }
 ```
 

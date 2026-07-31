@@ -88,4 +88,27 @@ describe('resolveConfig', () => {
       })
     ).toThrow(/notify\.command/)
   })
+
+  test('keymap defaults to null and parses valid overrides', () => {
+    expect(resolveConfig({ env: {}, homedir: home, readFile: () => undefined }).keymap).toBeNull()
+    const cfg = resolveConfig({
+      env: {},
+      homedir: home,
+      readFile: () => JSON.stringify({ keymap: { quit: ['x'], 'move-down': ['down', 'shift+j'] } }),
+    })
+    expect(cfg.keymap).toEqual({ quit: ['x'], 'move-down': ['down', 'shift+j'] })
+  })
+
+  test('rejects a malformed keymap override with a clear error', () => {
+    expect(() =>
+      resolveConfig({ env: {}, homedir: home, readFile: () => JSON.stringify({ keymap: [] }) })
+    ).toThrow(/keymap.*object/)
+    expect(() =>
+      resolveConfig({
+        env: {},
+        homedir: home,
+        readFile: () => JSON.stringify({ keymap: { quit: 'x' } }),
+      })
+    ).toThrow(/keymap\.quit/)
+  })
 })

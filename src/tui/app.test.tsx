@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { testRender } from '@opentui/react/test-utils'
 import { App, type AppProps } from '@/tui/app.tsx'
+import { applyKeymapOverrides } from '@/tui/keymap.ts'
 import { createStore, type Store } from '@/tui/store.ts'
 import type { ChatSummary, MessageSummary } from '@/beeper/types.ts'
 
@@ -109,6 +110,20 @@ describe('App shell', () => {
     expect(store.getState().selectedChatId).toBe('c2')
     await mockInput.pressKey('RETURN')
     expect(opened).toEqual(['c2'])
+  })
+
+  test('a config keymap override rebinds a command end-to-end', async () => {
+    const store = seededStore()
+    let quit = 0
+    const { renderOnce, mockInput } = await renderApp(store, {
+      onQuit: () => (quit += 1),
+      keymap: applyKeymapOverrides({ quit: ['x'] }),
+    })
+    await renderOnce()
+    await mockInput.pressKey('q') // no longer bound to quit
+    expect(quit).toBe(0)
+    await mockInput.pressKey('x') // the rebound key quits
+    expect(quit).toBe(1)
   })
 
   test('A archives the highlighted chat straight from the list (no need to open it)', async () => {

@@ -11,7 +11,7 @@ import {
 } from '@/state/selectors.ts'
 import { checkCapability } from '@/state/capabilities.ts'
 import { edgeSelection, moveSelection } from '@/tui/navigation.ts'
-import { helpGroups, resolveCommand } from '@/tui/keymap.ts'
+import { helpGroups, KEYMAP, resolveCommand, type Binding } from '@/tui/keymap.ts'
 import { searchChats } from '@/tui/fuzzy.ts'
 import type { Store } from '@/tui/store.ts'
 import { InboxPane } from '@/tui/components/InboxPane.tsx'
@@ -47,6 +47,8 @@ export interface AppProps {
   onOpenAttachment: () => void
   /** Save the selected message's attachment to Downloads. */
   onSaveAttachment: () => void
+  /** Effective keymap (base + user config overrides). Defaults to the base. */
+  keymap?: readonly Binding[]
 }
 
 /**
@@ -67,6 +69,7 @@ export function App({
   onArchiveChat,
   onOpenAttachment,
   onSaveAttachment,
+  keymap = KEYMAP,
 }: AppProps) {
   const state = useSyncExternalStore(store.subscribe, store.getState)
   // Memoize the derived views on the specific state slices they depend on, so
@@ -114,7 +117,7 @@ export function App({
 
     // Overlays capture input first.
     if (s.overlay === 'help') {
-      if (resolveCommand({ name: key.name, shift: key.shift }) === 'quit') onQuit()
+      if (resolveCommand({ name: key.name, shift: key.shift }, keymap) === 'quit') onQuit()
       else store.dispatch({ type: 'overlay/closed' })
       return
     }
@@ -183,7 +186,7 @@ export function App({
       return
     }
     // Message search scopes to the active chat when one is open, else searches all.
-    if (resolveCommand({ name: key.name, shift: key.shift }) === 'search-messages') {
+    if (resolveCommand({ name: key.name, shift: key.shift }, keymap) === 'search-messages') {
       const scopeChatId = s.focus === 'conversation' ? s.selectedChatId : null
       store.dispatch({ type: 'messageSearch/opened', scopeChatId })
       return
@@ -200,7 +203,7 @@ export function App({
       return
     }
 
-    const command = resolveCommand({ name: key.name, shift: key.shift })
+    const command = resolveCommand({ name: key.name, shift: key.shift }, keymap)
     // Archived / unread toggles are app-wide filters, handled before focus.
     if (command === 'toggle-archived') {
       store.dispatch({ type: 'filter/archivedToggled' })
@@ -392,7 +395,7 @@ export function App({
 
   const overlayPane =
     state.overlay === 'help' ? (
-      <HelpOverlay groups={helpGroups()} />
+      <HelpOverlay groups={helpGroups(keymap)} />
     ) : state.overlay === 'search' ? (
       <SearchPalette query={state.searchQuery} results={searchChats(state.searchQuery, rows)} />
     ) : state.overlay === 'messageSearch' ? (
