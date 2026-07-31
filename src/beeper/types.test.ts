@@ -20,6 +20,14 @@ describe('mapInfo', () => {
       port: 23373,
       remoteAccessEnabled: false,
       wsEventsUrl: 'ws://127.0.0.1:23373/v1/ws',
+      oauth: {
+        authorizationEndpoint: 'http://127.0.0.1:23373/oauth/authorize',
+        tokenEndpoint: 'http://127.0.0.1:23373/oauth/token',
+        registrationEndpoint: 'http://127.0.0.1:23373/oauth/register',
+        introspectionEndpoint: 'http://127.0.0.1:23373/oauth/introspect',
+        revocationEndpoint: 'http://127.0.0.1:23373/oauth/revoke',
+        userinfoEndpoint: 'http://127.0.0.1:23373/oauth/userinfo',
+      },
     })
   })
 })

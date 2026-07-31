@@ -7,6 +7,22 @@ import type BeeperDesktop from '@beeper/desktop-api'
  * boundary where SDK shapes become domain shapes.
  */
 
+/**
+ * OAuth 2.0 endpoints the server advertises via `/v1/info` (RFC 8414-style
+ * discovery + RFC 7591 dynamic client registration). The groundwork for the
+ * Slice 13 remote-endpoint auth flow: PKCE authorize → token, with dynamic
+ * registration. Surfaced now (read-only) so the flow can be built against the
+ * server's own advertised endpoints rather than hard-coded URLs.
+ */
+export interface OAuthEndpoints {
+  authorizationEndpoint: string
+  tokenEndpoint: string
+  registrationEndpoint: string
+  introspectionEndpoint: string
+  revocationEndpoint: string
+  userinfoEndpoint: string
+}
+
 export interface ServerInfo {
   appName: string
   appVersion: string
@@ -16,6 +32,8 @@ export interface ServerInfo {
   port: number
   remoteAccessEnabled: boolean
   wsEventsUrl: string
+  /** OAuth endpoints advertised by the server (Slice 13 remote-auth groundwork). */
+  oauth: OAuthEndpoints
 }
 
 export interface Account {
@@ -92,6 +110,14 @@ export function mapInfo(info: BeeperDesktop.Info.InfoRetrieveResponse): ServerIn
     port: info.server.port,
     remoteAccessEnabled: info.server.remote_access,
     wsEventsUrl: info.endpoints.ws_events,
+    oauth: {
+      authorizationEndpoint: info.endpoints.oauth.authorization_endpoint,
+      tokenEndpoint: info.endpoints.oauth.token_endpoint,
+      registrationEndpoint: info.endpoints.oauth.registration_endpoint,
+      introspectionEndpoint: info.endpoints.oauth.introspection_endpoint,
+      revocationEndpoint: info.endpoints.oauth.revocation_endpoint,
+      userinfoEndpoint: info.endpoints.oauth.userinfo_endpoint,
+    },
   }
 }
 

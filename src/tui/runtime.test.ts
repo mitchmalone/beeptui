@@ -30,6 +30,14 @@ const server: ServerInfo = {
   port: 23373,
   remoteAccessEnabled: false,
   wsEventsUrl: 'ws://x/v1/ws',
+  oauth: {
+    authorizationEndpoint: 'http://x/oauth/authorize',
+    tokenEndpoint: 'http://x/oauth/token',
+    registrationEndpoint: 'http://x/oauth/register',
+    introspectionEndpoint: 'http://x/oauth/introspect',
+    revocationEndpoint: 'http://x/oauth/revoke',
+    userinfoEndpoint: 'http://x/oauth/userinfo',
+  },
 }
 const accounts: Account[] = [
   { id: 'a', network: 'WhatsApp', bridgeType: 'whatsapp', provider: 'local', displayName: 'Ada' },
