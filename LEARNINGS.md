@@ -37,6 +37,13 @@ chatIDs:[]}`; then send **`{type:'subscriptions.set', requestID, chatIDs:['*']}`
   full Message objects — map with `mapMessage`), `chat.upserted {chatID, ids, seq, ts}` (no entry —
   refetch the chat), plus `message.deleted` / `chat.deleted`. `seq` is monotonic — usable for
   gap-detection on reconnect. No auto-delivery: nothing arrives until you subscribe.
+- **Message search** = `GET /v1/messages/search` (`messages.search(params)`), cursor-paginated
+  (`{items, hasMore, oldestCursor, newestCursor}`, items are full `Message`s → `mapMessage`).
+  `MessageSearchParams` scopes via `chatIDs` / `accountIDs` arrays, plus `chatType`, `dateAfter/Before`,
+  `sender` ('me'/'others'/id), `mediaTypes`, `query` (literal words, non-semantic). **Don't trust the
+  scope** — the adapter verifies every hit matches the requested chat/account and reports
+  `scopeHonored`; a server that ignores scope is handled, not surfaced as wrong results. Real-endpoint
+  scope/cap/deep-link behavior per network is still unverified (live-validate before relying on it).
 
 ## OpenTUI / rendering
 
@@ -67,6 +74,10 @@ height})` gives a headless render; `captureCharFrame()` asserts content, `mockIn
   from mock-input state updates — the assertions are still valid; ignore the warnings.
 - Style props differ by element: `box` takes `backgroundColor`; **`text` takes `fg`/`bg`**, not
   `backgroundColor` (tsc catches the mixup).
+- **Shared test fixtures can hide inconsistencies until a filter exposes them.** `app.test.tsx`'s
+  `seededStore` gave every chat `accountId:'a'` while assigning different networks — invisible until
+  Slice 10's per-account scope tried to tell them apart. When adding a scope/filter feature, audit
+  shared fixtures for fields the feature newly depends on.
 - **`<scrollbox stickyStart="bottom">` misrenders short content** under the headless test renderer —
   it scrolls earlier lines out of the captured frame even when everything fits. The conversation
   list uses a **computed visible window** (`conversation-scroll.ts` — slice the last N by a scroll

@@ -5,6 +5,31 @@
 
 ---
 
+### 2026-07-31 — Slice 10: network rail, filters & message search
+
+- **The rail is a filter, not a new focus target.** Scope (`[`/`]`), archived (`a`), unread-only
+  (`U`) are app-wide keys handled _before_ the per-focus switch in `app.tsx`, so the
+  `inbox → conversation → compose` flow is untouched. Bracket keys are matched on `key.sequence`
+  (like `/` and `?`) because terminals name them inconsistently; letters go through `resolveCommand`.
+- **`selectInboxRows` is now filter-aware; `selectNetworkRail` derives the rail.** Rail unread dots
+  honor the current archived view (so counts match the visible list) but ignore unread-only (that's
+  a list filter, not a rail concern). Kept marker derivation (`networkMarker`) in the component —
+  `src/state` must not import `src/tui`.
+- **Test-data bug surfaced by scoping:** `app.test.tsx`'s `seededStore` hardcoded `accountId:'a'`
+  for _both_ chats, so a per-account scope couldn't distinguish them. Fixed the helper to map
+  network→account. Lesson: filter/scope features expose latent inconsistencies in shared fixtures.
+- **Message search verifies scope, never trusts it.** The adapter requests `chatIDs`/`accountIDs`
+  but then checks every hit actually matches; a scope-ignoring server reports `scopeHonored:false`
+  so the runtime scopes locally + labels it partial. Server failure → local search over loaded
+  history (labeled partial), or a named error when even that is empty. No silent wrong results
+  (invariant 8).
+- **Message search is a two-phase overlay:** type → `Enter` runs the adapter search; with results,
+  `↑`/`↓` select and `Enter` opens. Disambiguated by `status` (`done` + results → open, else run).
+  `j`/`k` can't move the selection — letters must type — so selection uses arrows only.
+- **Deep-link is honest-partial:** opening a hit selects + loads the chat's recent page; if the hit
+  is older than that page it isn't anchored yet (message-anchored loading is Slice 11 territory).
+  Not a dead control — you land in the right conversation.
+
 ### 2026-07-31 — Slice 9: Phase 1 validated & closed
 
 - **Golden-path smoke harness** (`smoke.test.tsx`): drives the real App by keyboard against a fake

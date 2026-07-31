@@ -6,6 +6,25 @@
 
 ---
 
+### 2026-07-31 · The network rail is a quick-key filter, not a fourth focus pane; archive is view-only
+
+**Decision.** The `slk`-style leftmost network rail (Slice 10) switches inbox scope via app-wide
+quick keys — `[`/`]` cycle All + per-network, `a` toggles archived, `U` toggles unread-only — rather
+than being a pane you Tab/arrow into. Archived is a **view filter over Beeper's per-chat archive
+state**, composing with the selected scope; the TUI does **not** archive/unarchive. Message search
+gets its own opener (`S`), distinct from chat search (`/`).
+
+**Why.** Keeping the rail out of the focus ring preserves the proven `inbox → conversation → compose`
+flow (no reflow of existing keymaps/tests) and matches how Slack's workspace switcher actually
+behaves (jump keys, not a list you traverse). Archive-as-view honors invariant 1 (Beeper owns state;
+we're a client) and the Slice 10 scope line "archiving is Beeper's job; we only filter by its state";
+archive/unarchive _actions_ are a separate adapter-write + capability-gating concern, deferred.
+Separate openers avoid overloading `Enter`/`/` with mode ambiguity.
+
+**Consequence.** Archive/unarchive actions remain unbuilt (candidate for a later slice). Message
+search verifies server scope rather than trusting it, falling back to a labeled local search — so a
+scope-ignoring or unavailable endpoint degrades visibly, never returns silently-wrong results.
+
 ### 2026-07-30 · Bindings use a thin in-repo keymap, not the `@opentui/keymap` package
 
 **Decision.** Declare keybindings in a small in-repo module (`src/tui/keymap.ts`) — a static data

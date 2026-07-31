@@ -7,10 +7,13 @@
 
 ## Where we are
 
-**Phase 2 in progress — Slice 10 active** on `feat/slice-10-filters-message-search`. Reworked from
-"filters" into a `slk`-style **leftmost network rail** (All + per-network scope, unread dots,
-archived toggle) plus message search — per Mitch's 2026-07-31 feedback. Plan beefed up in
-`plans/active/`; building next, reducer-first.
+**Phase 2 in progress — Slice 10 built** on `feat/slice-10-filters-message-search` (10a + 10b done;
+PR open). A `slk`-style **leftmost network rail** now scopes the inbox (All + per-network, unread
+dots) with archived (`a`) and unread-only (`U`) toggles — all quick-key driven (`[`/`]` cycle), the
+focus flow untouched. **Message search** (`S`) runs through the Beeper adapter with honest coverage:
+scope-honoring is verified (not trusted), and a labeled local fallback covers capped / scope-ignoring
+/ unavailable endpoints. **249 tests** green; typecheck + lint clean; 6 smoke scenarios (added rail
+scope + archived + search golden path). Live validation of the real search endpoint still pending.
 
 **🎉 Phase 1 complete — Slices 0–9 done (all merged to `main`).**
 The MVP is real and live-validated against Beeper Desktop 4.2.1004: browse the inbox, read history
@@ -22,9 +25,11 @@ no silent failures. Fixed pagination resilience along the way. **199 tests** gre
 
 ## Next up
 
-- **Slice 10 active** (network rail, filters & message search). Then Slice 11 (replies, edits &
-  attachments), Slice 12 (remaining networks — depends on 10 + 11). Re-plan Phase 3 (13–14) before
-  starting; 14 is blocked on pending decisions #1 (name) and #6 (open-source).
+- **Live-validate Slice 10's message search** against the real Beeper search endpoint (scope honor,
+  caps, deep-link support per network) — the one acceptance item that needs a running Beeper.
+- Then Slice 11 (replies, edits & attachments), Slice 12 (remaining networks — depends on 10 + 11).
+  Re-plan Phase 3 (13–14) before starting; 14 is blocked on pending decisions #1 (name) and #6
+  (open-source).
 
 ## Deferred / follow-ups
 

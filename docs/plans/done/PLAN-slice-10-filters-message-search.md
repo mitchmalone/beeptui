@@ -1,6 +1,6 @@
 ---
 title: Slice 10 — Network rail, filters & message search
-status: active
+status: done
 created: 2026-07-30
 updated: 2026-07-31
 links:
@@ -90,47 +90,50 @@ partial — honest about coverage. Capability detection gates scope-honoring vs.
 
 **Part A — rail & filters**
 
-- [ ] Reducer: `inboxFilter` state + events (scope cycle/select, archived toggle, unread toggle),
+- [x] Reducer: `inboxFilter` state + events (scope cycle/select, archived toggle, unread toggle),
       unit tests first.
-- [ ] Selectors: `selectInboxRows` respects scope + archived + unreadOnly; new `selectNetworkRail`
+- [x] Selectors: `selectInboxRows` respects scope + archived + unreadOnly; new `selectNetworkRail`
       derives rail entries + unread counts; tests.
-- [ ] Adapter/entity: surface per-chat archive state from the API into the normalized chat if not
+- [x] Adapter/entity: surface per-chat archive state from the API into the normalized chat if not
       already present; fixture tests.
-- [ ] Keymap: `[`/`]` cycle, `a` archived, `Shift+U` unread-only (context-tagged so help documents
+- [x] Keymap: `[`/`]` cycle, `a` archived, `Shift+U` unread-only (context-tagged so help documents
       them); wire in `app.tsx`.
-- [ ] `NetworkRail` component: rail entries, unread dots, selected highlight, archived indicator;
+- [x] `NetworkRail` component: rail entries, unread dots, selected highlight, archived indicator;
       render tests.
-- [ ] Layout: three columns wide; **narrow-terminal collapse story** — rail hides/condenses below
+- [x] Layout: three columns wide; **narrow-terminal collapse story** — rail hides/condenses below
       `NARROW_WIDTH`, scope still cyclable by key. Tests for the collapse.
 
 **Part B — message search**
 
-- [ ] Adapter search endpoint: request shape, scoping, pagination/caps, capability detection;
+- [x] Adapter search endpoint: request shape, scoping, pagination/caps, capability detection;
       fixture tests including a scope-ignoring server.
-- [ ] Search palette "messages" mode with result-context rendering.
-- [ ] Result navigation: open chat, load surrounding context, highlight/focus the match where the
+- [x] Search palette "messages" mode with result-context rendering.
+- [x] Result navigation: open chat, load surrounding context, highlight/focus the match where the
       API permits; graceful "opened chat, couldn't deep-link" fallback otherwise.
-- [ ] Local fallback path, clearly labeled partial, used only when the API is capped/unsupported.
+- [x] Local fallback path, clearly labeled partial, used only when the API is capped/unsupported.
 
 **Close-out**
 
-- [ ] Smoke-test additions: network-scope switch + archived view (Part A) and the search golden path
+- [x] Smoke-test additions: network-scope switch + archived view (Part A) and the search golden path
       (Part B).
 
 ## Acceptance criteria
 
-- [ ] The leftmost rail shows `All` + one entry per connected network, with the active scope visibly
+- [x] The leftmost rail shows `All` + one entry per connected network, with the active scope visibly
       indicated and per-network unread dots; `[`/`]` cycle it and the chat list re-filters correctly
       against fixture data (tests).
-- [ ] `a` switches between active and archived chats for the current scope, honoring Beeper's
+- [x] `a` switches between active and archived chats for the current scope, honoring Beeper's
       per-chat archive state; `Shift+U` shows unread-only. All keyboard-driven and visibly
       indicated (tests).
-- [ ] Rail collapses/condenses gracefully on a narrow terminal without losing scope switching.
-- [ ] PRD acceptance scenario 5: find a known message in a Discord chat, select the result, land in
-      the right conversation with surrounding context where the API permits.
-- [ ] Scope-ignoring or capped search endpoints produce the fallback, labeled as such — never
+- [x] Rail collapses/condenses gracefully on a narrow terminal without losing scope switching.
+- [~] PRD acceptance scenario 5: find a known message in a Discord chat, select the result, land in
+  the right conversation. **Covered by the smoke harness (fixture) + unit tests; live validation
+  against the real Discord search endpoint is still pending** (needs a running Beeper — see
+  STATUS "Next up"). Deep-linking is honest-partial: opening a hit lands in the right chat and
+  loads its recent page; anchoring to an older message is Slice 11 territory.
+- [x] Scope-ignoring or capped search endpoints produce the fallback, labeled as such — never
       silently wrong results.
-- [ ] `bun test` + smoke suite green; help overlay auto-lists the new bindings.
+- [x] `bun test` + smoke suite green; help overlay auto-lists the new bindings.
 
 ## Out of scope
 
