@@ -256,6 +256,32 @@ describe('new-messages affordance (scrolled up)', () => {
   })
 })
 
+describe('overlays (search / help)', () => {
+  test('opening search sets the overlay and clears the query', () => {
+    const s = run([
+      { type: 'search/queryChanged', query: 'stale' },
+      { type: 'overlay/opened', overlay: 'search' },
+    ])
+    expect(s.overlay).toBe('search')
+    expect(s.searchQuery).toBe('')
+  })
+
+  test('query changes while searching; closing resets overlay + query', () => {
+    let s = run([
+      { type: 'overlay/opened', overlay: 'search' },
+      { type: 'search/queryChanged', query: 'grace' },
+    ])
+    expect(s.searchQuery).toBe('grace')
+    s = run([{ type: 'overlay/closed' }], s)
+    expect(s.overlay).toBe('none')
+    expect(s.searchQuery).toBe('')
+  })
+
+  test('help overlay opens and closes', () => {
+    expect(run([{ type: 'overlay/opened', overlay: 'help' }]).overlay).toBe('help')
+  })
+})
+
 describe('selection + drafts', () => {
   test('chat/selected sets and clears', () => {
     expect(run([{ type: 'chat/selected', chatId: 'c1' }]).selectedChatId).toBe('c1')

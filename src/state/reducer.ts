@@ -234,6 +234,16 @@ export function reduce(state: AppState, event: AppEvent): AppState {
         )
       )
 
+    case 'overlay/opened':
+      // Opening search starts from an empty query.
+      return { ...state, overlay: event.overlay, searchQuery: '' }
+
+    case 'overlay/closed':
+      return { ...state, overlay: 'none', searchQuery: '' }
+
+    case 'search/queryChanged':
+      return { ...state, searchQuery: event.query }
+
     case 'error/raised':
       return { ...state, error: { kind: event.kind, message: event.message } }
 
