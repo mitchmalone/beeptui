@@ -5,6 +5,26 @@
 
 ---
 
+### 2026-08-01 — Slice 14 unblocked features: receipts, notification hooks, standalone binary
+
+- **Read receipts were the same map→format pattern as reactions.** `Message.seen` has three shapes
+  (bool | timestamp string | per-user map); `mapSeen` collapses any truthy signal to `isSeen`, and
+  `messageLine` shows `✓✓` only on our own (`isSender`) seen messages. Completes the PRD
+  reactions/edits/receipts display trio — all read-only, no capability gate (display what's there).
+- **Notification hooks stay honest by construction.** `config.notify.command` runs on new inbound
+  messages in a chat you're not reading. The pure part (`shouldNotify` + `notificationText`) is
+  testable; the payload is app + **network name only** — never sender, chat, or body (invariant 6) —
+  and `runNotifier` spawns with an arg array (no shell), best-effort (a missing notifier can't crash
+  the TUI). Config validated with explicit errors so a typo never silently disables it.
+- **`bun build --compile` just works on macOS arm64.** One command → a 69 MB standalone `dist/beeper-tui`
+  that runs `--help`/`doctor`/TUI with no Bun at runtime, native OpenTUI renderer bundled. This was
+  the PRD's flagged compatibility risk (OpenTUI/Bun/Zig on macOS arm64); validated by running the
+  built binary's `doctor` (all checks green). `dist/` was already gitignored.
+- **Where I stopped, and why.** Config keymap overrides is only ~3 call sites in `app.tsx` but crosses
+  the `src/beeper` (config) → `src/tui` (keymap/Command names) layer boundary for validation, plus
+  display-string regeneration — real complexity for a nice-to-have. Left it, perf profiling, media
+  preview, and brew/releases (gated on #6) for a Slice-14 re-plan rather than grind marginal items.
+
 ### 2026-08-01 — Slice 13 OAuth core + Slice 14 reactions; security review passed
 
 - **OAuth is fully discoverable — no guessing.** `/v1/info` advertises the whole OAuth 2.0 endpoint

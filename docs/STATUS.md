@@ -48,10 +48,14 @@ orchestrator, unit-tested against a fake auth server; `oauth-loopback.ts` is the
 write_ deferred (invariant-6 argv tension — needs an argv-free keystore mechanism), and end-to-end
 needs a real remote endpoint (`remote_access:false` locally).
 
-**Slice 14 (polish) — started.** Read-only **reactions** now render as a trailing per-message summary
-(`👍×2 🎉`), aggregated by key. Rest of Slice 14 (theming, notification hooks, packaging, doctor
-token-scope) awaits a re-plan; naming is resolved (`beeper-tui`), open-source flip (#6) still gates
-license/README. **344 tests** green; typecheck + lint + format clean; security review clean.
+**Slice 14 (polish) — unblocked features landed.** Read-only **reactions** (`👍×2 🎉`, aggregated),
+**read receipts** (`✓✓` on own seen messages), and **notification hooks** (`config.notify.command`
+runs a redacted app+network-only command on new inbound messages, argv-free). **Packaging:**
+`bun run build` compiles a standalone `dist/beeper-tui` (~69 MB Mach-O arm64) that runs
+`--help`/`doctor`/TUI with no Bun at runtime — OpenTUI/Bun compat validated on macOS arm64; README
+has Install + Configuration docs. **353 tests** green; typecheck + lint + format + security review
+clean. Remaining Slice 14 (config keymap overrides, perf profiling, media preview, brew tap/releases)
+is either a wider refactor or gated on decision #6 (open-source flip) → license + public distribution.
 
 **🎉 Phase 1 complete — Slices 0–9 done (all merged to `main`).**
 The MVP is real and live-validated against Beeper Desktop 4.2.1004: browse the inbox, read history
