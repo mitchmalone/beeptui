@@ -17,6 +17,9 @@ export type Command =
   | 'search'
   | 'help'
   | 'refresh'
+  | 'network-cycle'
+  | 'toggle-archived'
+  | 'toggle-unread'
   | 'quit'
 
 /** Grouping used by the help overlay. */
@@ -89,6 +92,27 @@ export const KEYMAP: readonly Binding[] = [
     command: 'retry',
     description: 'Retry failed send',
     context: 'conversation',
+  },
+  {
+    keys: [']', '['],
+    display: '[ / ]',
+    command: 'network-cycle',
+    description: 'Cycle network scope',
+    context: 'global',
+  },
+  {
+    keys: ['a'],
+    display: 'a',
+    command: 'toggle-archived',
+    description: 'Toggle archived view',
+    context: 'global',
+  },
+  {
+    keys: ['shift+u'],
+    display: 'U',
+    command: 'toggle-unread',
+    description: 'Toggle unread-only',
+    context: 'global',
   },
   { keys: ['/'], display: '/', command: 'search', description: 'Search chats', context: 'global' },
   {

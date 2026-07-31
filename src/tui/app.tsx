@@ -6,12 +6,14 @@ import {
   selectDraft,
   selectInboxRows,
   selectLastFailedSend,
+  selectNetworkRail,
 } from '@/state/selectors.ts'
 import { edgeSelection, moveSelection } from '@/tui/navigation.ts'
 import { helpGroups, resolveCommand } from '@/tui/keymap.ts'
 import { searchChats } from '@/tui/fuzzy.ts'
 import type { Store } from '@/tui/store.ts'
 import { InboxPane } from '@/tui/components/InboxPane.tsx'
+import { NetworkRail } from '@/tui/components/NetworkRail.tsx'
 import { StatusBar } from '@/tui/components/StatusBar.tsx'
 import { ConversationView } from '@/tui/components/ConversationView.tsx'
 import { Compose } from '@/tui/components/Compose.tsx'
@@ -52,6 +54,8 @@ export function App({
 }: AppProps) {
   const state = useSyncExternalStore(store.subscribe, store.getState)
   const rows = selectInboxRows(state)
+  const rail = selectNetworkRail(state)
+  const scopeLabel = rail.find((e) => e.isSelected)?.label ?? 'All'
   const banner = selectConnectionBanner(state)
   const conversation = selectActiveConversation(state)
   const failedSend = selectLastFailedSend(state)
@@ -106,7 +110,27 @@ export function App({
       return
     }
 
+    // Network-rail scope cycling is app-wide; brackets are matched on the raw
+    // character (terminals name them inconsistently, like '/' and '?' above).
+    if (key.sequence === ']') {
+      store.dispatch({ type: 'filter/scopeCycled', direction: 1 })
+      return
+    }
+    if (key.sequence === '[') {
+      store.dispatch({ type: 'filter/scopeCycled', direction: -1 })
+      return
+    }
+
     const command = resolveCommand({ name: key.name, shift: key.shift })
+    // Archived / unread toggles are app-wide filters, handled before focus.
+    if (command === 'toggle-archived') {
+      store.dispatch({ type: 'filter/archivedToggled' })
+      return
+    }
+    if (command === 'toggle-unread') {
+      store.dispatch({ type: 'filter/unreadToggled' })
+      return
+    }
     if (command === 'quit') {
       onQuit()
       return
@@ -215,6 +239,11 @@ export function App({
           )
         ) : (
           <box style={{ flexDirection: 'row', flexGrow: 1 }}>
+            <NetworkRail
+              entries={rail}
+              archived={state.filter.archived}
+              unreadOnly={state.filter.unreadOnly}
+            />
             <InboxPane rows={rows} />
             <box style={{ flexDirection: 'column', flexGrow: 1 }}>
               <ConversationView conversation={conversation} focused={focus === 'conversation'} />
@@ -222,7 +251,13 @@ export function App({
             </box>
           </box>
         ))}
-      <StatusBar banner={banner} accountCount={state.accountOrder.length} />
+      <StatusBar
+        banner={banner}
+        accountCount={state.accountOrder.length}
+        scopeLabel={scopeLabel}
+        archived={state.filter.archived}
+        unreadOnly={state.filter.unreadOnly}
+      />
     </box>
   )
 }

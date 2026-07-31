@@ -9,6 +9,12 @@ export function networkMarker(network: string): string {
     Signal: 'SG',
     Discord: 'DC',
     Instagram: 'IG',
+    Facebook: 'FB',
+    Messenger: 'FB',
+    X: 'X',
+    Twitter: 'X',
+    LinkedIn: 'LI',
+    iMessage: 'iM',
   }
   return known[network] ?? network.slice(0, 2).toUpperCase()
 }

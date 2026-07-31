@@ -7,7 +7,9 @@ import type { ChatSummary, MessageSummary } from '@/beeper/types.ts'
 function chat(id: string, title: string, network: string): ChatSummary {
   return {
     id,
-    accountId: 'a',
+    // Accounts seeded below: 'a' = WhatsApp, 'b' = Slack. Keep chat.accountId
+    // consistent with its network so scope filtering behaves realistically.
+    accountId: network === 'Slack' ? 'b' : 'a',
     network,
     title,
     type: 'single',
@@ -291,6 +293,40 @@ describe('App shell', () => {
       expect(frame).toContain('Compose')
       await mockInput.pressKey('x') // any key dismisses help
       expect(store.getState().overlay).toBe('none')
+    })
+  })
+
+  describe('network rail filters', () => {
+    test('] cycles scope to the first network and filters the inbox', async () => {
+      const store = seededStore()
+      const { renderOnce, captureCharFrame, mockInput } = await renderApp(store)
+      await renderOnce()
+      expect(captureCharFrame()).toContain('engineering') // Slack chat visible under All
+      await mockInput.pressKey(']')
+      expect(store.getState().filter.scope).toBe('a') // WhatsApp account
+      await renderOnce()
+      const frame = captureCharFrame()
+      expect(frame).toContain('Grace Hopper') // WhatsApp chat stays
+      expect(frame).not.toContain('engineering') // Slack chat filtered out
+      await mockInput.pressKey('[')
+      expect(store.getState().filter.scope).toBe('all') // wraps back
+    })
+
+    test('a toggles the archived view', async () => {
+      const store = seededStore()
+      const { renderOnce, mockInput } = await renderApp(store)
+      await renderOnce()
+      expect(store.getState().filter.archived).toBe(false)
+      await mockInput.pressKey('a')
+      expect(store.getState().filter.archived).toBe(true)
+    })
+
+    test('U toggles unread-only', async () => {
+      const store = seededStore()
+      const { renderOnce, mockInput } = await renderApp(store)
+      await renderOnce()
+      await mockInput.pressKey('U', { shift: true })
+      expect(store.getState().filter.unreadOnly).toBe(true)
     })
   })
 

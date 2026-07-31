@@ -17,11 +17,20 @@ export interface InboxRow {
   isSelected: boolean
 }
 
+/** Does a chat pass the current inbox filter (scope + archived + unreadOnly)? */
+function matchesFilter(chat: ChatSummary, filter: AppState['filter']): boolean {
+  if (filter.scope !== 'all' && chat.accountId !== filter.scope) return false
+  if (chat.isArchived !== filter.archived) return false
+  if (filter.unreadOnly && chat.unreadCount === 0) return false
+  return true
+}
+
 export function selectInboxRows(state: AppState): InboxRow[] {
   const rows: InboxRow[] = []
   for (const id of state.chatOrder) {
     const chat = state.chats[id]
     if (!chat) continue
+    if (!matchesFilter(chat, state.filter)) continue
     rows.push({
       id: chat.id,
       title: chat.title,
@@ -34,6 +43,59 @@ export function selectInboxRows(state: AppState): InboxRow[] {
     })
   }
   return rows
+}
+
+/** One entry in the leftmost network rail. */
+export interface NetworkRailEntry {
+  /** 'all' or an account id. */
+  id: string
+  /** Display label: 'All' or the network name. */
+  label: string
+  /** Network name for the marker, or null for the 'all' entry. */
+  network: string | null
+  /** Unread total within the current archived view (ignores the unread-only toggle). */
+  unreadCount: number
+  isSelected: boolean
+}
+
+/**
+ * The network rail: an 'All' entry followed by one per connected account, in
+ * loaded order. Unread counts reflect the current archived view so the rail's
+ * dots match the list the user would see — but ignore the unread-only toggle
+ * (which is about the list, not the rail). Presentation (markers) is the
+ * component's job; this stays free of any TUI import.
+ */
+export function selectNetworkRail(state: AppState): NetworkRailEntry[] {
+  const unreadByAccount: Record<string, number> = {}
+  let unreadAll = 0
+  for (const id of state.chatOrder) {
+    const chat = state.chats[id]
+    if (!chat || chat.isArchived !== state.filter.archived) continue
+    unreadAll += chat.unreadCount
+    unreadByAccount[chat.accountId] = (unreadByAccount[chat.accountId] ?? 0) + chat.unreadCount
+  }
+
+  const entries: NetworkRailEntry[] = [
+    {
+      id: 'all',
+      label: 'All',
+      network: null,
+      unreadCount: unreadAll,
+      isSelected: state.filter.scope === 'all',
+    },
+  ]
+  for (const accountId of state.accountOrder) {
+    const account = state.accounts[accountId]
+    if (!account) continue
+    entries.push({
+      id: accountId,
+      label: account.network,
+      network: account.network,
+      unreadCount: unreadByAccount[accountId] ?? 0,
+      isSelected: state.filter.scope === accountId,
+    })
+  }
+  return entries
 }
 
 export interface ActiveConversation {

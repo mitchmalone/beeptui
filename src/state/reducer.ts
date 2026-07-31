@@ -244,6 +244,24 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     case 'search/queryChanged':
       return { ...state, searchQuery: event.query }
 
+    case 'filter/scopeCycled': {
+      // Rail order is 'all' followed by accounts in their loaded order.
+      const order = ['all', ...state.accountOrder]
+      const current = order.indexOf(state.filter.scope)
+      const from = current === -1 ? 0 : current
+      const next = (from + event.direction + order.length) % order.length
+      return { ...state, filter: { ...state.filter, scope: order[next] ?? 'all' } }
+    }
+
+    case 'filter/scopeSelected':
+      return { ...state, filter: { ...state.filter, scope: event.scope } }
+
+    case 'filter/archivedToggled':
+      return { ...state, filter: { ...state.filter, archived: !state.filter.archived } }
+
+    case 'filter/unreadToggled':
+      return { ...state, filter: { ...state.filter, unreadOnly: !state.filter.unreadOnly } }
+
     case 'error/raised':
       return { ...state, error: { kind: event.kind, message: event.message } }
 

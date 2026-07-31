@@ -23,6 +23,20 @@ export type FocusTarget = 'inbox' | 'conversation' | 'compose'
 /** Modal overlay on top of the panes, if any. */
 export type Overlay = 'none' | 'search' | 'help'
 
+/** Network-rail scope: 'all' networks, or a specific account id. */
+export type FilterScope = 'all' | (string & {})
+
+/**
+ * Inbox filter state, driven by the `slk`-style network rail. `scope` selects a
+ * network (account) or all; `archived` switches active↔archived views (composes
+ * with scope); `unreadOnly` restricts to chats with unread messages.
+ */
+export interface InboxFilter {
+  scope: FilterScope
+  archived: boolean
+  unreadOnly: boolean
+}
+
 /**
  * A message in state. Extends the adapter's summary with local delivery status
  * and, for optimistic sends, the `clientId` used to reconcile the server echo.
@@ -60,6 +74,8 @@ export interface AppState {
   overlay: Overlay
   /** Current chat-search query (only meaningful while the search overlay is open). */
   searchQuery: string
+  /** Inbox filter driven by the network rail (scope / archived / unread). */
+  filter: InboxFilter
   /** Per-chat draft text (state only; persistence is Slice 7). */
   drafts: Record<string, string>
   server: ServerInfo | null
@@ -79,6 +95,7 @@ export const initialState: AppState = {
   newMessagesBelow: false,
   overlay: 'none',
   searchQuery: '',
+  filter: { scope: 'all', archived: false, unreadOnly: false },
   drafts: {},
   server: null,
   error: null,
@@ -109,6 +126,10 @@ export type AppEvent =
   | { type: 'overlay/opened'; overlay: Exclude<Overlay, 'none'> }
   | { type: 'overlay/closed' }
   | { type: 'search/queryChanged'; query: string }
+  | { type: 'filter/scopeCycled'; direction: 1 | -1 }
+  | { type: 'filter/scopeSelected'; scope: FilterScope }
+  | { type: 'filter/archivedToggled' }
+  | { type: 'filter/unreadToggled' }
   | { type: 'draft/changed'; chatId: string; text: string }
   | { type: 'send/requested'; chatId: string; clientId: string; text: string; timestamp: string }
   | { type: 'send/succeeded'; chatId: string; clientId: string; message: MessageSummary }

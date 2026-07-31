@@ -406,3 +406,61 @@ describe('immutability', () => {
     ).not.toThrow()
   })
 })
+
+describe('inbox filter (network rail)', () => {
+  const withAccounts = run([
+    {
+      type: 'accounts/loaded',
+      accounts: [
+        {
+          id: 'wa',
+          network: 'WhatsApp',
+          bridgeType: 'whatsapp',
+          provider: 'local',
+          displayName: 'WA',
+        },
+        {
+          id: 'fb',
+          network: 'Facebook',
+          bridgeType: 'facebook',
+          provider: 'local',
+          displayName: 'FB',
+        },
+      ],
+    },
+  ])
+
+  test('defaults to all / active / all-messages', () => {
+    expect(initialState.filter).toEqual({ scope: 'all', archived: false, unreadOnly: false })
+  })
+
+  test('scopeCycled walks all → accounts → wrap, forward and back', () => {
+    const s1 = reduce(withAccounts, { type: 'filter/scopeCycled', direction: 1 })
+    expect(s1.filter.scope).toBe('wa')
+    const s2 = reduce(s1, { type: 'filter/scopeCycled', direction: 1 })
+    expect(s2.filter.scope).toBe('fb')
+    const s3 = reduce(s2, { type: 'filter/scopeCycled', direction: 1 })
+    expect(s3.filter.scope).toBe('all') // wraps
+    const back = reduce(withAccounts, { type: 'filter/scopeCycled', direction: -1 })
+    expect(back.filter.scope).toBe('fb') // wraps backward
+  })
+
+  test('scopeSelected sets scope directly', () => {
+    const s = reduce(withAccounts, { type: 'filter/scopeSelected', scope: 'fb' })
+    expect(s.filter.scope).toBe('fb')
+  })
+
+  test('archived and unread toggles flip independently', () => {
+    const a = reduce(withAccounts, { type: 'filter/archivedToggled' })
+    expect(a.filter).toMatchObject({ archived: true, unreadOnly: false })
+    const b = reduce(a, { type: 'filter/unreadToggled' })
+    expect(b.filter).toMatchObject({ archived: true, unreadOnly: true })
+    const c = reduce(b, { type: 'filter/archivedToggled' })
+    expect(c.filter).toMatchObject({ archived: false, unreadOnly: true })
+  })
+
+  test('cycling with no accounts stays on all', () => {
+    const s = reduce(initialState, { type: 'filter/scopeCycled', direction: 1 })
+    expect(s.filter.scope).toBe('all')
+  })
+})
