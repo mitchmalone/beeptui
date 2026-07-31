@@ -2,6 +2,7 @@ import { useTerminalDimensions } from '@opentui/react'
 import type { ActiveConversation } from '@/state/selectors.ts'
 import type { MessageEntity } from '@/state/types.ts'
 import { messageLine } from '@/tui/message-format.ts'
+import { networkColor } from '@/tui/components/InboxPane.tsx'
 import { visibleMessages } from '@/tui/conversation-scroll.ts'
 
 export interface ConversationViewProps {
@@ -57,7 +58,10 @@ export function ConversationView({
       border
       style={{ flexGrow: 1, flexDirection: 'column', padding: 1 }}
     >
-      <text style={{ flexShrink: 0 }}>{`${chat.title} · ${chat.network}`}</text>
+      <box style={{ flexShrink: 0, flexDirection: 'row' }}>
+        <text>{`${chat.title} · `}</text>
+        <text style={{ fg: networkColor(chat.network) }}>{chat.network}</text>
+      </box>
       <text style={{ flexShrink: 0, fg: '#94a3b8' }}>{topHint}</text>
       <box style={{ flexGrow: 1, flexDirection: 'column' }}>
         {visible.length === 0 ? (

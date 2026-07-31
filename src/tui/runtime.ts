@@ -276,9 +276,14 @@ export async function archiveChat(
     return
   }
   const archived = !chat.isArchived
-  // Where the target sits in the visible list now, so we can land on its
-  // successor once it drops out of view.
-  const index = selectInboxRows(getState()).findIndex((r) => r.id === chatId)
+  // Pick the neighbour to land on BEFORE the call, from the list that still
+  // contains the target: the chat just below, else the one just above. Doing it
+  // up front (not after the reconcile) means the selection moves off the target
+  // immediately and never falls back to the top — even if the server's archived
+  // state propagates asynchronously and the row lingers for a beat.
+  const rows = selectInboxRows(getState())
+  const index = rows.findIndex((r) => r.id === chatId)
+  const nextId = index === -1 ? null : (rows[index + 1]?.id ?? rows[index - 1]?.id ?? null)
   try {
     await gateway.setArchived(chatId, archived)
     try {
@@ -286,11 +291,6 @@ export async function archiveChat(
     } catch {
       // Non-fatal: the next refresh/live event reconciles the row.
     }
-    // The target has left the current view; select whatever now occupies its
-    // slot (or the last row / nothing) so the cursor doesn't jump to the top.
-    const rows = selectInboxRows(getState())
-    const nextId =
-      rows.length === 0 ? null : (rows[Math.min(Math.max(index, 0), rows.length - 1)]?.id ?? null)
     dispatch({ type: 'chat/selected', chatId: nextId }) // also clears any stale notice
     dispatch({ type: 'focus/changed', focus: 'inbox' })
     dispatch({ type: 'notice/shown', message: archived ? 'Chat archived.' : 'Chat unarchived.' })

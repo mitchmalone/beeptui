@@ -19,6 +19,26 @@ export function networkMarker(network: string): string {
   return known[network] ?? network.slice(0, 2).toUpperCase()
 }
 
+/** Brand-ish accent colour for a network, used to tint its marker so networks
+ *  are scannable at a glance. Falls back to a neutral grey for unknown ones. */
+export function networkColor(network: string): string {
+  const known: Record<string, string> = {
+    WhatsApp: '#25d366',
+    Slack: '#e01e5a',
+    Telegram: '#29a9eb',
+    Signal: '#3a76f0',
+    Discord: '#5865f2',
+    Instagram: '#e1306c',
+    Facebook: '#0866ff',
+    Messenger: '#0866ff',
+    X: '#7dd3fc',
+    Twitter: '#7dd3fc',
+    LinkedIn: '#0a66c2',
+    iMessage: '#34da50',
+  }
+  return known[network] ?? '#94a3b8'
+}
+
 export interface InboxPaneProps {
   rows: InboxRow[]
   /** Grow to fill width (narrow single-pane fallback) instead of a fixed rail. */
@@ -51,6 +71,15 @@ function InboxRowView({ row }: { row: InboxRow }) {
   const prefix = row.isSelected ? '›' : ' '
   const unread = row.hasUnread ? ` (${row.unreadCount})` : ''
   const muted = row.isMuted ? ' 🔇' : ''
-  const line = `${prefix} ${networkMarker(row.network)}  ${row.title}${unread}${muted}`
-  return <text style={row.isSelected ? { bg: '#334155', fg: '#ffffff' } : {}}>{line}</text>
+  const selected = row.isSelected
+  // The network marker is tinted by network; the title stays readable (white on
+  // the selection highlight). Row-level bg spans the line via the container.
+  return (
+    <box style={{ flexDirection: 'row', ...(selected ? { backgroundColor: '#334155' } : {}) }}>
+      <text
+        style={{ fg: networkColor(row.network) }}
+      >{`${prefix} ${networkMarker(row.network)}`}</text>
+      <text style={selected ? { fg: '#ffffff' } : {}}>{`  ${row.title}${unread}${muted}`}</text>
+    </box>
+  )
 }

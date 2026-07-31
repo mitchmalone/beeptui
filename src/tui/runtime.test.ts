@@ -480,6 +480,23 @@ describe('archiveChat', () => {
     expect(h.getState().selectedChatId).toBe('b') // successor selected, not a jump to top
   })
 
+  test('archiving the bottom chat lands on the one above it', async () => {
+    const h = harness(
+      [
+        c({ id: 'a', lastActivity: '2026-07-31T02:00:00.000Z', canArchive: true }),
+        c({ id: 'b', lastActivity: '2026-07-31T01:00:00.000Z', canArchive: true }),
+      ],
+      'b' // bottom of the list
+    )
+    await archiveChat(
+      gateway({ getChat: async () => c({ id: 'b', isArchived: true, canArchive: true }) }),
+      h.dispatch,
+      h.getState,
+      'b'
+    )
+    expect(h.getState().selectedChatId).toBe('a') // no chat below → the one above
+  })
+
   test('unarchives an archived chat (toggles the other way)', async () => {
     const h = harness([c({ id: 'c1', isArchived: true, canArchive: true })], 'c1')
     const archivedArgs: boolean[] = []

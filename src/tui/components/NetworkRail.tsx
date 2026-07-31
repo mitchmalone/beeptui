@@ -1,5 +1,5 @@
 import type { NetworkRailEntry } from '@/state/selectors.ts'
-import { networkMarker } from '@/tui/components/InboxPane.tsx'
+import { networkColor, networkMarker } from '@/tui/components/InboxPane.tsx'
 
 export interface NetworkRailProps {
   entries: NetworkRailEntry[]
@@ -29,8 +29,13 @@ export function NetworkRail({ entries, archived, unreadOnly, focused = false }: 
           const marker = entry.network === null ? 'All' : networkMarker(entry.network)
           const caret = entry.isSelected ? '›' : ' '
           const dot = entry.unreadCount > 0 ? '•' : ''
+          // Tint each entry by its network; 'All' and the selected row stay neutral.
+          const color = entry.network === null ? '#e2e8f0' : networkColor(entry.network)
           return (
-            <text key={entry.id} style={entry.isSelected ? { bg: '#334155', fg: '#ffffff' } : {}}>
+            <text
+              key={entry.id}
+              style={entry.isSelected ? { bg: '#334155', fg: '#ffffff' } : { fg: color }}
+            >
               {`${caret}${marker}${dot}`}
             </text>
           )
