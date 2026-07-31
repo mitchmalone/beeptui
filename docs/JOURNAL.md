@@ -5,6 +5,18 @@
 
 ---
 
+### 2026-07-31 — Slice 8 built: chat search & help overlay
+
+- `/` fuzzy chat search (pure `searchChats` — subsequence match, recency-weighted, highlight spans)
+  in a modal palette; `?` help overlay **generated from the keymap** (`helpGroups()`), with a test
+  asserting every binding renders so it can't drift.
+- **Stale-closure fix, generalized:** the App keyboard handler now reads `store.getState()` per
+  keypress instead of the render-closure `state` — fast typing (`pressKeys`) was losing all but the
+  last char (search "eng" → "g"). Openers (`/`, `?`) match `key.sequence` since terminals name them
+  inconsistently. Both in `LEARNINGS.md`.
+- Kept `state/` pure: search results are computed in the App from `selectInboxRows` + `searchChats`,
+  not a state selector (fuzzy lives in `src/tui/`, which state must not import).
+
 ### 2026-07-31 — Slice 6 built + live-validated: live updates
 
 - **Probed the real `/v1/ws` to nail the protocol** (huge advantage of having live Beeper): command
