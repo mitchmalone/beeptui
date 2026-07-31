@@ -5,6 +5,30 @@
 
 ---
 
+### 2026-08-01 — Slice 13 OAuth core + Slice 14 reactions; security review passed
+
+- **OAuth is fully discoverable — no guessing.** `/v1/info` advertises the whole OAuth 2.0 endpoint
+  set (`endpoints.oauth`: authorize/token/register/introspect/revoke/userinfo — RFC 8414 discovery +
+  RFC 7591 dynamic registration). SDK docstring confirms bearer tokens via "OAuth2 PKCE flow." So the
+  flow is Authorization Code + PKCE against advertised URLs; the SDK doesn't implement it (takes
+  `baseURL`+`accessToken` only) — it's ours. Surfaced the endpoints on `ServerInfo.oauth` so the flow
+  targets discovered URLs, not hard-coded ones.
+- **Kept the flow unit-testable by injecting all I/O.** `authorize` takes `startLoopback`,
+  `openBrowser`, and an `OAuthHttp` (fetch + injected clock) — so register→browser→loopback→exchange
+  is tested end-to-end against a fake auth server with no sockets and deterministic expiry. The real
+  loopback (Bun.serve on 127.0.0.1:0) + browser-open live in `oauth-loopback.ts`, unwired from tests.
+- **Token persistence write is the genuinely-hard gate.** macOS `security add-generic-password -w`
+  puts the secret in argv (invariant 6 violation); a plaintext 0600 file isn't the platform store.
+  Rather than ship either, the flow returns tokens and leaves persistence unimplemented, flagged for
+  the security review to resolve (native binding vs accepted encrypted store). Don't paper over this.
+- **Security review passed** (independent subagent): S256-only PKCE, `crypto.getRandomValues`, state
+  verified pre-exchange, loopback 127.0.0.1-only, exact redirect match, no secret/path leakage,
+  `spawn` with arg arrays (no shell), `basename()` defeats save-path traversal. One non-security fix:
+  `classifyEndpoint` mislabelled `[::1]` (URL.hostname brackets IPv6) — bracket-stripped.
+- **Reactions were as cheap as edits.** `Message.reactions` maps to a per-key aggregate
+  (`ReactionSummary {key,count,isEmoji}`); `formatMessage` appends `👍×2 🎉`. Read-only, no capability
+  gate — display what's there. Same pattern as attachments/edits: map → format → fixture test.
+
 ### 2026-07-31 — Slice 12: capability messaging unified; live matrix blocked on unconnected networks
 
 - **One capability-unavailable pattern.** Reply + archive were the only two gated actions, each with

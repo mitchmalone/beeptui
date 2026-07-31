@@ -7,9 +7,9 @@
 
 ## Where we are
 
-**Phase 2 — Slices 10 + 11 done; Slice 12 code done, live matrix blocked** on
-`feat/slice-10-filters-message-search` (staying on the branch Mitch is testing; PR #12 open). A
-`slk`-style **leftmost network rail** scopes the inbox (All + per-network,
+**Phase 2 done bar live matrix; Phase 3 (13–14) core landed** on
+`feat/slice-10-filters-message-search` (staying on the branch Mitch is testing; PR #12 retitled for
+Slices 10–13). A `slk`-style **leftmost network rail** scopes the inbox (All + per-network,
 unread dots) with archived (`a`) and unread-only (`U`) toggles. Per Mitch's live-use feedback the
 rail is now a **real focus target**: `Esc`/`h`/`←` walks out (conversation → list → rail), `j`/`k`
 switch networks in the rail, `l`/`→`/`Enter` drill back in — quick-keys still work. **`Shift+A`
@@ -33,10 +33,25 @@ bindings don't overflow. **315 tests** green; typecheck + lint + format clean; 1
 capability-gated actions (reply, archive) now route through one shared `checkCapability` /
 `capabilityUnavailableMessage` (`src/state/capabilities.ts`) — honest, source-naming ("Replies not
 available for Slack via Beeper"), no ad-hoc strings. Added a burst-stability smoke scenario (12 rapid
-inbound while scrolled up keeps reading position). **320 tests** green. A **redacted live capability
-probe** on the 3 connected networks confirms the plumbing (reply reported-supported on WhatsApp +
-Facebook). The full Discord/Instagram/X matrix — and declaring Phase 2 complete — is **blocked** on
-those networks being connected (manual gate, Mitch).
+inbound while scrolled up keeps reading position). A **redacted live capability probe** on the 3
+connected networks confirms the plumbing (reply reported-supported on WhatsApp + Facebook). The full
+Discord/Instagram/X matrix — and declaring Phase 2 complete — is **blocked** on those networks being
+connected (manual gate, Mitch).
+
+**Slice 13 (remote endpoint & OAuth) — core + security review done; end-to-end gated.** API
+re-investigated: auth is OAuth 2.0 Authorization Code + PKCE with RFC 7591 dynamic registration,
+discovered from `/v1/info` (`ServerInfo.oauth`, all six endpoints live-confirmed). `src/beeper/oauth.ts`
+implements PKCE (S256) + CSRF state + registration + exchange/refresh/revoke + an `authorize`
+orchestrator, unit-tested against a fake auth server; `oauth-loopback.ts` is the real
+127.0.0.1 loopback + browser open. **Independent security review passed** (no exploitable findings;
+`DECISIONS.md` 2026-08-01). `doctor` distinguishes local vs remote. **Gates:** token _persistence
+write_ deferred (invariant-6 argv tension — needs an argv-free keystore mechanism), and end-to-end
+needs a real remote endpoint (`remote_access:false` locally).
+
+**Slice 14 (polish) — started.** Read-only **reactions** now render as a trailing per-message summary
+(`👍×2 🎉`), aggregated by key. Rest of Slice 14 (theming, notification hooks, packaging, doctor
+token-scope) awaits a re-plan; naming is resolved (`beeper-tui`), open-source flip (#6) still gates
+license/README. **344 tests** green; typecheck + lint + format clean; security review clean.
 
 **🎉 Phase 1 complete — Slices 0–9 done (all merged to `main`).**
 The MVP is real and live-validated against Beeper Desktop 4.2.1004: browse the inbox, read history
@@ -48,10 +63,14 @@ no silent failures. Fixed pagination resilience along the way. **199 tests** gre
 
 ## Next up
 
-- **Slice 13 (remote endpoint & OAuth)** — Phase 3; unblocked code work (adapter/config/auth).
-- Slice 14 (polish & packaging) after. 14 is blocked on pending decision #6 (open-source flip).
+- **Slice 14 re-plan** (split into 2–4): reactions display landed; remaining candidates are theming/
+  config, notification hooks, `doctor` token-scope, packaging + install docs.
+- Clear the manual gates below to fully close Slices 11–13 and declare Phase 2 complete.
 
-## Manual gates (Mitch) — needed to fully close Slices 11 + 12
+## Manual gates (Mitch) — needed to fully close Slices 11–13
+
+- **Slice 13 remote flow:** a real remote Server Client endpoint (`remote_access` on) to validate
+  end-to-end auth, and an argv-free token-storage-write mechanism (the security review's open item).
 
 - **Slice 11 live reply send:** send a reply from the TUI on WhatsApp and confirm it lands threaded
   (invariant 5 forbids auto-sending a real message, so this can't be automated). Everything else in
