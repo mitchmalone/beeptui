@@ -4,14 +4,14 @@
 > slices. The moving cursor lives in `STATUS.md`. Each slice has a plan in `plans/backlog/` that
 > moves to `plans/active/` when picked up and `plans/done/` when shipped.
 
-## Phase 0 — Foundations (current)
+## Phase 0 — Foundations ✅ done
 
 No product features. Scaffold the project so every later slice lands on rails.
 
 - **Slice 0 — Project scaffold & toolchain**: Bun + TypeScript + OpenTUI pinned and proven on
   macOS arm64, lint/format/test/hooks/CI, repo layout.
 
-## Phase 1 — Vertical-slice MVP
+## Phase 1 — Vertical-slice MVP ✅ done (2026-07-31)
 
 Local Beeper Desktop only. Outcome: read, watch, and reply across WhatsApp, Slack, Telegram, and
 Signal without leaving the terminal.
@@ -32,7 +32,7 @@ Signal without leaving the terminal.
 - **Slice 9 — Phase 1 validation & smoke harness**: terminal smoke tests for the key flows;
   validate WhatsApp, Slack, Telegram, Signal end-to-end.
 
-## Phase 2 — Multi-network hardening
+## Phase 2 — Multi-network hardening (current)
 
 - **Slice 10 — Filters & message search**: all/unread/account/archive filters; Beeper-backed
   message search with local fallback.

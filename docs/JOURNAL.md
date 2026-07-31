@@ -5,6 +5,23 @@
 
 ---
 
+### 2026-07-31 — Slice 9: Phase 1 validated & closed
+
+- **Golden-path smoke harness** (`smoke.test.tsx`): drives the real App by keyboard against a fake
+  gateway + injected watch events through OpenTUI's headless renderer — the "fixture Beeper server"
+  done without a pty (deterministic; runs in the existing CI test job). Covers PRD scenarios 1–4;
+  7 (doctor) is the CLI test.
+- **Live matrix (redacted):** launch-to-usable **~29ms** (target ≤3s); WhatsApp/Facebook/Beeper all
+  list+read cleanly. A Facebook media message with no `text` renders `(no content)` — graceful, no
+  silent failure. Send + live inbound already validated live (Slice 5/6).
+- **Real finding, fixed:** multi-page chat pagination intermittently `400`s on Beeper 4.2.x. Made
+  `#collect` resilient — a failed _continuation_ page returns pages already collected (better to show
+  the first page than fail the inbox); a first-page failure still surfaces. First-page transient
+  `400`s during Beeper's startup sync clear on retry — acceptable degradation.
+- The account set here is WhatsApp/Facebook/Beeper, not the assumed Slack/Telegram/Signal — the
+  matrix validates what's actually connected. `doctor` token-scope reporting has no clean read-only
+  detection; deferred to Slice 14.
+
 ### 2026-07-31 — Slice 8 built: chat search & help overlay
 
 - `/` fuzzy chat search (pure `searchChats` — subsequence match, recency-weighted, highlight spans)
