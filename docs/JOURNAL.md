@@ -5,6 +5,21 @@
 
 ---
 
+### 2026-07-31 — Slice 10 follow-up: sent messages showed twice
+
+- **Root cause:** the optimistic send path _synthesized_ a "sent" message with the server's
+  `pendingMessageID`, but the live `message.upserted` echo carries the message's own (different) id
+  and the real sender name — so dedup-by-id failed and you saw both `You: …` and `mitchmalone: …`.
+- **Fix:** `send/succeeded` no longer synthesizes anything — it just flips the optimistic message to
+  `sent`, keeping its `clientId`. `mergeMessages` now reconciles: a real self-echo (an `isSender`
+  message with **no** `clientId`) supersedes our optimistic placeholder, matched by chat-local
+  **text** (ids don't line up). `effectiveKey` pins any `clientId`-bearing message to the bottom
+  until its echo replaces it. Reconcile is gated to the `newer` page so loading old history with a
+  repeated phrase can't evict a genuine pending send. Dropped `message` from the `send/succeeded`
+  event and the `sentMessage()` builder.
+- **Text-match caveat:** if Beeper ever echoes transformed text (markdown→HTML) the match could miss
+  and the duplicate return; plain-text sends (the norm) reconcile cleanly. Revisit if it bites.
+
 ### 2026-07-31 — Slice 10 follow-up: rail focus + archive action (live-use feedback)
 
 - **The quick-keys-only rail was wrong in the hand.** Live-testing, Mitch pressed `Esc`/`←` to step
