@@ -38,6 +38,17 @@
 - **Per-network colour** (`networkColor`, alongside `networkMarker` in `InboxPane.tsx`) tints the
   network marker in the chat list, the rail, and the conversation header so networks are scannable.
   Colours aren't visible in `captureCharFrame`, so it's covered by a pure unit test, not a render one.
+- **Archive is optimistic now** (feedback: the await made it feel slow). Flip state immediately,
+  fire the call in the background, roll back + notice on failure. Dropped the post-call `getChat`
+  refetch entirely — the live `chat.upserted` event reconciles the full object, so the extra
+  round-trip was pure latency. Still honest: a failed archive visibly reappears with a reason.
+- **Typing jank was whole-tree re-render per keystroke.** `Compose` mirrors each key to the store
+  (`draft/changed`) for persistence, and `useSyncExternalStore` re-renders the whole App — so the
+  conversation panel (every message line) repainted on every key. Fix: `memo()` the four panels
+  (Inbox/Rail/Conversation/StatusBar) and derive their props via `useMemo` keyed on the _specific_
+  state slices they read. Since `draft/changed` only replaces `state.drafts`, those memo deps stay
+  referentially identical (guarded by a reducer test), so the panels skip re-rendering while typing.
+  `exhaustive-deps` wants the whole `state`; disabled for that block on purpose (would defeat it).
 - **Title width gotcha:** an OpenTUI `box` `title` longer than the inner width silently renders
   blank. The width-8 rail dropped `'Net ●'` (5 chars) entirely; `'Net●'` (4) fits. Also `◂` didn't
   render in the test char-frame but `●` does — mirror ConversationView's proven `●` focus marker.

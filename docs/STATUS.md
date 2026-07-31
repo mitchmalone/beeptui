@@ -13,11 +13,13 @@ unread dots) with archived (`a`) and unread-only (`U`) toggles. Per Mitch's live
 rail is now a **real focus target**: `Esc`/`h`/`←` walks out (conversation → list → rail), `j`/`k`
 switch networks in the rail, `l`/`→`/`Enter` drill back in — quick-keys still work. **`Shift+A`
 archives/unarchives a chat** — from the list (on the highlighted chat) or an open conversation — via
-Beeper's endpoint, capability-gated (named notice when the platform can't); the list cursor lands on
-the neighbouring chat (below, else above) so you can archive several in a row. Network markers are
-**colour-tinted** (list, rail, conversation header) for scannability. **Message search** (`S`) runs
-through the adapter with verified scope + labeled local fallback. **269 tests** green; typecheck +
-lint clean; 7 smoke scenarios. Live validation of the real search endpoint still pending.
+Beeper's endpoint — **optimistic** (instant flip, rolls back + notifies on failure); the list cursor
+lands on the neighbouring chat (below, else above) so you can archive several in a row. Network
+markers are **colour-tinted** (list, rail, conversation header) for scannability. Compose typing no
+longer re-renders the whole tree (panels are `memo`-ised on their exact state slices). **Message
+search** (`S`) runs through the adapter with verified scope + labeled local fallback. **271 tests**
+green; typecheck + lint clean; 7 smoke scenarios. Live validation of the real search endpoint still
+pending.
 
 **🎉 Phase 1 complete — Slices 0–9 done (all merged to `main`).**
 The MVP is real and live-validated against Beeper Desktop 4.2.1004: browse the inbox, read history
