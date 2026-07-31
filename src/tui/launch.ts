@@ -4,6 +4,8 @@ import { createElement } from 'react'
 import { BeeperAdapter, resolveConfig, resolveToken } from '@/beeper/index.ts'
 import { App } from '@/tui/app.tsx'
 import { createStore } from '@/tui/store.ts'
+import { selectTotalUnread } from '@/state/selectors.ts'
+import { createStatusWriter } from '@/tui/terminal-status.ts'
 import { attachPersistence, openUiStore } from '@/store/index.ts'
 import { startWatch, type WatchHandle } from '@/beeper/watch.ts'
 import {
@@ -38,10 +40,17 @@ export async function launch(): Promise<void> {
   const uiStore = openUiStore()
   const persistence = attachPersistence(uiStore, store)
 
+  // Surface the unread count in the terminal / tmux window name. Reflects the
+  // total on every state change (deduped internally, so keystrokes are free).
+  const statusWriter = createStatusWriter()
+  store.subscribe(() => statusWriter.update(selectTotalUnread(store.getState())))
+  statusWriter.update(selectTotalUnread(store.getState()))
+
   const renderer = await createCliRenderer()
   let watch: WatchHandle | null = null
   const onQuit = () => {
     persistence.flush() // save the last debounce window before exiting
+    statusWriter.restore() // hand the tmux window name back before exiting
     watch?.close()
     renderer.destroy()
     process.exit(0)

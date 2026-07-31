@@ -6,6 +6,25 @@
 
 ---
 
+### 2026-07-31 · tmux unread badge uses `rename-window`, and only ever shows a count
+
+**Decision.** The terminal/tmux unread badge sets the tmux **window name** to
+`Beeper [n]` via `tmux rename-window` (plus an OSC 2 terminal-tab title
+everywhere), and restores tmux's `automatic-rename` on exit. It emits **only** the
+app name and an integer count — never a chat name, sender, or preview. Count is
+total unread across non-archived chats.
+
+**Why.** OSC 2 alone doesn't drive the tmux window name under default settings
+(modern `automatic-rename` follows `pane_current_command`, not the pane title; the
+`ESC k` rename escape needs `allow-rename on`, off by default). `rename-window`
+works with zero user config. Restricting the payload to a count keeps it clear of
+invariant 6 (no message content in terminal titles) and shoulder-surf-safe.
+
+**Consequence.** Shelling out to `tmux` (not the `beeper` CLI — invariant 2 is
+about Beeper, unaffected), best-effort and non-fatal if tmux is absent. It's not a
+network call (invariant 7 holds). Configurability / bell / desktop notifications
+remain Slice 14.
+
 ### 2026-07-31 · The network rail IS a focus target, and archive is an action (reverses the earlier same-day call)
 
 **Decision.** After live use of the Slice 10 build, reverse two decisions from the entry below:

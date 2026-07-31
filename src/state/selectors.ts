@@ -98,6 +98,16 @@ export function selectNetworkRail(state: AppState): NetworkRailEntry[] {
   return entries
 }
 
+/** Total unread across all non-archived chats — the number behind the tmux /
+ *  terminal status badge. Archived chats don't count toward attention. */
+export function selectTotalUnread(state: AppState): number {
+  let total = 0
+  for (const chat of Object.values(state.chats)) {
+    if (!chat.isArchived) total += chat.unreadCount
+  }
+  return total
+}
+
 export interface ActiveConversation {
   chat: ChatSummary | null
   messages: MessageEntity[]

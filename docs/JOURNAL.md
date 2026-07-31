@@ -93,6 +93,21 @@
   is older than that page it isn't anchored yet (message-anchored loading is Slice 11 territory).
   Not a dead control — you land in the right conversation.
 
+### 2026-07-31 — tmux/terminal unread badge
+
+- Shows `1: Beeper [n]` in the tmux status line. The app sets the window **name**
+  to `Beeper [n]`; tmux prepends its own window **index** (`1:`).
+- **Prototyped the escape first** (the one real unknown). OSC 2 sets only the
+  _pane title_; modern tmux `automatic-rename` follows `pane_current_command`, not
+  the title, so the window name stayed `bash`. The native `ESC k` rename escape
+  needs `allow-rename on` (off by default). What works config-free is
+  `tmux rename-window`; restore via `set-window-option -u automatic-rename`.
+- `createStatusWriter` (env/write/tmux-runner injectable → tty-free unit tests)
+  dedupes on the count, so it costs nothing on unrelated store changes (typing).
+  Also verified end-to-end against a real isolated tmux server, not just mocks.
+- **Only ever emits `Beeper [n]`** — no chat name/sender/content in a terminal
+  title (invariant 6). Total unread across non-archived chats.
+
 ### 2026-07-31 — Slice 9: Phase 1 validated & closed
 
 - **Golden-path smoke harness** (`smoke.test.tsx`): drives the real App by keyboard against a fake

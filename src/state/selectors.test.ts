@@ -7,6 +7,7 @@ import {
   selectDraft,
   selectInboxRows,
   selectNetworkRail,
+  selectTotalUnread,
 } from '@/state/selectors.ts'
 import type { Account, ChatSummary } from '@/beeper/types.ts'
 
@@ -133,6 +134,27 @@ describe('selectNetworkRail', () => {
     const rail = selectNetworkRail(s)
     expect(rail.find((e) => e.isSelected)?.id).toBe('fb')
     expect(rail.filter((e) => e.isSelected)).toHaveLength(1)
+  })
+})
+
+describe('selectTotalUnread', () => {
+  test('sums unread across chats, excluding archived', () => {
+    const s = run([
+      {
+        type: 'chats/loaded',
+        chats: [
+          chat('a', { unreadCount: 3 }),
+          chat('b', { unreadCount: 0 }),
+          chat('c', { unreadCount: 5 }),
+          chat('d', { unreadCount: 9, isArchived: true }), // archived → excluded
+        ],
+      },
+    ])
+    expect(selectTotalUnread(s)).toBe(8)
+  })
+
+  test('is zero with no chats', () => {
+    expect(selectTotalUnread(initialState)).toBe(0)
   })
 })
 
