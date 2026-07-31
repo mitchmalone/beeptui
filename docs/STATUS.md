@@ -3,11 +3,16 @@
 > The cursor: where we are right now. Keep this **terse** — a snapshot, not a history.
 > History lives in git, `plans/done/`, and `JOURNAL.md`.
 >
-> Last updated: 2026-07-30
+> Last updated: 2026-07-31
 
 ## Where we are
 
-**🎉 Phase 1 complete — Slices 0–9 done (0–8 merged; Slice 9 on `feat/slice-9-phase1-validation`).**
+**Phase 2 in progress — Slice 10 active** on `feat/slice-10-filters-message-search`. Reworked from
+"filters" into a `slk`-style **leftmost network rail** (All + per-network scope, unread dots,
+archived toggle) plus message search — per Mitch's 2026-07-31 feedback. Plan beefed up in
+`plans/active/`; building next, reducer-first.
+
+**🎉 Phase 1 complete — Slices 0–9 done (all merged to `main`).**
 The MVP is real and live-validated against Beeper Desktop 4.2.1004: browse the inbox, read history
 (paged), send real messages (a WhatsApp send received by Mitch), live updates over WebSocket, drafts
 that persist restart, `/` fuzzy search, `?` help. **Slice 9** added a golden-path smoke harness
@@ -17,8 +22,9 @@ no silent failures. Fixed pagination resilience along the way. **199 tests** gre
 
 ## Next up
 
-- Land Slice 9, then **Phase 2 begins — Slice 10 (filters & message search)**, Slice 11 (replies,
-  edits & attachments), Slice 12 (remaining networks). Re-plan Phase 3 (13–14) before starting.
+- **Slice 10 active** (network rail, filters & message search). Then Slice 11 (replies, edits &
+  attachments), Slice 12 (remaining networks — depends on 10 + 11). Re-plan Phase 3 (13–14) before
+  starting; 14 is blocked on pending decisions #1 (name) and #6 (open-source).
 
 ## Deferred / follow-ups
 
