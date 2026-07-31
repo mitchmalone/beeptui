@@ -257,11 +257,15 @@ export async function runMessageSearch(
  * either the chat list or an open conversation — the target is passed in, not
  * assumed to be the open chat. Capability-gated: if the platform reports archive
  * isn't supported, we show a named notice and make no call (degrade visibly,
- * invariant 8). On success we refetch the chat (Beeper is the source of truth);
- * since it has now left the current view, we move the selection to the chat that
- * takes its place so the list cursor stays put (quick successive archiving), and
- * return focus to the list. Never fakes success: a failed call surfaces as a
- * notice and the chat's state is left untouched.
+ * invariant 8).
+ *
+ * **Optimistic:** the flip is applied to state immediately (so the UI responds
+ * instantly) and the network call runs in the background. On failure we revert
+ * the flip and surface a named notice — never a silent fake success: a failed
+ * archive visibly reappears and says why. The full chat object is reconciled
+ * later by the live `chat.upserted` event. The selection moves to the
+ * neighbouring chat (below, else above) so the list cursor stays put for quick
+ * successive archiving.
  */
 export async function archiveChat(
   gateway: Gateway,
@@ -276,25 +280,23 @@ export async function archiveChat(
     return
   }
   const archived = !chat.isArchived
-  // Pick the neighbour to land on BEFORE the call, from the list that still
-  // contains the target: the chat just below, else the one just above. Doing it
-  // up front (not after the reconcile) means the selection moves off the target
-  // immediately and never falls back to the top — even if the server's archived
-  // state propagates asynchronously and the row lingers for a beat.
+  // Neighbour to land on, chosen from the list that still contains the target.
   const rows = selectInboxRows(getState())
   const index = rows.findIndex((r) => r.id === chatId)
   const nextId = index === -1 ? null : (rows[index + 1]?.id ?? rows[index - 1]?.id ?? null)
+
+  // Apply the change up front — instant feedback.
+  dispatch({ type: 'chats/upserted', chat: { ...chat, isArchived: archived } })
+  dispatch({ type: 'chat/selected', chatId: nextId })
+  dispatch({ type: 'focus/changed', focus: 'inbox' })
+  dispatch({ type: 'notice/shown', message: archived ? 'Chat archived.' : 'Chat unarchived.' })
+
   try {
     await gateway.setArchived(chatId, archived)
-    try {
-      dispatch({ type: 'chats/upserted', chat: await gateway.getChat(chatId) })
-    } catch {
-      // Non-fatal: the next refresh/live event reconciles the row.
-    }
-    dispatch({ type: 'chat/selected', chatId: nextId }) // also clears any stale notice
-    dispatch({ type: 'focus/changed', focus: 'inbox' })
-    dispatch({ type: 'notice/shown', message: archived ? 'Chat archived.' : 'Chat unarchived.' })
   } catch (err) {
+    // Roll back the optimistic flip and say why.
+    const current = getState().chats[chatId] ?? chat
+    dispatch({ type: 'chats/upserted', chat: { ...current, isArchived: chat.isArchived } })
     const error = normalizeError(err)
     dispatch({
       type: 'notice/shown',

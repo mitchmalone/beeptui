@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react'
+import { useMemo, useSyncExternalStore } from 'react'
 import { useKeyboard, useTerminalDimensions } from '@opentui/react'
 import {
   selectActiveConversation,
@@ -60,11 +60,36 @@ export function App({
   onArchiveChat,
 }: AppProps) {
   const state = useSyncExternalStore(store.subscribe, store.getState)
-  const rows = selectInboxRows(state)
-  const rail = selectNetworkRail(state)
+  // Memoize the derived views on the specific state slices they depend on, so
+  // that typing in the compose box (which only mutates `state.drafts`) doesn't
+  // recompute them or re-render the memoized panels below.
+  //
+  // Each dep list is the exact set of slices its selector reads — deliberately
+  // NOT the whole `state`, which changes on every dispatch and would defeat the
+  // memo. exhaustive-deps can't see through the selector call, so it's disabled
+  // for this block on purpose.
+  /* eslint-disable react-hooks/exhaustive-deps */
+  const rows = useMemo(
+    () => selectInboxRows(state),
+    [state.chats, state.chatOrder, state.filter, state.selectedChatId]
+  )
+  const rail = useMemo(
+    () => selectNetworkRail(state),
+    [state.chats, state.chatOrder, state.accounts, state.accountOrder, state.filter]
+  )
+  const banner = useMemo(() => selectConnectionBanner(state), [state.connection])
+  const conversation = useMemo(
+    () => selectActiveConversation(state),
+    [
+      state.selectedChatId,
+      state.messagesByChat,
+      state.conversationOffset,
+      state.newMessagesBelow,
+      state.chats,
+    ]
+  )
+  /* eslint-enable react-hooks/exhaustive-deps */
   const scopeLabel = rail.find((e) => e.isSelected)?.label ?? 'All'
-  const banner = selectConnectionBanner(state)
-  const conversation = selectActiveConversation(state)
   const failedSend = selectLastFailedSend(state)
   const { width } = useTerminalDimensions()
   const narrow = width < NARROW_WIDTH

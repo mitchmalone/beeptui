@@ -551,6 +551,27 @@ describe('message search overlay', () => {
   })
 })
 
+describe('render stability (compose typing perf)', () => {
+  test('draft/changed leaves the slices the panels memoize on referentially identical', () => {
+    const base = run([
+      { type: 'accounts/loaded', accounts: [] },
+      { type: 'chats/loaded', chats: [chat('c1')] },
+      { type: 'chat/selected', chatId: 'c1' },
+      { type: 'messages/loaded', chatId: 'c1', page: 'initial', messages: [msg('m1', '1')] },
+    ])
+    const after = reduce(base, { type: 'draft/changed', chatId: 'c1', text: 'hi' })
+    // Typing must not invalidate the inbox / rail / conversation memo deps, or
+    // the whole tree re-renders per keystroke (the jank we fixed).
+    expect(after.chats).toBe(base.chats)
+    expect(after.chatOrder).toBe(base.chatOrder)
+    expect(after.messagesByChat).toBe(base.messagesByChat)
+    expect(after.selectedChatId).toBe(base.selectedChatId)
+    expect(after.filter).toBe(base.filter)
+    expect(after.accounts).toBe(base.accounts)
+    expect(after.drafts).not.toBe(base.drafts) // only drafts changed
+  })
+})
+
 describe('notice', () => {
   test('shown sets it; cleared and selecting a chat both clear it', () => {
     const shown = reduce(initialState, { type: 'notice/shown', message: 'Chat archived.' })

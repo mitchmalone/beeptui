@@ -528,7 +528,23 @@ describe('archiveChat', () => {
     ])
   })
 
-  test('a failed archive surfaces a notice and never fakes success', async () => {
+  test('optimistic flip is applied before the call resolves', async () => {
+    const h = harness([c({ id: 'c1', isArchived: false, canArchive: true })], 'c1')
+    let resolveCall = (): void => {}
+    const pending = archiveChat(
+      gateway({ setArchived: () => new Promise<void>((r) => (resolveCall = r)) }),
+      h.dispatch,
+      h.getState,
+      'c1'
+    )
+    // The call hasn't resolved yet, but the UI already reflects the archive.
+    expect(h.getState().chats.c1?.isArchived).toBe(true)
+    resolveCall()
+    await pending
+    expect(h.getState().chats.c1?.isArchived).toBe(true) // stays archived on success
+  })
+
+  test('a failed archive rolls back the optimistic flip and says why', async () => {
     const h = harness([c({ id: 'c1', isArchived: false, canArchive: true })], 'c1')
     await archiveChat(
       gateway({
@@ -540,8 +556,9 @@ describe('archiveChat', () => {
       h.getState,
       'c1'
     )
-    expect(h.events.map((e) => e.type)).toEqual(['notice/shown'])
-    expect((h.events[0] as { message: string }).message).toContain("Couldn't archive")
-    expect(h.getState().chats.c1?.isArchived).toBe(false) // untouched
+    expect(h.getState().chats.c1?.isArchived).toBe(false) // reverted to original
+    expect(h.getState().notice).toContain("Couldn't archive")
+    const upserts = h.events.filter((e) => e.type === 'chats/upserted')
+    expect(upserts).toHaveLength(2) // optimistic flip + rollback
   })
 })

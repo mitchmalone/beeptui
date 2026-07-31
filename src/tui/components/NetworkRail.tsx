@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { NetworkRailEntry } from '@/state/selectors.ts'
 import { networkColor, networkMarker } from '@/tui/components/InboxPane.tsx'
 
@@ -17,7 +18,12 @@ export interface NetworkRailProps {
  * the active view filters. Presentational — the App owns the keys that cycle it
  * (`[` / `]`, `a`, `U`); this only renders `selectNetworkRail` output.
  */
-export function NetworkRail({ entries, archived, unreadOnly, focused = false }: NetworkRailProps) {
+export const NetworkRail = memo(function NetworkRail({
+  entries,
+  archived,
+  unreadOnly,
+  focused = false,
+}: NetworkRailProps) {
   return (
     <box
       title={focused ? 'Net●' : 'Net'}
@@ -45,4 +51,4 @@ export function NetworkRail({ entries, archived, unreadOnly, focused = false }: 
       {unreadOnly ? <text style={{ flexShrink: 0, fg: '#f59e0b' }}>unr</text> : null}
     </box>
   )
-}
+})

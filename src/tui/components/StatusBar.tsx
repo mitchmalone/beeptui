@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { ConnectionBanner } from '@/state/selectors.ts'
 
 export interface StatusBarProps {
@@ -16,7 +17,7 @@ export interface StatusBarProps {
  *  summary. Also surfaces the active inbox filter (scope / archived / unread) so
  *  it stays visible when the rail is collapsed on a narrow terminal. Degrading
  *  visibly is the point — never a silent empty state (CLAUDE.md invariant 8). */
-export function StatusBar({
+export const StatusBar = memo(function StatusBar({
   banner,
   accountCount,
   scopeLabel,
@@ -39,4 +40,4 @@ export function StatusBar({
       <text>{'[ ] net · a arch · q quit'}</text>
     </box>
   )
-}
+})

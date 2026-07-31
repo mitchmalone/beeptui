@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { useTerminalDimensions } from '@opentui/react'
 import type { ActiveConversation } from '@/state/selectors.ts'
 import type { MessageEntity } from '@/state/types.ts'
@@ -27,7 +28,7 @@ function rowStyle(message: MessageEntity): { fg?: string } {
  * window over the loaded messages (`scrollOffset` from state). Scrolling and
  * paging are driven by the reducer; this component only renders.
  */
-export function ConversationView({
+export const ConversationView = memo(function ConversationView({
   conversation,
   focused,
   capacityOverride,
@@ -83,4 +84,4 @@ export function ConversationView({
       ) : null}
     </box>
   )
-}
+})

@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { InboxRow } from '@/state/selectors.ts'
 
 /** Two-letter network marker for the rail (e.g. WhatsApp → WA). */
@@ -47,7 +48,7 @@ export interface InboxPaneProps {
 
 /** Left-rail chat list. Presentational: it renders `selectInboxRows` output and
  *  holds no state, so it's cheap to render-test. */
-export function InboxPane({ rows, grow = false }: InboxPaneProps) {
+export const InboxPane = memo(function InboxPane({ rows, grow = false }: InboxPaneProps) {
   return (
     <box
       title="Chats"
@@ -65,7 +66,7 @@ export function InboxPane({ rows, grow = false }: InboxPaneProps) {
       )}
     </box>
   )
-}
+})
 
 function InboxRowView({ row }: { row: InboxRow }) {
   const prefix = row.isSelected ? '›' : ' '
