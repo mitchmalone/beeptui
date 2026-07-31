@@ -7,7 +7,8 @@ import type { ServerInfo } from '@/beeper/types.ts'
  *  (Slice 13). A non-URL string is treated as local (the default path). */
 export function classifyEndpoint(endpoint: string): 'local' | 'remote' {
   try {
-    const host = new URL(endpoint).hostname
+    // `URL.hostname` brackets IPv6 (`[::1]`), so strip brackets before comparing.
+    const host = new URL(endpoint).hostname.replace(/^\[|\]$/g, '')
     return host === '127.0.0.1' || host === 'localhost' || host === '::1' ? 'local' : 'remote'
   } catch {
     return 'local'

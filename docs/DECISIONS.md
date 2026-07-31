@@ -6,6 +6,36 @@
 
 ---
 
+### 2026-08-01 · Slice 13 OAuth security review — passed; token-storage write deferred
+
+**Decision.** The remote-endpoint OAuth 2.0 + PKCE code (`src/beeper/oauth.ts`,
+`oauth-loopback.ts`) passed an independent security review with **no
+high-confidence exploitable findings**. It is cleared to proceed toward remote
+use, subject to the two standing gates below.
+
+**What was verified.** PKCE is **S256-only** (no `plain` path); `code_verifier`
+and CSRF `state` are 32-byte `crypto.getRandomValues`; `state` is verified before
+code exchange (CSRF); the loopback binds **127.0.0.1 only** and serves only
+`/callback`; `redirect_uri` is exact-match across registration/authorize/exchange;
+no token, refresh token, or verifier is written to logs, errors, terminal titles,
+or process argv (invariant 6); `spawn` is always called with an **args array**
+(no shell) so browser/file-open has no injection path; `saveToDownloads` applies
+`basename()` (no path traversal); no attacker-controlled SSRF (host/protocol).
+
+**One correctness fix (non-security).** `classifyEndpoint` mislabelled IPv6
+loopback because `URL.hostname` brackets it (`[::1]`); now bracket-stripped.
+
+**Open gate — token persistence write.** Not implemented. Writing to the macOS
+Keychain via `security add-generic-password -w <secret>` exposes the secret in
+argv (invariant 6), and a plaintext 0600 file isn't the platform credential store.
+An argv-free write mechanism (native keystore binding, or an accepted encrypted
+store) must be chosen before the remote flow can persist tokens end-to-end. Until
+then the flow returns tokens to the caller but does not save them.
+
+**Open gate — live validation.** The full flow is unvalidatable without a real
+remote endpoint (`remote_access` is `false` on the local Desktop). Unit tests
+cover it against a fake authorization server.
+
 ### 2026-07-31 · tmux unread badge uses `rename-window`, and only ever shows a count
 
 **Decision.** The terminal/tmux unread badge sets the tmux **window name** to

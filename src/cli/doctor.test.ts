@@ -107,6 +107,7 @@ describe('runDoctor', () => {
     expect(classifyEndpoint('http://127.0.0.1:23373')).toBe('local')
     expect(classifyEndpoint('http://localhost:23373')).toBe('local')
     expect(classifyEndpoint('https://beeper.example.com')).toBe('remote')
+    expect(classifyEndpoint('http://[::1]:23373')).toBe('local') // IPv6 loopback (bracket-stripped)
     expect(classifyEndpoint('not-a-url')).toBe('local') // default path
   })
 

@@ -99,6 +99,11 @@ export const messagesFixture: BeeperDesktop.Message[] = [
         mimeType: 'image/png',
       },
     ],
+    reactions: [
+      { id: 'p1👍', participantID: 'p1', reactionKey: '👍', emoji: true },
+      { id: 'p2👍', participantID: 'p2', reactionKey: '👍', emoji: true },
+      { id: 'p3🎉', participantID: 'p3', reactionKey: '🎉', emoji: true },
+    ],
   },
   {
     id: 'msg-2',

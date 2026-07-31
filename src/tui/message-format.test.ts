@@ -51,6 +51,19 @@ describe('formatMessage', () => {
     expect(f.body).not.toContain('undefined')
   })
 
+  test('renders read-only reactions as a trailing summary with counts', () => {
+    const f = formatMessage(
+      message({
+        text: 'ship it',
+        reactions: [
+          { key: '👍', count: 2, isEmoji: true },
+          { key: '🎉', count: 1, isEmoji: true },
+        ],
+      })
+    )
+    expect(f.body).toBe('ship it  👍×2 🎉')
+  })
+
   test('attachment label includes size when known', () => {
     const f = formatMessage(
       message({ attachments: [{ kind: 'image', fileName: 'a.png', fileSize: 20480 }] })

@@ -65,7 +65,8 @@ The mechanism is **discoverable and standard** — no guessing:
 - [ ] Token storage for access + refresh; redaction tests.
 - [ ] Named-endpoint config + selection; `doctor`/`status` local-vs-remote awareness + token
       introspection/expiry checks.
-- [ ] Security review pass; record + fix findings (`DECISIONS.md`).
+- [x] Security review pass; record + fix findings (`DECISIONS.md`, 2026-08-01). **Passed** — no
+      exploitable findings; fixed one non-security IPv6-loopback labelling bug in `classifyEndpoint`.
 
 ## Acceptance criteria
 
@@ -73,8 +74,8 @@ The mechanism is **discoverable and standard** — no guessing:
       send, tokens only in the credential store. **(Gate: needs a reachable remote endpoint with
       `remote_access` enabled — not available in this session.)**
 - [ ] `doctor` distinguishes local-desktop vs remote-endpoint failure modes.
-- [ ] Security review completed and its findings recorded in `DECISIONS.md` / fixed. **(Gate: PRD
-      hard requirement before shipping remote auth.)**
+- [x] Security review completed and its findings recorded in `DECISIONS.md` / fixed
+      (2026-08-01) — passed, no exploitable findings.
 
 ## Blocking gates (need Mitch / environment)
 

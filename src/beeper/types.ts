@@ -76,6 +76,14 @@ export interface AttachmentSummary {
   mimeType?: string
 }
 
+/** A reaction on a message, aggregated by key across participants (read-only,
+ *  Slice 14). `count` is how many participants reacted with this key. */
+export interface ReactionSummary {
+  key: string
+  count: number
+  isEmoji: boolean
+}
+
 export interface MessageSummary {
   id: string
   chatId: string
@@ -93,6 +101,8 @@ export interface MessageSummary {
   replyToId?: string
   /** Attachment placeholders (open/download is Slice 11). */
   attachments?: AttachmentSummary[]
+  /** Reactions aggregated by key (read-only display, Slice 14). */
+  reactions?: ReactionSummary[]
 }
 
 export interface SendResult {
@@ -169,8 +179,23 @@ function mapAttachments(
   }))
 }
 
+function mapReactions(
+  reactions: BeeperDesktop.Message['reactions']
+): ReactionSummary[] | undefined {
+  if (reactions === undefined || reactions.length === 0) return undefined
+  // Aggregate by key across participants → one entry per distinct reaction.
+  const byKey = new Map<string, ReactionSummary>()
+  for (const r of reactions) {
+    const existing = byKey.get(r.reactionKey)
+    if (existing) existing.count += 1
+    else byKey.set(r.reactionKey, { key: r.reactionKey, count: 1, isEmoji: r.emoji ?? false })
+  }
+  return [...byKey.values()]
+}
+
 export function mapMessage(message: BeeperDesktop.Message): MessageSummary {
   const attachments = mapAttachments(message.attachments)
+  const reactions = mapReactions(message.reactions)
   return {
     id: message.id,
     chatId: message.chatID,
@@ -185,6 +210,7 @@ export function mapMessage(message: BeeperDesktop.Message): MessageSummary {
     ...(message.editedTimestamp !== undefined ? { isEdited: true } : {}),
     ...(message.linkedMessageID !== undefined ? { replyToId: message.linkedMessageID } : {}),
     ...(attachments !== undefined ? { attachments } : {}),
+    ...(reactions !== undefined ? { reactions } : {}),
   }
 }
 

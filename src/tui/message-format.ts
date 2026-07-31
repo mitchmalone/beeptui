@@ -50,6 +50,11 @@ export function formatMessage(message: MessageEntity): FormattedMessage {
   let body = parts.join(' ')
   if (message.isEdited === true) body = body.length > 0 ? `${body} (edited)` : '(edited)'
   if (body.length === 0) body = '(no content)'
+  // Read-only reactions render as a trailing summary (Slice 14): `😄×2 👍`.
+  const reactions = (message.reactions ?? [])
+    .map((r) => (r.count > 1 ? `${r.key}×${r.count}` : r.key))
+    .join(' ')
+  if (reactions.length > 0) body = `${body}  ${reactions}`
 
   return {
     time: formatTime(message.timestamp),

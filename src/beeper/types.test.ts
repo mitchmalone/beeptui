@@ -120,6 +120,16 @@ describe('mapMessage', () => {
     expect(plain && 'isEdited' in plain).toBe(false)
     expect(plain && 'replyToId' in plain).toBe(false)
     expect(plain && 'attachments' in plain).toBe(false)
+    expect(plain && 'reactions' in plain).toBe(false)
+  })
+
+  test('aggregates reactions by key with counts; omits when absent', () => {
+    const [withMeta, plain] = messagesFixture.map(mapMessage)
+    expect(withMeta?.reactions).toEqual([
+      { key: '👍', count: 2, isEmoji: true },
+      { key: '🎉', count: 1, isEmoji: true },
+    ])
+    expect(plain && 'reactions' in plain).toBe(false)
   })
 })
 
