@@ -7,6 +7,9 @@ export interface StatusBarProps {
   scopeLabel: string
   archived: boolean
   unreadOnly: boolean
+  /** Ephemeral notice (archive result / unsupported action); takes over the
+   *  status text while present. */
+  notice: string | null
 }
 
 /** Bottom status bar: the connection banner when degraded, otherwise a healthy
@@ -19,10 +22,13 @@ export function StatusBar({
   scopeLabel,
   archived,
   unreadOnly,
+  notice,
 }: StatusBarProps) {
-  const status = banner
-    ? banner.message
-    : `Connected · ${accountCount} account${accountCount === 1 ? '' : 's'}`
+  const status =
+    notice ??
+    (banner
+      ? banner.message
+      : `Connected · ${accountCount} account${accountCount === 1 ? '' : 's'}`)
   const filters = [scopeLabel, archived ? 'archived' : null, unreadOnly ? 'unread' : null]
     .filter(Boolean)
     .join(' · ')

@@ -54,6 +54,7 @@ async function renderApp(store: Store, over: Partial<AppProps> = {}) {
     onSend: noop,
     onRetry: noop,
     onSearchMessages: noop,
+    onArchiveChat: noop,
     ...over,
   }
   return testRender(<App {...props} />, { width: 100, height: 24 })
@@ -228,6 +229,17 @@ describe('App shell', () => {
       expect(sent).toEqual([])
     })
 
+    test('A archives the open chat from the conversation', async () => {
+      const store = openChatStore()
+      const archived: string[] = []
+      const { renderOnce, mockInput } = await renderApp(store, {
+        onArchiveChat: (id) => archived.push(id),
+      })
+      await renderOnce()
+      await mockInput.pressKey('A', { shift: true })
+      expect(archived).toEqual(['c1'])
+    })
+
     test('R retries the last failed send from the conversation', async () => {
       const store = openChatStore()
       store.dispatch({
@@ -348,6 +360,41 @@ describe('App shell', () => {
       expect(frame).toContain('Compose')
       await mockInput.pressKey('x') // any key dismisses help
       expect(store.getState().overlay).toBe('none')
+    })
+  })
+
+  describe('rail focus navigation (Esc walks out)', () => {
+    test('Esc walks conversation → inbox → rail; l/Enter drills back in', async () => {
+      const store = openChatStore() // c1 open, conversation focused
+      const { renderOnce, mockInput } = await renderApp(store)
+      await renderOnce()
+      expect(store.getState().focus).toBe('conversation')
+      await mockInput.pressKey('h') // conversation → inbox
+      expect(store.getState().focus).toBe('inbox')
+      await mockInput.pressKey('h') // inbox → rail (the new step)
+      expect(store.getState().focus).toBe('rail')
+      await mockInput.pressKey('l') // rail → inbox (drill back in)
+      expect(store.getState().focus).toBe('inbox')
+    })
+
+    test('in the rail, j/k switch networks', async () => {
+      const store = seededStore()
+      store.dispatch({ type: 'focus/changed', focus: 'rail' })
+      const { renderOnce, mockInput } = await renderApp(store)
+      await renderOnce()
+      expect(store.getState().filter.scope).toBe('all')
+      await mockInput.pressKey('j') // next network
+      expect(store.getState().filter.scope).toBe('a') // WhatsApp
+      await mockInput.pressKey('k') // back up
+      expect(store.getState().filter.scope).toBe('all')
+    })
+
+    test('the rail shows a focus indicator when focused', async () => {
+      const store = seededStore()
+      store.dispatch({ type: 'focus/changed', focus: 'rail' })
+      const { renderOnce, captureCharFrame } = await renderApp(store)
+      await renderOnce()
+      expect(captureCharFrame()).toContain('Net●') // focus marker in the rail title
     })
   })
 

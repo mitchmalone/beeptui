@@ -7,6 +7,8 @@ export interface NetworkRailProps {
   archived: boolean
   /** Whether the unread-only filter is active (footer indicator). */
   unreadOnly: boolean
+  /** Whether the rail has keyboard focus (shows a focus title + border tint). */
+  focused?: boolean
 }
 
 /**
@@ -15,9 +17,13 @@ export interface NetworkRailProps {
  * the active view filters. Presentational — the App owns the keys that cycle it
  * (`[` / `]`, `a`, `U`); this only renders `selectNetworkRail` output.
  */
-export function NetworkRail({ entries, archived, unreadOnly }: NetworkRailProps) {
+export function NetworkRail({ entries, archived, unreadOnly, focused = false }: NetworkRailProps) {
   return (
-    <box title="Net" border style={{ width: 8, flexShrink: 0, flexDirection: 'column' }}>
+    <box
+      title={focused ? 'Net●' : 'Net'}
+      border
+      style={{ width: 8, flexShrink: 0, flexDirection: 'column' }}
+    >
       <box style={{ flexGrow: 1, flexDirection: 'column' }}>
         {entries.map((entry) => {
           const marker = entry.network === null ? 'All' : networkMarker(entry.network)

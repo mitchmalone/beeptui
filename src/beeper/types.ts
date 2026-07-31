@@ -35,6 +35,9 @@ export interface ChatSummary {
   unreadCount: number
   isArchived: boolean
   isMuted: boolean
+  /** Whether the platform supports archive/unarchive for this chat. Absent when
+   *  the API didn't report the capability (treated as "attempt, then degrade"). */
+  canArchive?: boolean
   lastActivity?: string
 }
 
@@ -103,6 +106,7 @@ export function mapChat(chat: BeeperDesktop.Chat): ChatSummary {
     isArchived: chat.isArchived ?? false,
     isMuted: chat.isMuted ?? false,
     // `exactOptionalPropertyTypes` — omit the key entirely rather than set undefined.
+    ...(chat.capabilities?.archive !== undefined ? { canArchive: chat.capabilities.archive } : {}),
     ...(chat.lastActivity !== undefined ? { lastActivity: chat.lastActivity } : {}),
   }
 }

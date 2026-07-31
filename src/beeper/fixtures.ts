@@ -70,6 +70,7 @@ export const chatsFixture: BeeperDesktop.Chat[] = [
     unreadCount: 0,
     isArchived: false,
     isMuted: true,
+    capabilities: { archive: false },
     lastActivity: '2026-07-30T01:30:00.000Z',
   },
 ]

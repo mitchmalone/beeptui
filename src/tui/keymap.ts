@@ -14,6 +14,7 @@ export type Command =
   | 'load-older'
   | 'compose'
   | 'retry'
+  | 'archive-chat'
   | 'search'
   | 'search-messages'
   | 'help'
@@ -92,6 +93,13 @@ export const KEYMAP: readonly Binding[] = [
     display: 'R',
     command: 'retry',
     description: 'Retry failed send',
+    context: 'conversation',
+  },
+  {
+    keys: ['shift+a'],
+    display: 'A',
+    command: 'archive-chat',
+    description: 'Archive / unarchive this chat',
     context: 'conversation',
   },
   {

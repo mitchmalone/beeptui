@@ -36,6 +36,7 @@ export interface Gateway {
   sendMessage(chatId: string, text: string): Promise<SendResult>
   getChat(chatId: string): Promise<ChatSummary>
   searchMessages(query: string, options?: MessageSearchOptions): Promise<MessageSearchPage>
+  setArchived(chatId: string, archived: boolean): Promise<void>
 }
 
 export interface SendParams {
@@ -245,6 +246,50 @@ export async function runMessageSearch(
     } else {
       dispatch({ type: 'messageSearch/failed', note: 'Search unavailable' })
     }
+  }
+}
+
+// ── Archive (Slice 10 follow-up) ─────────────────────────────────────────
+
+/**
+ * Archive or unarchive the open chat (toggles based on its current state).
+ * Capability-gated: if the platform reports archive isn't supported for this
+ * chat, we show a named notice and make no call (degrade visibly, invariant 8).
+ * On success we refetch the chat (Beeper is the source of truth) and step back
+ * to the list — the chat has left the current view. Never fakes success: a
+ * failed call surfaces as a notice, and the chat's state is left untouched.
+ */
+export async function archiveChat(
+  gateway: Gateway,
+  dispatch: Dispatch,
+  getState: () => AppState,
+  chatId: string
+): Promise<void> {
+  const chat = getState().chats[chatId]
+  if (chat === undefined) return
+  if (chat.canArchive === false) {
+    dispatch({ type: 'notice/shown', message: `Archive isn't supported for ${chat.network}.` })
+    return
+  }
+  const archived = !chat.isArchived
+  try {
+    await gateway.setArchived(chatId, archived)
+    // Reconcile from the server, then close the conversation and step out to the
+    // list — the chat has left the current view (gmail-style).
+    try {
+      dispatch({ type: 'chats/upserted', chat: await gateway.getChat(chatId) })
+    } catch {
+      // Non-fatal: the next refresh/live event reconciles the row.
+    }
+    dispatch({ type: 'chat/selected', chatId: null }) // also clears any stale notice
+    dispatch({ type: 'focus/changed', focus: 'inbox' })
+    dispatch({ type: 'notice/shown', message: archived ? 'Chat archived.' : 'Chat unarchived.' })
+  } catch (err) {
+    const error = normalizeError(err)
+    dispatch({
+      type: 'notice/shown',
+      message: `Couldn't ${archived ? 'archive' : 'unarchive'} — ${error.message}`,
+    })
   }
 }
 

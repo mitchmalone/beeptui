@@ -157,12 +157,14 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     }
 
     case 'chat/selected':
-      // Reset scroll to the newest message when the selection changes.
+      // Reset scroll to the newest message when the selection changes, and clear
+      // any transient notice (it belonged to the previous view).
       return {
         ...state,
         selectedChatId: event.chatId,
         conversationOffset: 0,
         newMessagesBelow: false,
+        notice: null,
       }
 
     case 'focus/changed':
@@ -327,6 +329,12 @@ export function reduce(state: AppState, event: AppEvent): AppState {
 
     case 'messageSearch/closed':
       return { ...state, overlay: 'none', messageSearch: initialMessageSearch }
+
+    case 'notice/shown':
+      return { ...state, notice: event.message }
+
+    case 'notice/cleared':
+      return { ...state, notice: null }
 
     case 'error/raised':
       return { ...state, error: { kind: event.kind, message: event.message } }

@@ -550,3 +550,13 @@ describe('message search overlay', () => {
     expect(s.messageSearch.results).toEqual([])
   })
 })
+
+describe('notice', () => {
+  test('shown sets it; cleared and selecting a chat both clear it', () => {
+    const shown = reduce(initialState, { type: 'notice/shown', message: 'Chat archived.' })
+    expect(shown.notice).toBe('Chat archived.')
+    expect(reduce(shown, { type: 'notice/cleared' }).notice).toBeNull()
+    // Navigating to another chat clears a stale notice.
+    expect(reduce(shown, { type: 'chat/selected', chatId: 'c9' }).notice).toBeNull()
+  })
+})

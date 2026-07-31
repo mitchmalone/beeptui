@@ -4,6 +4,7 @@ import { App, type AppProps } from '@/tui/app.tsx'
 import { createStore } from '@/tui/store.ts'
 import {
   applyWatchEvent,
+  archiveChat,
   bootstrap,
   openChat,
   runMessageSearch,
@@ -86,22 +87,32 @@ function msg(id: string, text: string, over: Partial<MessageSummary> = {}): Mess
 const history: MessageSummary[] = [msg('m1', 'Ship it.'), msg('m2', 'Right behind you.')]
 
 function fakeGateway(): Gateway {
+  // Per-harness archive state so the archive golden path reflects a real
+  // move-out-of-view (getChat/listChats report the updated isArchived).
+  const archivedIds = new Set<string>()
   return {
     getInfo: async () => server,
     listAccounts: async () => accounts,
-    listChats: async () => chats,
+    listChats: async () => chats.map((c) => ({ ...c, isArchived: archivedIds.has(c.id) })),
     listMessages: async (): Promise<MessageHistoryPage> => ({
       messages: history,
       hasMore: false,
       cursor: null,
     }),
     sendMessage: async (): Promise<SendResult> => ({ chatId: 'c-wa', pendingMessageId: 'srv-1' }),
-    getChat: async () => chats[0]!,
+    getChat: async (id) => ({
+      ...chats.find((c) => c.id === id)!,
+      isArchived: archivedIds.has(id),
+    }),
     searchMessages: async (query): Promise<MessageSearchPage> => ({
       messages: history.filter((m) => (m.text ?? '').toLowerCase().includes(query.toLowerCase())),
       scopeHonored: true,
       capped: false,
     }),
+    setArchived: async (id, archived) => {
+      if (archived) archivedIds.add(id)
+      else archivedIds.delete(id)
+    },
   }
 }
 
@@ -125,6 +136,7 @@ async function harness() {
     onRetry: () => {},
     onSearchMessages: (query, scopeChatId) =>
       void runMessageSearch(gateway, store.dispatch, store.getState, query, scopeChatId),
+    onArchiveChat: (chatId) => void archiveChat(gateway, store.dispatch, store.getState, chatId),
   }
   const r = await testRender(<App {...props} />, { width: 100, height: 24 })
   const settle = async () => {
@@ -270,5 +282,29 @@ describe('golden-path smoke', () => {
     expect(h.store.getState().overlay).toBe('none')
     expect(h.store.getState().selectedChatId).toBe('c-wa')
     expect(h.captureCharFrame()).toContain('Ship it.') // landed in the conversation
+  })
+
+  test('scenario 7: archiving the open chat moves it out of the active view, visibly', async () => {
+    const h = await harness()
+    await h.mockInput.pressKey('j') // select Grace Hopper (WhatsApp)
+    await h.mockInput.pressKey('RETURN') // open it
+    await h.settle()
+    expect(h.captureCharFrame()).toContain('Grace Hopper')
+
+    await h.mockInput.pressKey('A', { shift: true }) // archive it
+    await h.settle()
+
+    // Beeper is the source of truth: the chat is now archived, focus stepped back
+    // to the list, and the status bar names what happened — no silent success.
+    expect(h.store.getState().chats['c-wa']?.isArchived).toBe(true)
+    expect(h.store.getState().focus).toBe('inbox')
+    const frame = h.captureCharFrame()
+    expect(frame).toContain('archived') // notice in the status bar
+    expect(frame).not.toContain('Grace Hopper') // gone from the active inbox
+
+    // It reappears in the archived view.
+    await h.mockInput.pressKey('a')
+    await h.settle()
+    expect(h.captureCharFrame()).toContain('Grace Hopper')
   })
 })

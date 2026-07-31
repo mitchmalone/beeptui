@@ -10,6 +10,7 @@ import {
   applyWatchEvent,
   bootstrap,
   loadOlderMessages,
+  archiveChat,
   openChat,
   refreshChats,
   resyncAfterReconnect,
@@ -73,6 +74,9 @@ export async function launch(): Promise<void> {
   const onSearchMessages = (query: string, scopeChatId: string | null) => {
     void runMessageSearch(adapter, store.dispatch, store.getState, query, scopeChatId)
   }
+  const onArchiveChat = (chatId: string) => {
+    void archiveChat(adapter, store.dispatch, store.getState, chatId)
+  }
 
   createRoot(renderer).render(
     createElement(App, {
@@ -84,6 +88,7 @@ export async function launch(): Promise<void> {
       onSend,
       onRetry,
       onSearchMessages,
+      onArchiveChat,
     })
   )
 

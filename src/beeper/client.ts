@@ -164,6 +164,14 @@ export class BeeperAdapter {
     )
   }
 
+  /** Archive (or unarchive) a chat via Beeper's dedicated endpoint. Beeper owns
+   *  the state; we just request the change (capability is gated by the caller). */
+  async setArchived(chatID: string, archived: boolean): Promise<void> {
+    return this.#guard(async () => {
+      await this.#client.chats.archive(chatID, { archived })
+    })
+  }
+
   /** Run an SDK call, normalizing any thrown value into a `BeeperError`. */
   async #guard<T>(fn: () => Promise<T>): Promise<T> {
     try {

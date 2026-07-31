@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import {
   applyWatchEvent,
+  archiveChat,
   bootstrap,
   loadOlderMessages,
   openChat,
@@ -76,6 +77,7 @@ function gateway(over: Partial<Gateway> = {}): Gateway {
     sendMessage: async () => ({ chatId: 'c1', pendingMessageId: 'srv-1' }),
     getChat: async () => chats[0]!,
     searchMessages: async () => ({ messages: [], scopeHonored: true, capped: false }),
+    setArchived: async () => {},
     ...over,
   }
 }
@@ -423,5 +425,81 @@ describe('runMessageSearch', () => {
       null
     )
     expect(events[1]).toMatchObject({ type: 'messageSearch/failed' })
+  })
+})
+
+describe('archiveChat', () => {
+  const stateWith = (over: Partial<ChatSummary>): AppState =>
+    reduce(initialState, { type: 'chats/loaded', chats: [{ ...chats[0]!, ...over }] })
+
+  test('archives an active chat: calls the adapter, reconciles, steps back to the list', async () => {
+    const { dispatch, events } = capture()
+    const archivedArgs: boolean[] = []
+    await archiveChat(
+      gateway({
+        setArchived: async (_id, archived) => {
+          archivedArgs.push(archived)
+        },
+        getChat: async () => ({ ...chats[0]!, isArchived: true }),
+      }),
+      dispatch,
+      () => stateWith({ isArchived: false, canArchive: true }),
+      'c1'
+    )
+    expect(archivedArgs).toEqual([true]) // toggled from active → archived
+    expect(events.map((e) => e.type)).toEqual([
+      'chats/upserted',
+      'chat/selected', // close the conversation
+      'focus/changed',
+      'notice/shown',
+    ])
+    expect(events.at(-1)).toMatchObject({ type: 'notice/shown', message: 'Chat archived.' })
+    expect(events).toContainEqual({ type: 'chat/selected', chatId: null })
+    expect(events[2]).toMatchObject({ type: 'focus/changed', focus: 'inbox' })
+  })
+
+  test('unarchives an archived chat (toggles the other way)', async () => {
+    const { dispatch, events } = capture()
+    const archivedArgs: boolean[] = []
+    await archiveChat(
+      gateway({ setArchived: async (_id, a) => void archivedArgs.push(a) }),
+      dispatch,
+      () => stateWith({ isArchived: true, canArchive: true }),
+      'c1'
+    )
+    expect(archivedArgs).toEqual([false])
+    expect(events.at(-1)).toMatchObject({ type: 'notice/shown', message: 'Chat unarchived.' })
+  })
+
+  test('unsupported capability → named notice, no adapter call (degrade visibly)', async () => {
+    const { dispatch, events } = capture()
+    let called = false
+    await archiveChat(
+      gateway({ setArchived: async () => void (called = true) }),
+      dispatch,
+      () => stateWith({ canArchive: false }),
+      'c1'
+    )
+    expect(called).toBe(false)
+    expect(events).toEqual([
+      { type: 'notice/shown', message: "Archive isn't supported for WhatsApp." },
+    ])
+  })
+
+  test('a failed archive surfaces a notice and never fakes success', async () => {
+    const { dispatch, events } = capture()
+    await archiveChat(
+      gateway({
+        setArchived: async () => {
+          throw new BeeperError('unreachable', 'down')
+        },
+      }),
+      dispatch,
+      () => stateWith({ isArchived: false, canArchive: true }),
+      'c1'
+    )
+    expect(events.map((e) => e.type)).toEqual(['notice/shown'])
+    expect(events[0]).toMatchObject({ type: 'notice/shown' })
+    expect((events[0] as { message: string }).message).toContain("Couldn't archive")
   })
 })

@@ -55,6 +55,12 @@ describe('mapChat', () => {
     })
     expect(slack?.isMuted).toBe(true)
   })
+
+  test('surfaces the archive capability when reported, omits it when absent', () => {
+    const [wa, slack] = chatsFixture.map(mapChat)
+    expect(slack?.canArchive).toBe(false) // capabilities.archive: false
+    expect(wa && 'canArchive' in wa).toBe(false) // no capabilities → key omitted
+  })
 })
 
 describe('mapMessage', () => {

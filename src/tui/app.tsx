@@ -38,6 +38,8 @@ export interface AppProps {
   onRetry: (chatId: string, clientId: string, text: string) => void
   /** Run a message search through the adapter (scoped to a chat when given). */
   onSearchMessages: (query: string, scopeChatId: string | null) => void
+  /** Archive / unarchive a chat (capability-gated in the runtime). */
+  onArchiveChat: (chatId: string) => void
 }
 
 /**
@@ -55,6 +57,7 @@ export function App({
   onSend,
   onRetry,
   onSearchMessages,
+  onArchiveChat,
 }: AppProps) {
   const state = useSyncExternalStore(store.subscribe, store.getState)
   const rows = selectInboxRows(state)
@@ -180,6 +183,40 @@ export function App({
     const conv = selectActiveConversation(s)
     const failed = selectLastFailedSend(s)
 
+    // Rail focus: the leftmost, outermost pane. j/k switch networks; Enter / l /
+    // → drill back into the chat list. Esc / h / ← is a no-op (nothing further
+    // out). The global [ ] / a / U shortcuts above still apply here too.
+    if (s.focus === 'rail') {
+      const railEntries = selectNetworkRail(s)
+      if (key.name === 'right' || key.sequence === 'l') {
+        store.dispatch({ type: 'focus/changed', focus: 'inbox' })
+        return
+      }
+      switch (command) {
+        case 'move-down':
+          store.dispatch({ type: 'filter/scopeCycled', direction: 1 })
+          break
+        case 'move-up':
+          store.dispatch({ type: 'filter/scopeCycled', direction: -1 })
+          break
+        case 'top':
+          store.dispatch({ type: 'filter/scopeSelected', scope: railEntries[0]?.id ?? 'all' })
+          break
+        case 'bottom':
+          store.dispatch({
+            type: 'filter/scopeSelected',
+            scope: railEntries[railEntries.length - 1]?.id ?? 'all',
+          })
+          break
+        case 'open':
+          store.dispatch({ type: 'focus/changed', focus: 'inbox' })
+          break
+        default:
+          break
+      }
+      return
+    }
+
     if (s.focus === 'inbox') {
       switch (command) {
         case 'move-down':
@@ -205,6 +242,10 @@ export function App({
           break
         case 'refresh':
           onRefresh()
+          break
+        case 'back':
+          // Step out to the network rail (the outermost pane).
+          store.dispatch({ type: 'focus/changed', focus: 'rail' })
           break
         default:
           break
@@ -233,6 +274,9 @@ export function App({
         if (conv.chat !== null && failed !== null) {
           onRetry(conv.chat.id, failed.clientId, failed.text)
         }
+        break
+      case 'archive-chat':
+        if (conv.chat !== null) onArchiveChat(conv.chat.id)
         break
       case 'back':
         store.dispatch({ type: 'focus/changed', focus: 'inbox' })
@@ -272,7 +316,9 @@ export function App({
     <box style={{ flexDirection: 'column', width: '100%', height: '100%' }}>
       {overlayPane ??
         (narrow ? (
-          focus === 'inbox' ? (
+          // No rail column when narrow; rail focus still shows the list (which
+          // re-filters as you switch networks), scope visible in the status bar.
+          focus === 'inbox' || focus === 'rail' ? (
             <InboxPane rows={rows} grow />
           ) : (
             <box style={{ flexDirection: 'column', flexGrow: 1 }}>
@@ -286,6 +332,7 @@ export function App({
               entries={rail}
               archived={state.filter.archived}
               unreadOnly={state.filter.unreadOnly}
+              focused={focus === 'rail'}
             />
             <InboxPane rows={rows} />
             <box style={{ flexDirection: 'column', flexGrow: 1 }}>
@@ -300,6 +347,7 @@ export function App({
         scopeLabel={scopeLabel}
         archived={state.filter.archived}
         unreadOnly={state.filter.unreadOnly}
+        notice={state.notice}
       />
     </box>
   )

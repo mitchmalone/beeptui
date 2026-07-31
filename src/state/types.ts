@@ -17,8 +17,10 @@ export type ConnectionState =
 
 export type MessageDeliveryStatus = 'sent' | 'pending' | 'failed'
 
-/** Which pane has keyboard focus. */
-export type FocusTarget = 'inbox' | 'conversation' | 'compose'
+/** Which pane has keyboard focus. Ordered outer→inner: the network rail (filter),
+ *  the chat list (inbox), the conversation, and the compose box within it. `Esc`
+ *  walks this back out toward the rail. */
+export type FocusTarget = 'rail' | 'inbox' | 'conversation' | 'compose'
 
 /** Modal overlay on top of the panes, if any. */
 export type Overlay = 'none' | 'search' | 'help' | 'messageSearch'
@@ -123,6 +125,9 @@ export interface AppState {
   drafts: Record<string, string>
   server: ServerInfo | null
   error: { kind: BeeperErrorKind; message: string } | null
+  /** Ephemeral one-line notice (e.g. archive result / unsupported action). Shown
+   *  in the status bar until the next navigation clears it. */
+  notice: string | null
 }
 
 export const initialState: AppState = {
@@ -143,6 +148,7 @@ export const initialState: AppState = {
   drafts: {},
   server: null,
   error: null,
+  notice: null,
 }
 
 /**
@@ -186,6 +192,8 @@ export type AppEvent =
   | { type: 'messageSearch/failed'; note: string }
   | { type: 'messageSearch/selectionMoved'; delta: 1 | -1 }
   | { type: 'messageSearch/closed' }
+  | { type: 'notice/shown'; message: string }
+  | { type: 'notice/cleared' }
   | { type: 'draft/changed'; chatId: string; text: string }
   | { type: 'send/requested'; chatId: string; clientId: string; text: string; timestamp: string }
   | { type: 'send/succeeded'; chatId: string; clientId: string; message: MessageSummary }

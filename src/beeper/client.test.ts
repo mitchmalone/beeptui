@@ -139,6 +139,20 @@ describe('BeeperAdapter happy paths', () => {
     expect(result.messages.map((m) => m.id)).toEqual(['search-wa-1'])
   })
 
+  test('setArchived posts to the archive endpoint with the archived flag', async () => {
+    let body: unknown = null
+    let path = ''
+    const capturing = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(typeof input === 'string' ? input : input.toString())
+      path = url.pathname
+      body = init?.body ? JSON.parse(String(init.body)) : null
+      return json({})
+    }) as unknown as typeof fetch
+    await adapter(capturing).setArchived('!wa-1:beeper.local', true)
+    expect(path).toContain('/archive')
+    expect(body).toMatchObject({ archived: true })
+  })
+
   test('sendMessage posts and returns the pending id', async () => {
     let sawPost = false
     const a = adapter(
