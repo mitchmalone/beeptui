@@ -8,7 +8,7 @@
 ## Where we are
 
 **Open-source prep pass done (2026-08-01, `chore/open-source-prep`)** — a full security + quality
-audit ahead of the public flip (`docs/plans/active/PLAN-open-source-prep.md`). Fixed: an
+audit ahead of the public flip (`docs/plans/done/PLAN-open-source-prep.md`). Fixed: an
 accidentally-committed 59 MB build binary (untracked; history rewrite recommended before flipping
 public), personal identifiers scrubbed (fixture handle, private Notion URL, PRD mockup), an https
 floor for non-loopback endpoints (config + discovered OAuth endpoints), a state-armed OAuth loopback,
@@ -46,17 +46,17 @@ bindings don't overflow. **315 tests** green; typecheck + lint + format clean; 1
 **Live reply send validated 2026-08-01** (Mitch sent real replies from the TUI on a connected
 network — the one invariant-5-gated step): **Slice 11 is fully done.**
 
-**Slice 12 (remaining networks & capability messaging) — CLOSED; live matrix deferred to `TODO.md`.** The two
+**Slice 12 (remaining networks & capability messaging) — DONE (code-complete, tests green); live matrix tracked in `TODO.md`.** The two
 capability-gated actions (reply, archive) now route through one shared `checkCapability` /
 `capabilityUnavailableMessage` (`src/state/capabilities.ts`) — honest, source-naming ("Replies not
 available for Slack via Beeper"), no ad-hoc strings. Added a burst-stability smoke scenario (12 rapid
 inbound while scrolled up keeps reading position). A **redacted live capability probe** on the 3
 connected networks confirms the plumbing (reply reported-supported on WhatsApp + Facebook). The full
-Discord/Instagram/X matrix — and declaring Phase 2 complete — is **deferred to `TODO.md`** (accepted
-risk, Mitch 2026-08-01): the slice is closed on the code, the live run is a tracked follow-up once
-those networks are connected.
+Discord/Instagram/X matrix is a tracked follow-up in `TODO.md` (accepted risk, Mitch 2026-08-01):
+the slice ships on the code + tests; the multi-network live run happens once those networks are
+connected.
 
-**Slice 13 (remote endpoint & OAuth) — CLOSED; live remote login deferred to `TODO.md`.** API
+**Slice 13 (remote endpoint & OAuth) — DONE (code-complete, tests green); live remote login tracked in `TODO.md`.** API
 re-investigated: auth is OAuth 2.0 Authorization Code + PKCE with RFC 7591 dynamic registration,
 discovered from `/v1/info` (`ServerInfo.oauth`, all six endpoints live-confirmed). `src/beeper/oauth.ts`
 implements PKCE (S256) + CSRF state + registration + exchange/refresh/revoke + an `authorize`
@@ -81,10 +81,15 @@ customization** — `config.keymap` rebinds any command (validated, help reflect
 `config.theme.networkColors` overrides the per-network accent colours (validated hex). **Packaging:**
 `bun run build` compiles a standalone `dist/beeper-tui` (~69 MB Mach-O arm64) that runs
 `--help`/`doctor`/TUI with no Bun at runtime — OpenTUI/Bun compat validated on macOS arm64; README
-has Install + Configuration docs. **366 tests** green; typecheck + lint + format + security review
-clean. Remaining Slice 14 (densities, perf profiling, media preview, brew tap/releases) is
-fuzzy-scoped profiling, terminal-specific media, or gated on decision #6 (open-source flip →
-license + public distribution) — the plan calls for a re-plan/split.
+has Install + Configuration docs. **429 tests** green; typecheck + lint + format + security review
+clean. **Slice 14 closed** (plan moved to `plans/done/`): the power features + packaging shipped;
+the remaining candidates (layout densities, perf profiling vs the PRD timing criteria, richer
+Kitty/iTerm2 media preview, brew tap / versioned releases) are optional/fuzzy polish parked in
+`docs/plans/backlog/PLAN-v1-polish-backlog.md` — none block v1.
+
+**Phases 1–3 are code-complete and green (429 tests).** Slices 0–14 are done on code + tests. The
+only outstanding items are production-only runs that need external accounts/endpoints, tracked in
+`TODO.md` — they are unverified in production, not code gaps.
 
 **🎉 Phase 1 complete — Slices 0–9 done (all merged to `main`).**
 The MVP is real and live-validated against Beeper Desktop 4.2.1004: browse the inbox, read history
@@ -96,14 +101,16 @@ no silent failures. Fixed pagination resilience along the way. **199 tests** gre
 
 ## Next up
 
-- **Slice 14 re-plan** (split into 2–4): reactions/receipts, notification hooks, keymap + colour
-  config, and the standalone binary all landed. Remaining candidates: layout densities, perf
-  profiling vs the PRD timing criteria, richer media preview (Kitty/iTerm2 image protocols), and
-  brew tap / versioned releases (gated on decision #6).
-- **Deferred live validation → see `TODO.md`.** Slices 12 and 13 are closed on the code; their live
-  runs (Discord/IG/X matrix; remote-endpoint `login`) are tracked there, accepted-risk. Declaring
-  **Phase 2 complete** waits on the Slice 12 matrix actually running — the code is done, the
-  production run is not, and the docs won't claim otherwise.
+All planned slices (0–14) are done on code + tests. What remains is not code:
+
+- **Production-only validation → see `TODO.md`.** The Slice 12 multi-network matrix
+  (Discord/IG/X) and the Slice 13 remote-endpoint `login` are the only outstanding runs; both need
+  external accounts/endpoints this environment doesn't have (accepted risk). Declaring **Phase 2
+  fully validated in production** waits on the Slice 12 matrix actually running — the code is done,
+  the docs won't claim the production run happened until it does.
+- **Optional v1 polish** (`docs/plans/backlog/PLAN-v1-polish-backlog.md`): layout densities, perf
+  profiling, Kitty/iTerm2 media preview, brew tap / versioned releases. Pull one into `active/` if
+  and when it's worth doing; none block v1.
 
 ## Deferred live validation (accepted risk, Mitch 2026-08-01) → `TODO.md`
 
