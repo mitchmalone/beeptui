@@ -38,7 +38,7 @@ connected networks confirms the plumbing (reply reported-supported on WhatsApp +
 Discord/Instagram/X matrix — and declaring Phase 2 complete — is **blocked** on those networks being
 connected (manual gate, Mitch).
 
-**Slice 13 (remote endpoint & OAuth) — core + security review done; end-to-end gated.** API
+**Slice 13 (remote endpoint & OAuth) — buildable surface COMPLETE; only a live remote login gated.** API
 re-investigated: auth is OAuth 2.0 Authorization Code + PKCE with RFC 7591 dynamic registration,
 discovered from `/v1/info` (`ServerInfo.oauth`, all six endpoints live-confirmed). `src/beeper/oauth.ts`
 implements PKCE (S256) + CSRF state + registration + exchange/refresh/revoke + an `authorize`
@@ -49,8 +49,11 @@ orchestrator, unit-tested against a fake auth server; `oauth-loopback.ts` is the
 credential store (Keychain / Secret Service / Credential Manager), in-process (argv-free), zero-dep —
 which closes the security review's open item. `beeper-tui login` / `logout` wire the full lifecycle
 (authorize → persist → refresh-on-expiry → revoke); `launch`/`status`/`doctor` resolve the active
-token through it (env/legacy → stored OAuth). Live-verified the Keychain round-trip. **Only gate
-left:** running `login` against a real remote endpoint (`remote_access:false` locally).
+token through it (env/legacy → stored OAuth). Live-verified the Keychain round-trip. **Headless-Linux
+fallback** (`secret-file-store.ts`): AES-256-GCM encrypted `0600` file when no keyring is present.
+**`doctor` reports token scope** (RFC 7662 introspection — "read, write; can read and send"), and
+**named endpoints** (`config.endpoints` `{name: url}`) let the `endpoint` selector be a URL or a name.
+**Only gate left:** running `login` against a real remote endpoint (`remote_access:false` locally).
 
 **Slice 14 (polish) — unblocked features landed.** Read-only **reactions** (`👍×2 🎉`, aggregated),
 **read receipts** (`✓✓` on own seen messages), **notification hooks** (`config.notify.command` runs a
