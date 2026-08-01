@@ -47,7 +47,11 @@ between "works for Mitch's checkout" and "a tool someone installs".
       channels; hit or beat the PRD timing criteria consistently.
 - [ ] **Richer media preview** integration where the terminal supports it (Kitty/iTerm2 image
       protocols) — optional, capability-detected.
-- [~] **Packaging & install docs**: `bun run build` compiles a **standalone binary**
+- [~] **Packaging & install docs**: a **release workflow** (`.github/workflows/release.yml`) builds
+  the standalone binary on a `v*` tag (native runners per target — darwin-arm64 + linux-x64, since
+  OpenTUI's renderer is platform-specific), gates on typecheck+test, and attaches the binaries to
+  a GitHub Release via `gh` (no third-party action). **Exercised only on a tag push** — validated
+  structurally (YAML parses; uses the proven `bun build --compile`). `bun run build` compiles a **standalone binary**
   (`dist/beeper-tui`, ~69 MB Mach-O arm64) that runs `--help`/`doctor`/TUI with no Bun at
   runtime — **OpenTUI/Bun compat validated on macOS arm64** (the PRD risk note). `beeper-tui`
   name + `bin` already set; README has install/usage docs. Remaining: brew tap / versioned
