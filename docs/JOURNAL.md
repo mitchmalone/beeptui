@@ -5,6 +5,24 @@
 
 ---
 
+### 2026-08-01 — Slices 12–14 closed on code; repo public; branch-protection gotcha
+
+- **Verified in code, not docs:** all Slice 12/13/14 source exists and is wired
+  (`src/state/capabilities.ts`; `src/beeper/oauth*.ts` + `token-store`/`auth-session`/`secret-file-store`
+  - `login`/`logout` in `src/cli/index.ts`; reactions/receipts in `src/tui/message-format.ts`,
+    `src/tui/notify.ts`, keymap + `theme.networkColors`; `release.yml` + `bun build --compile`).
+    **429 tests pass.** So Slices 0–14 are done on the "code-complete + tests green" bar; only
+    production live-runs (Discord/IG/X matrix, real remote `login`) remain — tracked in `TODO.md`,
+    not code gaps. Slice 14 closed; its fuzzy remainder parked in `plans/backlog/PLAN-v1-polish-backlog.md`.
+- **Branch-protection gotcha:** `main` had a protection object (code-owner review, linear history,
+  no force-push) but **no `required_status_checks` block** — so CI was green-but-not-gating; a PR
+  could merge with red checks. Re-applied with the three strict contexts
+  (`checks (ubuntu-latest)`, `checks (macos-latest)`, `gitleaks`). These + private-vulnerability-reporting
+  were 403 while the repo was private on the free plan; both only took once the repo went public.
+- **Env note:** this session had no SSH key — `git push` over `git@github.com` fails publickey.
+  Workaround: `gh auth setup-git` then push the `https://github.com/...` URL (gh token as credential
+  helper). Not a repo issue; just how to unblock a push here.
+
 ### 2026-08-01 — Open-source prep audit: what the reviews actually caught
 
 - A **59 MB compiled binary** (`.bun-build` intermediate) had been committed in PR #12 despite a

@@ -35,14 +35,12 @@ accounts/endpoints that don't exist in the current environment.
       replaced the private Notion URL + personal handle across all history; `main` force-pushed
       (`dce00bc` → `95fad87`). Re-clone any other checkouts. Note: GitHub may retain pre-rewrite
       objects via old PR refs until server-side GC — ask GitHub Support to purge if that matters.
-- [ ] Then flip the repo public (closes decision #6).
-- [ ] **Immediately after the flip** (both are GitHub-gated on the repo being public on the free
-      plan — attempted 2026-08-01, 403):
-  - Branch protection on `main` (require the three CI checks, no force pushes):
-    `gh api -X PUT repos/mitchmalone/beeptui/branches/main/protection --input protection.json`
-    with required checks `checks (ubuntu-latest)`, `checks (macos-latest)`, `gitleaks`.
-  - Private vulnerability reporting (CONTRIBUTING points reporters at it):
-    `gh api -X PUT repos/mitchmalone/beeptui/private-vulnerability-reporting`
+- [x] Then flip the repo public (closes decision #6). **Done** — `mitchmalone/beeptui` is public.
+- [x] **Immediately after the flip** (both were GitHub-gated on the repo being public on the free
+      plan — attempted 2026-08-01, 403; re-applied once public):
+  - [x] Branch protection on `main` — required status checks `checks (ubuntu-latest)`,
+        `checks (macos-latest)`, `gitleaks`; no force pushes; code-owner review + linear history.
+  - [x] Private vulnerability reporting enabled (CONTRIBUTING points reporters at it).
 
 ## Slice 11 — per-network reply rendering (minor)
 

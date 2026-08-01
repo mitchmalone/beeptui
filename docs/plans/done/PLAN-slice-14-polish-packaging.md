@@ -1,17 +1,22 @@
 ---
 title: Slice 14 — Polish, power features & packaging
-status: active
+status: done
 created: 2026-07-30
 updated: 2026-08-01
 links:
   - ../../PRD.md § Phased delivery (Phase 3)
   - PLAN-slice-12-remaining-networks.md
+  - ../backlog/PLAN-v1-polish-backlog.md
 ---
 
 # Slice 14 — Polish, power features & packaging
 
-> Phase 3 — coarse outline. **Re-plan (likely split into 2–4 slices) before starting.** Scope also
-> depends on pending decision #6 (private vs open-source); naming (#1) was resolved 2026-07-30.
+> **Closed 2026-08-01.** The Phase 3 power features + packaging shipped (reactions, receipts,
+> notification hooks, keymap + colour config, standalone binary + release workflow) — 429 tests
+> green. The remaining coarse candidates (layout densities, perf profiling, richer media preview,
+> brew tap / versioned releases) were **not part of the v1 bar**; they're parked as optional polish
+> in `../backlog/PLAN-v1-polish-backlog.md`. Decision #6 (open-source flip) is resolved — repo is
+> public. Naming (#1) resolved 2026-07-30.
 
 ## Goal
 
