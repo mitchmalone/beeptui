@@ -5,9 +5,13 @@ Browse conversations across networks, read history, receive live updates, and re
 terminal, over Beeper's Desktop/Server Client API. Beeper stays the account, sync, and encryption
 boundary; this is a local client, not a bridge.
 
-**Status: Phase 1 complete, Phase 2 in progress.** You can browse your unified inbox, read history,
-receive live updates over WebSocket, and send real messages today. Filters, a network rail, and
-message search landed in Slice 10. See [`docs/STATUS.md`](docs/STATUS.md).
+**Status: Phase 1 complete; Phases 2–3 substantially built.** Browse your unified inbox, read
+history, receive live updates over WebSocket, and send real messages. A network rail, filters, and
+message search (Slice 10); replies, edits & attachment open/save, reactions and read receipts
+(Slices 11, 14); a unified capability-unavailable UX (Slice 12); an OAuth 2.0 + PKCE remote-endpoint
+flow with cross-platform token storage (Slice 13); and config (keymap, colours, notification hooks) +
+a standalone binary (Slice 14). Remaining work is gated on live actions (sending, connecting more
+networks, a remote host) and a couple of product decisions. See [`docs/STATUS.md`](docs/STATUS.md).
 
 ## Docs
 
