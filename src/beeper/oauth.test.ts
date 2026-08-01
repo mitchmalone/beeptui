@@ -7,6 +7,7 @@ import {
   generateState,
   isExpired,
   parseCallback,
+  introspectToken,
   refreshTokens,
   registerClient,
   revokeToken,
@@ -289,6 +290,21 @@ describe('authorize (full flow orchestration)', () => {
     const { deps, events } = fakeFlow({ state: 'error' })
     await expect(authorize(endpoints, deps)).rejects.toThrow(/denied/)
     expect(events).toContain('close')
+  })
+})
+
+describe('introspectToken', () => {
+  test('reports active + splits the space-delimited scope string', async () => {
+    const { http, last } = capturingHttp(json({ active: true, scope: 'read write' }))
+    const result = await introspectToken(endpoints, 'AT', http)
+    expect(result).toEqual({ active: true, scopes: ['read', 'write'] })
+    expect(last().url).toBe(endpoints.introspectionEndpoint)
+    expect(new URLSearchParams(last().body).get('token')).toBe('AT')
+  })
+
+  test('handles an inactive token and a missing scope field', async () => {
+    const { http } = capturingHttp(json({ active: false }))
+    expect(await introspectToken(endpoints, 'AT', http)).toEqual({ active: false, scopes: [] })
   })
 })
 

@@ -111,6 +111,33 @@ describe('runDoctor', () => {
     expect(classifyEndpoint('not-a-url')).toBe('local') // default path
   })
 
+  test('reports a send-capable token scope when introspection returns write', async () => {
+    const c = ctx(ok)
+    c.introspect = async () => ({ active: true, scopes: ['read', 'write'] })
+    const result = await runDoctor(c)
+    const scope = result.checks.find((ch) => ch.name === 'Token scope')
+    expect(scope?.status).toBe('pass')
+    expect(scope?.detail).toMatch(/can read and send/i)
+    expect(result.code).toBe(0)
+  })
+
+  test('flags a read-only token so it does not look send-capable', async () => {
+    const c = ctx(ok)
+    c.introspect = async () => ({ active: true, scopes: ['read'] })
+    const result = await runDoctor(c)
+    const scope = result.checks.find((ch) => ch.name === 'Token scope')
+    expect(scope?.detail).toMatch(/read-only; sends will fail/i)
+    expect(scope?.remediation).toMatch(/write\/send access/i)
+  })
+
+  test('skips the scope check gracefully when introspection is unavailable', async () => {
+    const c = ctx(ok)
+    c.introspect = async () => null
+    const result = await runDoctor(c)
+    expect(result.checks.find((ch) => ch.name === 'Token scope')).toBeUndefined()
+    expect(result.code).toBe(0) // no noise, no failure
+  })
+
   test('a failing check never leaks a token or raw body into its detail', async () => {
     const result = await runDoctor(
       ctx((_m, p) =>

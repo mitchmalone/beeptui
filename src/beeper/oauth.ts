@@ -228,6 +228,30 @@ export async function refreshTokens(
   }
 }
 
+/**
+ * Introspect a token (RFC 7662) to learn whether it's active and what scopes it
+ * carries — used by `doctor` to report send-capability honestly (a read-only
+ * token otherwise looks send-capable until a send fails). Scopes come back as a
+ * space-delimited string per the spec; we split them into an array.
+ */
+export async function introspectToken(
+  endpoints: OAuthEndpoints,
+  token: string,
+  http: OAuthHttp
+): Promise<{ active: boolean; scopes: string[] }> {
+  try {
+    const response = await postForm(http, endpoints.introspectionEndpoint, { token })
+    const body = await jsonBody<{ active?: boolean; scope?: string }>(response)
+    const scopes =
+      typeof body.scope === 'string' && body.scope.trim().length > 0
+        ? body.scope.trim().split(/\s+/)
+        : []
+    return { active: body.active === true, scopes }
+  } catch (err) {
+    throw normalizeError(err)
+  }
+}
+
 /** Revoke a token (logout). Best-effort — a revoke failure is non-fatal. */
 export async function revokeToken(
   endpoints: OAuthEndpoints,

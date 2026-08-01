@@ -19,6 +19,10 @@ export interface DoctorContext {
   endpoint: string
   hasToken: boolean
   adapter: BeeperAdapter
+  /** Introspect the active token's scopes (RFC 7662), or null when the endpoint
+   *  doesn't support it. Injected so `doctor` stays testable and never handles
+   *  the raw token itself. */
+  introspect?: () => Promise<{ active: boolean; scopes: string[] } | null>
 }
 
 export interface DoctorCheck {
@@ -146,6 +150,36 @@ export async function runDoctor(ctx: DoctorContext): Promise<DoctorResult> {
           remediation: 'Connect at least one network in Beeper Desktop.',
         }
   )
+
+  // 5. Token scope — surface send-capability so a read-only token doesn't look
+  // send-capable until a send fails. Skipped when introspection is unavailable.
+  if (ctx.introspect !== undefined) {
+    try {
+      const info = await ctx.introspect()
+      if (info !== null && info.active) {
+        const canSend = info.scopes.includes('write') || info.scopes.includes('send')
+        const scopeList = info.scopes.length > 0 ? info.scopes.join(', ') : 'none reported'
+        checks.push({
+          name: 'Token scope',
+          status: 'pass',
+          detail: canSend
+            ? `Scopes: ${scopeList} — can read and send.`
+            : `Scopes: ${scopeList} — read-only; sends will fail.`,
+          ...(canSend
+            ? {}
+            : {
+                remediation:
+                  'This token is read-only. Create one with write/send access in Beeper Desktop ' +
+                  'if you want to send messages.',
+              }),
+        })
+      }
+      // info === null (introspection unsupported) or inactive → no check, no noise.
+    } catch {
+      // Introspection failed (endpoint absent / errored) — omit silently; the
+      // other checks already establish auth. Never a hard failure on a nicety.
+    }
+  }
 
   return { checks, code: checks.some((c) => c.status === 'fail') ? 1 : 0 }
 }

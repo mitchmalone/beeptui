@@ -96,7 +96,9 @@ no silent failures. Fixed pagination resilience along the way. **199 tests** gre
 
 ## Deferred / follow-ups
 
-- `doctor` should report token scope (read-only token looks send-capable). Candidate for Slice 14.
+- ~~`doctor` should report token scope~~ — **done 2026-08-01:** `doctor` introspects the token
+  (RFC 7662, via the discovered `introspection_endpoint`) and reports its scopes, flagging a
+  read-only token so it no longer looks send-capable (live: "Scopes: read, write — can read and send").
 - Slice 6 deferrals: polling fallback (this build has the WS), delete-event application, the
   quit-Beeper-mid-draft manual dance, and cross-network send-echo id confirmation — all for Slice 9.
 - Slice 7 deferral: scroll-anchor _restore_ into the loaded page (Slice 6/9 territory).
