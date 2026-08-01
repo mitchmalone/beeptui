@@ -5,6 +5,27 @@
 
 ---
 
+### 2026-08-01 — Slices 12 & 13 closed with live tests deferred (accepted risk)
+
+- Mitch chose to **close Slices 12 and 13 on the code** rather than hold them open on live gates he
+  can't clear right now (no Discord/IG/X accounts connected; no remote endpoint with `remote_access`
+  on). Both were already merged to `main`, green (401 tests, typecheck clean), and — for 13 —
+  security-reviewed. The unrun production checks moved to a new root-level **`TODO.md`**.
+- **Discipline kept:** the docs mark these **code-complete, live-validation deferred** — not
+  "validated." `TODO.md` carries an explicit note against upgrading that wording without actually
+  running the checks. Phase 2 is still _not_ declared complete (that waits on the Slice 12 matrix).
+  This is invariant 8 (degrade visibly) applied to our own status docs.
+
+### 2026-08-01 — Slice 11 closed: live reply send cleared (manual gate)
+
+- The last open item in Slice 11 was the **live reply send** — invariant 5 forbids the app (or the
+  agent) auto-sending a real message to a real person, so this could only ever be a human keystroke.
+  Mitch sent real replies from the TUI on a connected network and confirmed it works. Slice 11 is now
+  fully done; the manual gate is removed from `STATUS.md`.
+- Reconfirmed via read-only `doctor`/`status` at the same time: local endpoint, authenticated, **3
+  accounts (Beeper, Facebook, WhatsApp)**, remote access **off** — so Slices 12 (needs Discord/IG/X
+  connected) and 13 (needs a remote endpoint) remain genuinely gated on infrastructure, not code.
+
 ### 2026-08-01 — `doctor` token scope via OAuth introspection (long-deferred item)
 
 - The "a read-only token looks send-capable" gap (open since Slice 1) is now closed: the OAuth
