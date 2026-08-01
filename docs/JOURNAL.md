@@ -5,6 +5,16 @@
 
 ---
 
+### 2026-08-01 — `doctor` token scope via OAuth introspection (long-deferred item)
+
+- The "a read-only token looks send-capable" gap (open since Slice 1) is now closed: the OAuth
+  **introspection endpoint** (`/oauth/introspect`, RFC 7662) that `/v1/info` advertises works for the
+  _in-app_ local token too — a redacted probe returned `{active:true, scope:"read write", exp, …}`. So
+  `doctor` POSTs the token to it, splits the space-delimited scopes, and reports send-capability
+  ("Scopes: read, write — can read and send" / "read-only; sends will fail"). Injected as
+  `ctx.introspect` so doctor never handles the raw token and stays testable; unsupported/errored
+  introspection just omits the check (no noise, no hard failure). Live-verified.
+
 ### 2026-08-01 — Slice 13 token persistence: `Bun.secrets` dissolved the "hard decision"
 
 - **I over-blocked twice, then found the clean answer.** I'd framed token-storage-write as a fraught
