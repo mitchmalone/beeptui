@@ -541,6 +541,16 @@ describe('inbox filter (network rail)', () => {
   })
 })
 
+describe('density', () => {
+  test('defaults to comfortable and toggles back and forth', () => {
+    expect(initialState.density).toBe('comfortable')
+    const a = reduce(initialState, { type: 'density/toggled' })
+    expect(a.density).toBe('compact')
+    const b = reduce(a, { type: 'density/toggled' })
+    expect(b.density).toBe('comfortable')
+  })
+})
+
 describe('message search overlay', () => {
   const hit = (id: string) => ({
     messageId: id,

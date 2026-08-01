@@ -5,8 +5,11 @@ export interface HelpOverlayProps {
 }
 
 function GroupBlock({ group }: { group: HelpGroup }) {
+  // No trailing blank line: the cyan title is separation enough, and on a short
+  // (24-row) terminal an extra row per group can tip a column past the box
+  // height, where sibling group-boxes overlap instead of clipping (JOURNAL).
   return (
-    <box style={{ flexDirection: 'column', marginBottom: 1 }}>
+    <box style={{ flexDirection: 'column' }}>
       <text style={{ fg: '#38bdf8' }}>{group.title}</text>
       {group.bindings.map((binding, index) => (
         <text key={index}>{`  ${binding.display.padEnd(10)} ${binding.description}`}</text>
@@ -15,9 +18,9 @@ function GroupBlock({ group }: { group: HelpGroup }) {
   )
 }
 
-/** Rows a group occupies: title + one per binding + the trailing margin. */
+/** Rows a group occupies: title + one per binding. */
 function groupHeight(group: HelpGroup): number {
-  return group.bindings.length + 2
+  return group.bindings.length + 1
 }
 
 /**

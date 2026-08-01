@@ -219,6 +219,10 @@ export function App({
       store.dispatch({ type: 'filter/unreadToggled' })
       return
     }
+    if (command === 'toggle-density') {
+      store.dispatch({ type: 'density/toggled' })
+      return
+    }
     if (command === 'quit') {
       onQuit()
       return
@@ -415,13 +419,14 @@ export function App({
           // No rail column when narrow; rail focus still shows the list (which
           // re-filters as you switch networks), scope visible in the status bar.
           focus === 'inbox' || focus === 'rail' ? (
-            <InboxPane rows={rows} grow networkColors={networkColors} />
+            <InboxPane rows={rows} grow networkColors={networkColors} density={state.density} />
           ) : (
             <box style={{ flexDirection: 'column', flexGrow: 1 }}>
               <ConversationView
                 conversation={conversation}
                 focused={focus === 'conversation'}
                 networkColors={networkColors}
+                density={state.density}
               />
               {composePane}
             </box>
@@ -435,12 +440,13 @@ export function App({
               focused={focus === 'rail'}
               networkColors={networkColors}
             />
-            <InboxPane rows={rows} networkColors={networkColors} />
+            <InboxPane rows={rows} networkColors={networkColors} density={state.density} />
             <box style={{ flexDirection: 'column', flexGrow: 1 }}>
               <ConversationView
                 conversation={conversation}
                 focused={focus === 'conversation'}
                 networkColors={networkColors}
+                density={state.density}
               />
               {composePane}
             </box>

@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import type { InboxRow } from '@/state/selectors.ts'
+import type { Density } from '@/state/types.ts'
 
 /** Two-letter network marker for the rail (e.g. WhatsApp → WA). */
 export function networkMarker(network: string): string {
@@ -51,6 +52,8 @@ export interface InboxPaneProps {
   grow?: boolean
   /** Per-network colour overrides from config. */
   networkColors?: NetworkColors | undefined
+  /** Layout density; `compact` strips the pane padding. Defaults to comfortable. */
+  density?: Density | undefined
 }
 
 /** Left-rail chat list. Presentational: it renders `selectInboxRows` output and
@@ -59,15 +62,17 @@ export const InboxPane = memo(function InboxPane({
   rows,
   grow = false,
   networkColors,
+  density = 'comfortable',
 }: InboxPaneProps) {
+  const pad = density === 'compact' ? 0 : 1
   return (
     <box
       title="Chats"
       border
       style={
         grow
-          ? { flexGrow: 1, flexDirection: 'column', padding: 1 }
-          : { width: 32, flexShrink: 0, flexDirection: 'column', padding: 1 }
+          ? { flexGrow: 1, flexDirection: 'column', padding: pad }
+          : { width: 32, flexShrink: 0, flexDirection: 'column', padding: pad }
       }
     >
       {rows.length === 0 ? (

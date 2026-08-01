@@ -5,6 +5,33 @@
 
 ---
 
+### 2026-08-01 — v1 polish pass (density, perf, media-preview, brew) in one branch
+
+- Did all four optional-polish items on `feat/v1-polish` at Mitch's "break the rules, do it all"
+  call. **452 tests** (was 429). Kept the non-negotiables: TDD, and honest "degrade visibly" where
+  a feature can't be fully realised here.
+- **Help overlay overflow, again.** Adding one global binding (`D` density) tipped a help column
+  past the 24-row test terminal, and OpenTUI **overlaps** overflowing sibling boxes rather than
+  clipping — so `/ Search chats` got overwritten by the other column (looked like data loss; it was
+  a render collision). Fix: dropped the inter-group blank line in `HelpOverlay` (cyan titles already
+  separate groups), reclaiming a row per group. Lesson: the two-column balancer only helps until
+  total rows exceed 2× the terminal height — every added binding eats headroom.
+- **Media preview is honestly partial.** Built + tested the pure parts (protocol detection,
+  escape-sequence builders for kitty/iTerm2) and surfaced support via `doctor`, but did **not** fake
+  in-TUI rendering: emitting image escapes inside the running OpenTUI screen needs framebuffer
+  coordination I can't validate headlessly. Marked `[~]` in the backlog, not `[x]`.
+- **Perf reality check:** the PRD's 3s/2s budgets are I/O-bound; our reducer/selectors are
+  microseconds (8µs/event, 0.2ms to select 5000 chats). So the useful deliverable was a
+  regression-tripwire benchmark + `docs/PERF.md`, not an optimisation.
+- **Workflow-scope push wall:** pushing this branch failed — GitHub refuses a push that edits
+  `.github/workflows/release.yml` unless the token carries the `workflow` scope, which the session's
+  HTTPS token lacks. Worked around it by landing `feat/v1-polish-core` (everything _except_ the
+  release.yml change) and holding the release.yml commit on `feat/v1-polish` for a workflow-scoped
+  push. Lesson: any branch touching a workflow file can't be pushed with the plain gh token.
+- **Brew without a tap:** the release job's tap-publish step is guarded on `vars.HOMEBREW_TAP_REPO`
+  so it's an honest skipped no-op until the tap repo + token exist — never a failed release. The
+  formula renderer is a tested pure function; only a real `v*` tag exercises the workflow.
+
 ### 2026-08-01 — Slices 12–14 closed on code; repo public; branch-protection gotcha
 
 - **Verified in code, not docs:** all Slice 12/13/14 source exists and is wired

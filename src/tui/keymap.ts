@@ -23,6 +23,7 @@ export type Command =
   | 'network-cycle'
   | 'toggle-archived'
   | 'toggle-unread'
+  | 'toggle-density'
   | 'quit'
 
 /** Grouping used by the help overlay. */
@@ -151,6 +152,13 @@ export const KEYMAP: readonly Binding[] = [
     display: '?',
     command: 'help',
     description: 'Toggle this help',
+    context: 'global',
+  },
+  {
+    keys: ['shift+d'],
+    display: 'D',
+    command: 'toggle-density',
+    description: 'Toggle compact/comfortable layout',
     context: 'global',
   },
   { keys: ['r'], display: 'r', command: 'refresh', description: 'Refresh', context: 'global' },

@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { useTerminalDimensions } from '@opentui/react'
 import type { ActiveConversation } from '@/state/selectors.ts'
-import type { MessageEntity } from '@/state/types.ts'
+import type { Density, MessageEntity } from '@/state/types.ts'
 import { messageLine } from '@/tui/message-format.ts'
 import { networkColor, type NetworkColors } from '@/tui/components/InboxPane.tsx'
 import { visibleMessages } from '@/tui/conversation-scroll.ts'
@@ -13,11 +13,15 @@ export interface ConversationViewProps {
   capacityOverride?: number
   /** Per-network colour overrides from config. */
   networkColors?: NetworkColors | undefined
+  /** Layout density; `compact` strips pane padding (freeing two message rows). */
+  density?: Density | undefined
 }
 
 /** Rows the surrounding chrome (border, padding, header, hints, status bar)
- *  takes from the terminal height, leaving the rest for messages. */
+ *  takes from the terminal height, leaving the rest for messages. Compact
+ *  density drops the pane's top+bottom padding, freeing two rows. */
 const CHROME_ROWS = 9
+const CHROME_ROWS_COMPACT = 7
 
 function rowStyle(message: MessageEntity, selected: boolean): { fg?: string; bg?: string } {
   // Selection highlight wins visually — it's the active cursor.
@@ -37,20 +41,23 @@ export const ConversationView = memo(function ConversationView({
   focused,
   capacityOverride,
   networkColors,
+  density = 'comfortable',
 }: ConversationViewProps) {
   const { height } = useTerminalDimensions()
   const { chat, messages, hasMoreOlder, scrollOffset, newMessagesBelow, selectedMessageId } =
     conversation
+  const pad = density === 'compact' ? 0 : 1
 
   if (chat === null) {
     return (
-      <box title="Conversation" border style={{ flexGrow: 1, padding: 1 }}>
+      <box title="Conversation" border style={{ flexGrow: 1, padding: pad }}>
         <text>Select a chat with j/k, then ⏎.</text>
       </box>
     )
   }
 
-  const capacity = capacityOverride ?? Math.max(1, height - CHROME_ROWS)
+  const chromeRows = density === 'compact' ? CHROME_ROWS_COMPACT : CHROME_ROWS
+  const capacity = capacityOverride ?? Math.max(1, height - chromeRows)
   const visible = visibleMessages(messages, capacity, scrollOffset)
   const atOldestLoaded = visible.length === 0 || visible[0]?.id === messages[0]?.id
   const topHint = atOldestLoaded
@@ -63,7 +70,7 @@ export const ConversationView = memo(function ConversationView({
     <box
       title={focused ? 'Conversation ●' : 'Conversation'}
       border
-      style={{ flexGrow: 1, flexDirection: 'column', padding: 1 }}
+      style={{ flexGrow: 1, flexDirection: 'column', padding: pad }}
     >
       <box style={{ flexShrink: 0, flexDirection: 'row' }}>
         <text>{`${chat.title} · `}</text>

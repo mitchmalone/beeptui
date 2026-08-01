@@ -11,10 +11,12 @@ export interface NotifyConfig {
   command: string[]
 }
 
-/** Visual theme overrides. Currently per-network accent colours. */
+/** Visual theme overrides: per-network accent colours and layout density. */
 export interface ThemeConfig {
   /** Network name → hex colour (e.g. `{ "WhatsApp": "#25d366" }`). */
   networkColors: Record<string, string>
+  /** Initial layout density; `D` still toggles it at runtime. Absent → comfortable. */
+  density?: 'comfortable' | 'compact'
 }
 
 export interface ResolvedConfig {
@@ -148,29 +150,44 @@ function parseEndpoints(parsed: unknown, configPath: string): Record<string, str
   return out
 }
 
-/** Parse + validate the optional `theme.networkColors` (network → hex colour). */
+/** Parse + validate the optional `theme` block: `networkColors` (network → hex
+ *  colour) and `density` (`comfortable` | `compact`). Both keys are optional. */
 function parseTheme(parsed: unknown, configPath: string): ThemeConfig | null {
   if (parsed === null || typeof parsed !== 'object' || !('theme' in parsed)) return null
   const theme = (parsed as { theme: unknown }).theme
-  if (theme === null || typeof theme !== 'object' || !('networkColors' in theme)) {
-    throw new Error(`Invalid Beeper config file ("theme" must have "networkColors"): ${configPath}`)
+  if (theme === null || typeof theme !== 'object' || Array.isArray(theme)) {
+    throw new Error(`Invalid Beeper config file ("theme" must be an object): ${configPath}`)
   }
-  const colors = (theme as { networkColors: unknown }).networkColors
-  if (colors === null || typeof colors !== 'object' || Array.isArray(colors)) {
-    throw new Error(
-      `Invalid Beeper config file ("theme.networkColors" must be an object): ${configPath}`
-    )
-  }
+
   const out: Record<string, string> = {}
-  for (const [network, color] of Object.entries(colors)) {
-    if (typeof color !== 'string' || !/^#[0-9a-fA-F]{3,8}$/.test(color)) {
+  if ('networkColors' in theme) {
+    const colors = (theme as { networkColors: unknown }).networkColors
+    if (colors === null || typeof colors !== 'object' || Array.isArray(colors)) {
       throw new Error(
-        `Invalid Beeper config file ("theme.networkColors.${network}" must be a hex colour): ${configPath}`
+        `Invalid Beeper config file ("theme.networkColors" must be an object): ${configPath}`
       )
     }
-    out[network] = color
+    for (const [network, color] of Object.entries(colors)) {
+      if (typeof color !== 'string' || !/^#[0-9a-fA-F]{3,8}$/.test(color)) {
+        throw new Error(
+          `Invalid Beeper config file ("theme.networkColors.${network}" must be a hex colour): ${configPath}`
+        )
+      }
+      out[network] = color
+    }
   }
-  return { networkColors: out }
+
+  const result: ThemeConfig = { networkColors: out }
+  if ('density' in theme) {
+    const density = (theme as { density: unknown }).density
+    if (density !== 'comfortable' && density !== 'compact') {
+      throw new Error(
+        `Invalid Beeper config file ("theme.density" must be "comfortable" or "compact"): ${configPath}`
+      )
+    }
+    result.density = density
+  }
+  return result
 }
 
 /** Shape-validate the optional `keymap` overrides: an object of command name →

@@ -1,6 +1,7 @@
 import type { BeeperAdapter } from '@/beeper/client.ts'
 import { BeeperError } from '@/beeper/errors.ts'
 import type { ServerInfo } from '@/beeper/types.ts'
+import { describeImagePreview, detectImageProtocol } from '@/tui/media-preview.ts'
 
 /** Classify a configured endpoint as the local Desktop loopback or a remote
  *  server, from its host — so `doctor` can name local-vs-remote failure modes.
@@ -23,6 +24,9 @@ export interface DoctorContext {
    *  doesn't support it. Injected so `doctor` stays testable and never handles
    *  the raw token itself. */
   introspect?: () => Promise<{ active: boolean; scopes: string[] } | null>
+  /** Environment map, for local capability checks (inline image preview).
+   *  Injected so the check stays pure/testable. Defaults to `process.env`. */
+  env?: Record<string, string | undefined>
 }
 
 export interface DoctorCheck {
@@ -96,6 +100,16 @@ export async function runDoctor(ctx: DoctorContext): Promise<DoctorResult> {
           'then store it (or set BEEPER_ACCESS_TOKEN).',
       }
   checks.push(tokenCheck)
+
+  // 2b. Inline image preview — a local terminal capability, independent of
+  // connectivity/auth. 'pass' when a protocol is detected, 'skip' otherwise
+  // (attachments still degrade visibly to a text placeholder + open/save).
+  const previewEnv = ctx.env ?? process.env
+  checks.push({
+    name: 'Inline image preview',
+    status: detectImageProtocol(previewEnv) !== null ? 'pass' : 'skip',
+    detail: describeImagePreview(previewEnv),
+  })
 
   // 3. Authenticated — only knowable if reachable and a token exists.
   if (!reachable || !ctx.hasToken) {

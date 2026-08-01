@@ -7,6 +7,19 @@
 
 ## Where we are
 
+**v1 polish pass (`feat/v1-polish`, 2026-08-01).** Knocked out the optional backlog in one branch
+(Mitch: "break the rules, do it all"): **layout density** toggle (`D`, seeded from
+`config.theme.density`; compact strips pane padding); a **state performance benchmark**
+(`src/state/perf.test.ts`) + `docs/PERF.md` — reducer/selectors sit 3–4 orders of magnitude inside
+the PRD's 3s/2s budgets; **inline image-preview capability** (`src/tui/media-preview.ts`: kitty /
+iTerm2 / WezTerm detection + escape-sequence builders, all tested; `doctor` reports support
+honestly — in-TUI rendering deferred, degrades visibly); and **Homebrew packaging**
+(`src/packaging/homebrew.ts` formula renderer, tested; README documents it). **452 tests** green;
+typecheck + lint clean. **Landed on `main` via `feat/v1-polish-core`** minus the `release.yml`
+change (checksums + guarded tap-publish job) — that one file needs a `workflow`-scoped push and is
+held on branch `feat/v1-polish` pending it. Residuals (release.yml push, in-TUI image render, live
+render-loop profiling, first real tagged release + tap) tracked in the polish backlog.
+
 **Open-source prep pass done (2026-08-01, `chore/open-source-prep`)** — a full security + quality
 audit ahead of the public flip (`docs/plans/done/PLAN-open-source-prep.md`). Fixed: an
 accidentally-committed 59 MB build binary (untracked; history rewrite recommended before flipping
@@ -108,8 +121,10 @@ All planned slices (0–14) are done on code + tests. What remains is not code:
   external accounts/endpoints this environment doesn't have (accepted risk). Declaring **Phase 2
   fully validated in production** waits on the Slice 12 matrix actually running — the code is done,
   the docs won't claim the production run happened until it does.
-- **Optional v1 polish** (`docs/plans/backlog/PLAN-v1-polish-backlog.md`): layout densities, perf
-  profiling, Kitty/iTerm2 media preview, brew tap / versioned releases. Pull one into `active/` if
+- **Optional v1 polish** (`docs/plans/backlog/PLAN-v1-polish-backlog.md`): the bulk landed on
+  `feat/v1-polish` (density, state perf benchmark, media-preview capability, Homebrew packaging).
+  Residuals that need hardware/infra: in-TUI image rendering, live render-loop profiling, and the
+  first real tagged release + tap. Pull one into `active/` if
   and when it's worth doing; none block v1.
 
 ## Deferred live validation (accepted risk, Mitch 2026-08-01) → `TODO.md`
