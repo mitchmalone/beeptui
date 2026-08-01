@@ -1,4 +1,6 @@
 import type { TokenSet } from '@/beeper/oauth.ts'
+import { createFileSecretStore, fallbackDir } from '@/beeper/secret-file-store.ts'
+import { resolveConfig } from '@/beeper/config.ts'
 
 /**
  * Persistence for the OAuth session (Slice 13). Backed by `Bun.secrets` — Bun's
@@ -37,17 +39,42 @@ export const bunSecrets: SecretStore = {
   delete: (opts) => Bun.secrets.delete(opts),
 }
 
+let cachedDefault: SecretStore | null = null
+
+/**
+ * The store to use when none is injected: `Bun.secrets` (the OS credential
+ * store) where a keyring is reachable, else the encrypted-file fallback for
+ * headless boxes with no Secret Service. The choice is probed once and cached.
+ */
+export async function getDefaultStore(): Promise<SecretStore> {
+  if (cachedDefault !== null) return cachedDefault
+  let keyringWorks = true
+  try {
+    // A harmless read: succeeds (or returns null) when a keyring is present,
+    // throws when there's none to talk to.
+    await bunSecrets.get({ service: SERVICE, name: '__probe__' })
+  } catch {
+    keyringWorks = false
+  }
+  cachedDefault = keyringWorks
+    ? bunSecrets
+    : createFileSecretStore(fallbackDir(resolveConfig().configPath))
+  return cachedDefault
+}
+
 /** Persist the OAuth session (client id + access/refresh/expiry) securely. */
-export async function saveAuth(auth: StoredAuth, store: SecretStore = bunSecrets): Promise<void> {
-  await store.set({ service: SERVICE, name: AUTH_NAME, value: JSON.stringify(auth) })
+export async function saveAuth(auth: StoredAuth, store?: SecretStore): Promise<void> {
+  const s = store ?? (await getDefaultStore())
+  await s.set({ service: SERVICE, name: AUTH_NAME, value: JSON.stringify(auth) })
 }
 
 /** Load the stored OAuth session, or null when absent / unreadable / malformed
  *  (a corrupt entry degrades to "logged out", never a crash). */
-export async function loadAuth(store: SecretStore = bunSecrets): Promise<StoredAuth | null> {
+export async function loadAuth(store?: SecretStore): Promise<StoredAuth | null> {
+  const s = store ?? (await getDefaultStore())
   let raw: string | null
   try {
-    raw = await store.get({ service: SERVICE, name: AUTH_NAME })
+    raw = await s.get({ service: SERVICE, name: AUTH_NAME })
   } catch {
     // No keyring available (e.g. headless Linux with no Secret Service) → treat
     // as no stored session rather than crashing; the caller falls back to env/CLI.
@@ -71,9 +98,10 @@ export async function loadAuth(store: SecretStore = bunSecrets): Promise<StoredA
 }
 
 /** Remove the stored OAuth session (logout). Best-effort + idempotent. */
-export async function clearAuth(store: SecretStore = bunSecrets): Promise<void> {
+export async function clearAuth(store?: SecretStore): Promise<void> {
+  const s = store ?? (await getDefaultStore())
   try {
-    await store.delete({ service: SERVICE, name: AUTH_NAME })
+    await s.delete({ service: SERVICE, name: AUTH_NAME })
   } catch {
     // Nothing stored / no keyring — logout is idempotent.
   }
