@@ -20,9 +20,12 @@ with a live set/get/delete round-trip on the macOS Keychain.
 
 **Consequence.** `token-store.ts` persists `{clientId, tokens}` (the client id is needed for
 refresh/revoke) behind an injectable `SecretStore` so the logic is unit-tested without the real
-keychain. **Headless-Linux caveat:** with no Secret Service daemon, `Bun.secrets` throws — the store
-degrades to "logged out" (falls back to env/legacy token) rather than crashing; a proper
-encrypted-file fallback for that case remains a follow-up. No FFI, no `security` CLI shelling.
+keychain. **Headless-Linux fallback (built 2026-08-01):** where `Bun.secrets` has no keyring to talk
+to (no Secret Service daemon), `getDefaultStore` falls back to `secret-file-store.ts` — an
+**AES-256-GCM** (Web Crypto, stdlib) encrypted file at `0600`, key in a sibling `0600` keyfile. Weaker
+than an OS keychain (home-dir read access exposes both files) but no plaintext, no argv, no config
+leak — the honest best available on a box with no keyring. The choice is probed once and cached. No
+FFI, no `security` CLI shelling.
 
 ### 2026-08-01 · Slice 13 OAuth security review — passed; token-storage write deferred
 

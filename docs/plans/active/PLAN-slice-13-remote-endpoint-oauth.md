@@ -66,9 +66,10 @@ The mechanism is **discoverable and standard** — no guessing:
       built-in cross-platform OS credential store (macOS Keychain / Linux Secret Service / Windows
       Credential Manager). In-process → argv-free (invariant 6) and _is_ the platform credential
       store (invariant 1); zero dependency. Persists `{clientId, tokens}` (client id needed for
-      refresh/revoke). Injectable backend → unit-tested with an in-memory fake; corrupt/absent-keyring
-      degrades to logged-out, never a crash. **This closes the security review's open item** (no more
-      argv/FFI/encrypted-file fork — `Bun.secrets` is the clean answer).
+      refresh/revoke). Injectable backend → unit-tested with an in-memory fake; corrupt entry degrades
+      to logged-out, never a crash. **Headless-Linux fallback** (`secret-file-store.ts`): AES-256-GCM
+      encrypted `0600` file when no keyring is present. **This closes the security review's open item**
+      (no more argv/FFI fork — `Bun.secrets` + an honest encrypted-file fallback).
 - [x] Session lifecycle (`auth-session.ts`): `login` (authorize + persist), `logout` (revoke + clear),
       `currentAccessToken` (refresh-on-expiry + persist), `resolveActiveToken` (env/legacy → stored
       OAuth). `beeper-tui login` / `logout` CLI commands; `launch` + `status`/`doctor` resolve the
