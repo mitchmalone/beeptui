@@ -57,9 +57,8 @@ customization** — `config.keymap` rebinds any command (validated, help reflect
 `--help`/`doctor`/TUI with no Bun at runtime — OpenTUI/Bun compat validated on macOS arm64; README
 has Install + Configuration docs. **366 tests** green; typecheck + lint + format + security review
 clean. Remaining Slice 14 (densities, perf profiling, media preview, brew tap/releases) is
-fuzzy-scoped profiling, terminal-specific media, or gated on decision #6 (open-source flip) → license
-
-- public distribution — the plan calls for a re-plan/split.
+fuzzy-scoped profiling, terminal-specific media, or gated on decision #6 (open-source flip →
+license + public distribution) — the plan calls for a re-plan/split.
 
 **🎉 Phase 1 complete — Slices 0–9 done (all merged to `main`).**
 The MVP is real and live-validated against Beeper Desktop 4.2.1004: browse the inbox, read history
@@ -71,8 +70,10 @@ no silent failures. Fixed pagination resilience along the way. **199 tests** gre
 
 ## Next up
 
-- **Slice 14 re-plan** (split into 2–4): reactions display landed; remaining candidates are theming/
-  config, notification hooks, `doctor` token-scope, packaging + install docs.
+- **Slice 14 re-plan** (split into 2–4): reactions/receipts, notification hooks, keymap + colour
+  config, and the standalone binary all landed. Remaining candidates: layout densities, perf
+  profiling vs the PRD timing criteria, richer media preview (Kitty/iTerm2 image protocols), and
+  brew tap / versioned releases (gated on decision #6).
 - Clear the manual gates below to fully close Slices 11–13 and declare Phase 2 complete.
 
 ## Manual gates (Mitch) — needed to fully close Slices 11–13
