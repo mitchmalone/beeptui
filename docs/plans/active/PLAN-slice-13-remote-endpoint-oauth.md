@@ -74,10 +74,10 @@ The mechanism is **discoverable and standard** — no guessing:
       `currentAccessToken` (refresh-on-expiry + persist), `resolveActiveToken` (env/legacy → stored
       OAuth). `beeper-tui login` / `logout` CLI commands; `launch` + `status`/`doctor` resolve the
       active token through it. Unit-tested end-to-end against fakes.
-- [~] Named-endpoint config + selection; token introspection checks in `doctor`. **Introspection
-  done** — `doctor` reports token scope via `introspectToken` (RFC 7662, discovered endpoint),
-  flagging read-only tokens (live-verified: "read, write — can read and send"). Multi-named
-  endpoints remain (the single-endpoint override already points at a remote).
+- [x] Named-endpoint config + selection; token introspection checks in `doctor`. **Introspection
+      done** — `doctor` reports token scope via `introspectToken` (RFC 7662), flagging read-only
+      tokens (live-verified). **Named endpoints done** — `config.endpoints` (`{name: url}`); the
+      `endpoint` selector (or `BEEPER_TUI_ENDPOINT`) is a URL _or_ a name resolved against it.
 - [x] Security review pass; record + fix findings (`DECISIONS.md`, 2026-08-01). **Passed** — no
       exploitable findings; fixed one non-security IPv6-loopback labelling bug in `classifyEndpoint`.
 

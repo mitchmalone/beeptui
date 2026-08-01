@@ -89,6 +89,48 @@ describe('resolveConfig', () => {
     ).toThrow(/notify\.command/)
   })
 
+  test('endpoints: a name in `endpoint` resolves to the configured URL', () => {
+    const cfg = resolveConfig({
+      env: {},
+      homedir: home,
+      readFile: () =>
+        JSON.stringify({
+          endpoint: 'remote',
+          endpoints: { local: 'http://127.0.0.1:23373', remote: 'https://beeper.example.com' },
+        }),
+    })
+    expect(cfg.endpoint).toBe('https://beeper.example.com')
+    expect(cfg.endpoints.local).toBe('http://127.0.0.1:23373')
+  })
+
+  test('endpoints: env BEEPER_TUI_ENDPOINT can select a name too', () => {
+    const cfg = resolveConfig({
+      env: { BEEPER_TUI_ENDPOINT: 'remote' },
+      homedir: home,
+      readFile: () => JSON.stringify({ endpoints: { remote: 'https://r.example.com' } }),
+    })
+    expect(cfg.endpoint).toBe('https://r.example.com')
+  })
+
+  test('endpoints: a literal URL that is not a configured name is used verbatim', () => {
+    const cfg = resolveConfig({
+      env: { BEEPER_TUI_ENDPOINT: 'https://direct.example.com' },
+      homedir: home,
+      readFile: () => JSON.stringify({ endpoints: { remote: 'https://r.example.com' } }),
+    })
+    expect(cfg.endpoint).toBe('https://direct.example.com')
+  })
+
+  test('endpoints: rejects a non-URL entry with a clear error', () => {
+    expect(() =>
+      resolveConfig({
+        env: {},
+        homedir: home,
+        readFile: () => JSON.stringify({ endpoints: { bad: 'not-a-url' } }),
+      })
+    ).toThrow(/endpoint/i)
+  })
+
   test('keymap defaults to null and parses valid overrides', () => {
     expect(resolveConfig({ env: {}, homedir: home, readFile: () => undefined }).keymap).toBeNull()
     const cfg = resolveConfig({
