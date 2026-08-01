@@ -152,3 +152,7 @@ layer, `src/tui/keymap.ts`) · SQLite for local UI state. See `docs/PRD.md` § T
 
 Start with `CLAUDE.md`. Every slice is a plan in `docs/plans/backlog/` — pick it up, move it to
 `active/`, work it test-first, and close out the docs with the code.
+
+## License
+
+[MIT](LICENSE)

@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "type": "module",
   "private": true,
+  "license": "MIT",
   "description": "A terminal client for Beeper — read, watch, and reply across your chat networks without leaving the terminal.",
   "bin": {
     "beeper-tui": "./src/cli/index.ts"

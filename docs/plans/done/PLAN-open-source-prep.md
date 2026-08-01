@@ -1,6 +1,6 @@
 ---
 title: Open-source prep — security + quality audit
-status: active
+status: done
 created: 2026-08-01
 updated: 2026-08-01
 links:
@@ -41,8 +41,8 @@ plus a docs/README polish pass. Findings verified before fixing; all gates stay 
       CLI error handler + `--version`, `Store` → `src/state`, slice-comment sweep, barrel removed)
 - [x] Docs/README polish for outside readers (plain-language status, keymap-layer corrections,
       stale references fixed, synthetic mockup handle)
-- [ ] LICENSE decision (Mitch) + add file
-- [ ] Close out: STATUS/JOURNAL/DECISIONS updated, PR opened
+- [x] LICENSE decision (Mitch) + add file — MIT, 2026-08-01
+- [x] Close out: STATUS/JOURNAL/DECISIONS updated, PR opened
 
 ## Acceptance criteria
 

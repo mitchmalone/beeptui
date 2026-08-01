@@ -6,6 +6,17 @@
 
 ---
 
+### 2026-08-01 · MIT license; history rewrite before the public flip
+
+**Decision.** The project is licensed **MIT** (Mitch, 2026-08-01) — `LICENSE` added,
+`package.json` carries `"license": "MIT"`. Separately: before the public flip (decision #6's
+remaining half), run a **`git filter-repo`** pass to drop the accidentally-committed 59 MB
+`.bun-build` blob and the private Notion URL from history. Tracked in `TODO.md`.
+
+**Why.** MIT is the least-friction choice for a small tool an outside audience should be able to
+read, run, and contribute to; nothing here needs Apache-2.0's patent machinery. The rewrite is safe
+while the repo is private (no external clones to break) and saves every future public clone ~60 MB.
+
 ### 2026-08-01 · https floor for non-loopback endpoints (config + OAuth discovery)
 
 **Decision.** Plain `http` endpoints are **refused unless the host is loopback**
