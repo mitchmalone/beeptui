@@ -16,8 +16,10 @@ control-character sanitization on OAuth error text, collision-safe attachment sa
 `openFile` failures, live-buffer bounding + eviction pagination honesty in the reducer, keymap-honest
 rebinds for `/` `?` `[` `]`, a windowed search palette, a top-level CLI error handler + `--version`,
 the `Store` moved to `src/state/`, and a repo-wide sweep of slice-numbered comments. **429 tests**
-green. **Licensed MIT** (Mitch, 2026-08-01). Remaining for decision #6: the pre-flip history
-rewrite + the flip itself — both tracked in `TODO.md`.
+green. **Licensed MIT** (Mitch, 2026-08-01). **Decision #6 closed 2026-08-01:** history rewrite done,
+repo is **public**, and post-flip hardening applied — branch protection on `main` with required CI
+checks (`checks (ubuntu-latest)`, `checks (macos-latest)`, `gitleaks`), no force pushes, code-owner
+review; and private vulnerability reporting enabled.
 
 **Slices 10–14 code landed and merged to `main`** (PRs #12–#22). **Slices 11, 12 and 13 are now
 closed** — 11 fully (live reply send done 2026-08-01); 12 and 13 as **code-complete with their live
