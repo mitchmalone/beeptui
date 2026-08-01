@@ -36,6 +36,13 @@ accounts/endpoints that don't exist in the current environment.
       (`dce00bc` → `95fad87`). Re-clone any other checkouts. Note: GitHub may retain pre-rewrite
       objects via old PR refs until server-side GC — ask GitHub Support to purge if that matters.
 - [ ] Then flip the repo public (closes decision #6).
+- [ ] **Immediately after the flip** (both are GitHub-gated on the repo being public on the free
+      plan — attempted 2026-08-01, 403):
+  - Branch protection on `main` (require the three CI checks, no force pushes):
+    `gh api -X PUT repos/mitchmalone/beeptui/branches/main/protection --input protection.json`
+    with required checks `checks (ubuntu-latest)`, `checks (macos-latest)`, `gitleaks`.
+  - Private vulnerability reporting (CONTRIBUTING points reporters at it):
+    `gh api -X PUT repos/mitchmalone/beeptui/private-vulnerability-reporting`
 
 ## Slice 11 — per-network reply rendering (minor)
 
