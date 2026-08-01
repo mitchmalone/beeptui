@@ -14,7 +14,7 @@ import { edgeSelection, moveSelection } from '@/tui/navigation.ts'
 import { helpGroups, KEYMAP, resolveCommand, type Binding } from '@/tui/keymap.ts'
 import { searchChats } from '@/tui/fuzzy.ts'
 import type { Store } from '@/tui/store.ts'
-import { InboxPane } from '@/tui/components/InboxPane.tsx'
+import { InboxPane, type NetworkColors } from '@/tui/components/InboxPane.tsx'
 import { NetworkRail } from '@/tui/components/NetworkRail.tsx'
 import { StatusBar } from '@/tui/components/StatusBar.tsx'
 import { ConversationView } from '@/tui/components/ConversationView.tsx'
@@ -49,6 +49,8 @@ export interface AppProps {
   onSaveAttachment: () => void
   /** Effective keymap (base + user config overrides). Defaults to the base. */
   keymap?: readonly Binding[]
+  /** Per-network colour overrides from `config.theme.networkColors`. */
+  networkColors?: NetworkColors | undefined
 }
 
 /**
@@ -70,6 +72,7 @@ export function App({
   onOpenAttachment,
   onSaveAttachment,
   keymap = KEYMAP,
+  networkColors,
 }: AppProps) {
   const state = useSyncExternalStore(store.subscribe, store.getState)
   // Memoize the derived views on the specific state slices they depend on, so
@@ -409,10 +412,14 @@ export function App({
           // No rail column when narrow; rail focus still shows the list (which
           // re-filters as you switch networks), scope visible in the status bar.
           focus === 'inbox' || focus === 'rail' ? (
-            <InboxPane rows={rows} grow />
+            <InboxPane rows={rows} grow networkColors={networkColors} />
           ) : (
             <box style={{ flexDirection: 'column', flexGrow: 1 }}>
-              <ConversationView conversation={conversation} focused={focus === 'conversation'} />
+              <ConversationView
+                conversation={conversation}
+                focused={focus === 'conversation'}
+                networkColors={networkColors}
+              />
               {composePane}
             </box>
           )
@@ -423,10 +430,15 @@ export function App({
               archived={state.filter.archived}
               unreadOnly={state.filter.unreadOnly}
               focused={focus === 'rail'}
+              networkColors={networkColors}
             />
-            <InboxPane rows={rows} />
+            <InboxPane rows={rows} networkColors={networkColors} />
             <box style={{ flexDirection: 'column', flexGrow: 1 }}>
-              <ConversationView conversation={conversation} focused={focus === 'conversation'} />
+              <ConversationView
+                conversation={conversation}
+                focused={focus === 'conversation'}
+                networkColors={networkColors}
+              />
               {composePane}
             </box>
           </box>

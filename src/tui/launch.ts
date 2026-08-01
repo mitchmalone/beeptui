@@ -35,7 +35,7 @@ import { applyKeymapOverrides, KEYMAP } from '@/tui/keymap.ts'
  * `status`/`doctor` CLI never pulls in the native renderer.
  */
 export async function launch(): Promise<void> {
-  const { endpoint, notify, keymap: keymapOverrides } = resolveConfig()
+  const { endpoint, notify, keymap: keymapOverrides, theme } = resolveConfig()
   const token = resolveToken()
   // A bad rebind (unknown command / empty keys) is fatal with a clear message —
   // better than silently ignoring the user's config.
@@ -116,6 +116,7 @@ export async function launch(): Promise<void> {
       onOpenAttachment,
       onSaveAttachment,
       keymap,
+      ...(theme !== null ? { networkColors: theme.networkColors } : {}),
     })
   )
 

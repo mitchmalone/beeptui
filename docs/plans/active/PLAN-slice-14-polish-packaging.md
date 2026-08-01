@@ -38,10 +38,11 @@ between "works for Mitch's checkout" and "a tool someone installs".
       you're not reading (`src/tui/notify.ts` — pure decision + redacted args; `runNotifier` spawns
       argv-free). Payload is app + network only, never sender/chat/body (invariant 6). Config schema
       documented in the README; validated with clear errors.
-- [x] **Config-file keymap overrides**: `config.keymap` (command → key tokens) rebinds any command;
-      `resolveCommand`/`helpGroups` take the effective keymap, `applyKeymapOverrides` validates
-      command names + non-empty keys (fails fast on a typo) and regenerates help displays; wired in
-      `launch.ts`, proven end-to-end by an app test. Colour themes / densities still open.
+- [x] **Config-file customization**: `config.keymap` (command → key tokens) rebinds any command
+      (`applyKeymapOverrides` validates + regenerates help; proven end-to-end by an app test);
+      `config.theme.networkColors` overrides the per-network accent colours (validated hex, threaded
+      through the rail / list / conversation header, `networkColor(network, overrides)`). Both
+      documented in the README. Densities / a full semantic colour theme still open.
 - [ ] **Performance tuning**: profile render loop and event application under large inboxes/busy
       channels; hit or beat the PRD timing criteria consistently.
 - [ ] **Richer media preview** integration where the terminal supports it (Kitty/iTerm2 image

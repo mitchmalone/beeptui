@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import type { NetworkRailEntry } from '@/state/selectors.ts'
-import { networkColor, networkMarker } from '@/tui/components/InboxPane.tsx'
+import { networkColor, networkMarker, type NetworkColors } from '@/tui/components/InboxPane.tsx'
 
 export interface NetworkRailProps {
   entries: NetworkRailEntry[]
@@ -10,6 +10,8 @@ export interface NetworkRailProps {
   unreadOnly: boolean
   /** Whether the rail has keyboard focus (shows a focus title + border tint). */
   focused?: boolean
+  /** Per-network colour overrides from config. */
+  networkColors?: NetworkColors | undefined
 }
 
 /**
@@ -23,6 +25,7 @@ export const NetworkRail = memo(function NetworkRail({
   archived,
   unreadOnly,
   focused = false,
+  networkColors,
 }: NetworkRailProps) {
   return (
     <box
@@ -36,7 +39,8 @@ export const NetworkRail = memo(function NetworkRail({
           const caret = entry.isSelected ? '›' : ' '
           const dot = entry.unreadCount > 0 ? '•' : ''
           // Tint each entry by its network; 'All' and the selected row stay neutral.
-          const color = entry.network === null ? '#e2e8f0' : networkColor(entry.network)
+          const color =
+            entry.network === null ? '#e2e8f0' : networkColor(entry.network, networkColors)
           return (
             <text
               key={entry.id}

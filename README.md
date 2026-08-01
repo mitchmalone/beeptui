@@ -73,6 +73,8 @@ platform credential store.
   // Unknown commands or empty lists fail fast with a clear error. Press ? for the
   // command list; the help overlay reflects your overrides.
   "keymap": { "quit": ["x"], "refresh": ["ctrl+r"] },
+  // Override the per-network accent colours (hex). Unlisted networks keep theirs.
+  "theme": { "networkColors": { "WhatsApp": "#25d366", "Slack": "#611f69" } },
 }
 ```
 

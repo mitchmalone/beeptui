@@ -11,6 +11,12 @@ export interface NotifyConfig {
   command: string[]
 }
 
+/** Visual theme overrides (Slice 14). Currently per-network accent colours. */
+export interface ThemeConfig {
+  /** Network name → hex colour (e.g. `{ "WhatsApp": "#25d366" }`). */
+  networkColors: Record<string, string>
+}
+
 export interface ResolvedConfig {
   endpoint: string
   configPath: string
@@ -19,6 +25,8 @@ export interface ResolvedConfig {
   /** Raw keymap overrides (command name → key tokens), or null. Shape-validated
    *  here; command names are validated by the keymap layer when applied. */
   keymap: Record<string, string[]> | null
+  /** Theme overrides, or null. */
+  theme: ThemeConfig | null
 }
 
 export interface ResolveConfigDeps {
@@ -69,6 +77,7 @@ export function resolveConfig(deps: ResolveConfigDeps = {}): ResolvedConfig {
   let fileEndpoint: string | undefined
   let notify: NotifyConfig | null = null
   let keymap: Record<string, string[]> | null = null
+  let theme: ThemeConfig | null = null
   const raw = readFile(configPath)
   if (raw !== undefined) {
     let parsed: unknown
@@ -86,10 +95,36 @@ export function resolveConfig(deps: ResolveConfigDeps = {}): ResolvedConfig {
     }
     notify = parseNotify(parsed, configPath)
     keymap = parseKeymap(parsed, configPath)
+    theme = parseTheme(parsed, configPath)
   }
 
   const endpoint = validateEndpoint(env.BEEPER_TUI_ENDPOINT ?? fileEndpoint ?? DEFAULT_ENDPOINT)
-  return { endpoint, configPath, notify, keymap }
+  return { endpoint, configPath, notify, keymap, theme }
+}
+
+/** Parse + validate the optional `theme.networkColors` (network → hex colour). */
+function parseTheme(parsed: unknown, configPath: string): ThemeConfig | null {
+  if (parsed === null || typeof parsed !== 'object' || !('theme' in parsed)) return null
+  const theme = (parsed as { theme: unknown }).theme
+  if (theme === null || typeof theme !== 'object' || !('networkColors' in theme)) {
+    throw new Error(`Invalid Beeper config file ("theme" must have "networkColors"): ${configPath}`)
+  }
+  const colors = (theme as { networkColors: unknown }).networkColors
+  if (colors === null || typeof colors !== 'object' || Array.isArray(colors)) {
+    throw new Error(
+      `Invalid Beeper config file ("theme.networkColors" must be an object): ${configPath}`
+    )
+  }
+  const out: Record<string, string> = {}
+  for (const [network, color] of Object.entries(colors)) {
+    if (typeof color !== 'string' || !/^#[0-9a-fA-F]{3,8}$/.test(color)) {
+      throw new Error(
+        `Invalid Beeper config file ("theme.networkColors.${network}" must be a hex colour): ${configPath}`
+      )
+    }
+    out[network] = color
+  }
+  return { networkColors: out }
 }
 
 /** Shape-validate the optional `keymap` overrides: an object of command name →

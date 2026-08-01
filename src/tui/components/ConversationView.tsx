@@ -3,7 +3,7 @@ import { useTerminalDimensions } from '@opentui/react'
 import type { ActiveConversation } from '@/state/selectors.ts'
 import type { MessageEntity } from '@/state/types.ts'
 import { messageLine } from '@/tui/message-format.ts'
-import { networkColor } from '@/tui/components/InboxPane.tsx'
+import { networkColor, type NetworkColors } from '@/tui/components/InboxPane.tsx'
 import { visibleMessages } from '@/tui/conversation-scroll.ts'
 
 export interface ConversationViewProps {
@@ -11,6 +11,8 @@ export interface ConversationViewProps {
   focused: boolean
   /** Test override for the viewport height in rows. */
   capacityOverride?: number
+  /** Per-network colour overrides from config. */
+  networkColors?: NetworkColors | undefined
 }
 
 /** Rows the surrounding chrome (border, padding, header, hints, status bar)
@@ -34,6 +36,7 @@ export const ConversationView = memo(function ConversationView({
   conversation,
   focused,
   capacityOverride,
+  networkColors,
 }: ConversationViewProps) {
   const { height } = useTerminalDimensions()
   const { chat, messages, hasMoreOlder, scrollOffset, newMessagesBelow, selectedMessageId } =
@@ -64,7 +67,7 @@ export const ConversationView = memo(function ConversationView({
     >
       <box style={{ flexShrink: 0, flexDirection: 'row' }}>
         <text>{`${chat.title} · `}</text>
-        <text style={{ fg: networkColor(chat.network) }}>{chat.network}</text>
+        <text style={{ fg: networkColor(chat.network, networkColors) }}>{chat.network}</text>
       </box>
       <text style={{ flexShrink: 0, fg: '#94a3b8' }}>{topHint}</text>
       <box style={{ flexGrow: 1, flexDirection: 'column' }}>

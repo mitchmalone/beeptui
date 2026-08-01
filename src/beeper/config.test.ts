@@ -111,4 +111,24 @@ describe('resolveConfig', () => {
       })
     ).toThrow(/keymap\.quit/)
   })
+
+  test('theme defaults to null and parses valid network colours', () => {
+    expect(resolveConfig({ env: {}, homedir: home, readFile: () => undefined }).theme).toBeNull()
+    const cfg = resolveConfig({
+      env: {},
+      homedir: home,
+      readFile: () => JSON.stringify({ theme: { networkColors: { WhatsApp: '#123abc' } } }),
+    })
+    expect(cfg.theme).toEqual({ networkColors: { WhatsApp: '#123abc' } })
+  })
+
+  test('rejects a non-hex theme colour with a clear error', () => {
+    expect(() =>
+      resolveConfig({
+        env: {},
+        homedir: home,
+        readFile: () => JSON.stringify({ theme: { networkColors: { WhatsApp: 'green' } } }),
+      })
+    ).toThrow(/networkColors\.WhatsApp.*hex/)
+  })
 })
