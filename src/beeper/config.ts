@@ -19,6 +19,9 @@ export interface ThemeConfig {
 
 export interface ResolvedConfig {
   endpoint: string
+  /** Named endpoints (`{ name: url }`) the `endpoint` selector can reference —
+   *  e.g. switch between a local Desktop and a remote box. Empty when unset. */
+  endpoints: Record<string, string>
   configPath: string
   /** Notification hook, or null when not configured. */
   notify: NotifyConfig | null
@@ -75,6 +78,7 @@ export function resolveConfig(deps: ResolveConfigDeps = {}): ResolvedConfig {
   const configPath = `${configHome}/beeper-tui/config.json`
 
   let fileEndpoint: string | undefined
+  let endpoints: Record<string, string> = {}
   let notify: NotifyConfig | null = null
   let keymap: Record<string, string[]> | null = null
   let theme: ThemeConfig | null = null
@@ -96,10 +100,33 @@ export function resolveConfig(deps: ResolveConfigDeps = {}): ResolvedConfig {
     notify = parseNotify(parsed, configPath)
     keymap = parseKeymap(parsed, configPath)
     theme = parseTheme(parsed, configPath)
+    endpoints = parseEndpoints(parsed, configPath)
   }
 
-  const endpoint = validateEndpoint(env.BEEPER_TUI_ENDPOINT ?? fileEndpoint ?? DEFAULT_ENDPOINT)
-  return { endpoint, configPath, notify, keymap, theme }
+  // The selection may be a URL or the name of a configured endpoint; resolve a
+  // name against `endpoints`, otherwise treat it as a literal URL.
+  const selection = env.BEEPER_TUI_ENDPOINT ?? fileEndpoint ?? DEFAULT_ENDPOINT
+  const endpoint = validateEndpoint(endpoints[selection] ?? selection)
+  return { endpoint, endpoints, configPath, notify, keymap, theme }
+}
+
+/** Parse + validate the optional `endpoints` map (name → http/https URL). */
+function parseEndpoints(parsed: unknown, configPath: string): Record<string, string> {
+  if (parsed === null || typeof parsed !== 'object' || !('endpoints' in parsed)) return {}
+  const endpoints = (parsed as { endpoints: unknown }).endpoints
+  if (endpoints === null || typeof endpoints !== 'object' || Array.isArray(endpoints)) {
+    throw new Error(`Invalid Beeper config file ("endpoints" must be an object): ${configPath}`)
+  }
+  const out: Record<string, string> = {}
+  for (const [name, url] of Object.entries(endpoints)) {
+    if (typeof url !== 'string') {
+      throw new Error(
+        `Invalid Beeper config file ("endpoints.${name}" must be a string): ${configPath}`
+      )
+    }
+    out[name] = validateEndpoint(url)
+  }
+  return out
 }
 
 /** Parse + validate the optional `theme.networkColors` (network → hex colour). */
