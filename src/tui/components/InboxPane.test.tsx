@@ -29,7 +29,7 @@ describe('networkColor', () => {
     expect(networkColor('WhatsApp')).not.toBe('#94a3b8')
   })
 
-  test('config overrides win over the defaults; unlisted networks keep theirs (Slice 14 theming)', () => {
+  test('config overrides win over the defaults; unlisted networks keep theirs (theming)', () => {
     const overrides = { WhatsApp: '#000000', Matrix: '#abcdef' }
     expect(networkColor('WhatsApp', overrides)).toBe('#000000') // overridden
     expect(networkColor('Matrix', overrides)).toBe('#abcdef') // override for a previously-unknown one

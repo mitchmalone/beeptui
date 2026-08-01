@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { buildNotifyArgs, notificationText, shouldNotify } from '@/tui/notify.ts'
 
-describe('notification hooks (Slice 14)', () => {
+describe('notification hooks', () => {
   test('notificationText is redacted — app + network only, no content', () => {
     const text = notificationText('WhatsApp')
     expect(text).toBe('beeper-tui: new message on WhatsApp')

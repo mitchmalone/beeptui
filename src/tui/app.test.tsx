@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { testRender } from '@opentui/react/test-utils'
 import { App, type AppProps } from '@/tui/app.tsx'
 import { applyKeymapOverrides } from '@/tui/keymap.ts'
-import { createStore, type Store } from '@/tui/store.ts'
+import { createStore, type Store } from '@/state/store.ts'
 import type { ChatSummary, MessageSummary } from '@/beeper/types.ts'
 
 function chat(id: string, title: string, network: string): ChatSummary {

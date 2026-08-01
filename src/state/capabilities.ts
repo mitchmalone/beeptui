@@ -3,7 +3,7 @@ import type { ChatSummary } from '@/beeper/types.ts'
 /**
  * One place for "this network can't do that, and here's why" — so every
  * capability-gated action degrades with the *same* honest, source-naming
- * message instead of ad-hoc strings scattered through the UI (Slice 12; PRD
+ * message instead of ad-hoc strings scattered through the UI (PRD
  * acceptance scenario 6). Pure: no I/O, driven only by the adapter's per-chat
  * capability flags on `ChatSummary`.
  */

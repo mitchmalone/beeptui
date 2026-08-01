@@ -107,8 +107,8 @@ export interface AppState {
   chatOrder: string[]
   messagesByChat: Record<string, ChatMessages>
   selectedChatId: string | null
-  /** Id of the message cursor within the active conversation (Slice 11 message
-   *  selection), or null when scrolling normally. Cleared on chat change. */
+  /** Id of the message the selection cursor is on within the active
+   *  conversation, or null when scrolling normally. Cleared on chat change. */
   selectedMessageId: string | null
   /** Id of the message being replied to in the active conversation, or null.
    *  When set, the compose box shows the quoted reply context. Cleared on chat
@@ -128,7 +128,7 @@ export interface AppState {
   filter: InboxFilter
   /** Message-search overlay state (adapter-backed; see `initialMessageSearch`). */
   messageSearch: MessageSearchState
-  /** Per-chat draft text (state only; persistence is Slice 7). */
+  /** Per-chat draft text (persisted across restarts by `src/store`). */
   drafts: Record<string, string>
   server: ServerInfo | null
   error: { kind: BeeperErrorKind; message: string } | null
@@ -162,7 +162,7 @@ export const initialState: AppState = {
 
 /**
  * All state transitions. Discriminated by `type`. Covers adapter results, user
- * intents, and live events (shape defined now, fed by the WebSocket in Slice 6).
+ * intents, and live events (fed by the adapter's WebSocket watch).
  */
 export type AppEvent =
   | { type: 'connection/changed'; state: ConnectionState }
@@ -230,5 +230,7 @@ export type MessagePage = 'initial' | 'older' | 'newer'
 export const MAX_MESSAGES_PER_CHAT = 200
 
 /** Sentinel sort prefix that keeps optimistic (pending) messages after all
- *  server messages until the real sortKey arrives. Server keys never use it. */
-export const PENDING_SORT_PREFIX = '￿'
+ *  server messages until the real sortKey arrives. U+FFFF is a Unicode
+ *  noncharacter: it sorts after every valid code point and can never appear in
+ *  a legitimate server sort key. */
+export const PENDING_SORT_PREFIX = '\uFFFF'

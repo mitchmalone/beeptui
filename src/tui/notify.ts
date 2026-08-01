@@ -2,7 +2,7 @@ import type { NotifyConfig } from '@/beeper/config.ts'
 import type { MessageSummary } from '@/beeper/types.ts'
 
 /**
- * Notification hooks (Slice 14): run a user-configured command when a new inbound
+ * Notification hooks: run a user-configured command when a new inbound
  * message arrives in a chat you're not currently reading. The payload is
  * deliberately redacted — the app name and the network only, never the sender,
  * chat title, or message text (invariant 6). The command runs argv-free (arg

@@ -2,7 +2,7 @@ import type { InboxRow } from '@/state/selectors.ts'
 
 /**
  * Pure inbox cursor math. Kept out of components so it's unit-testable without
- * rendering a terminal (Slice 3 risk note: push logic out of OpenTUI components).
+ * rendering a terminal (keeps logic out of OpenTUI components).
  */
 
 /** Move selection by `delta` rows, clamped to the ends. Returns the new chat id

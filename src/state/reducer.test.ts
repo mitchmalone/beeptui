@@ -366,14 +366,14 @@ describe('optimistic send lifecycle', () => {
         type: 'message/received',
         message: msg('server-9', '9', {
           isSender: true,
-          senderName: 'mitchmalone',
+          senderName: 'gracehopper',
           text: 'On it.',
         }),
       },
     ])
     const items = s.messagesByChat.c1?.items ?? []
-    expect(items).toHaveLength(1) // was 2: optimistic "You" + echo "mitchmalone"
-    expect(items[0]).toMatchObject({ id: 'server-9', senderName: 'mitchmalone', text: 'On it.' })
+    expect(items).toHaveLength(1) // was 2: optimistic "You" + echo "gracehopper"
+    expect(items[0]).toMatchObject({ id: 'server-9', senderName: 'gracehopper', text: 'On it.' })
     expect(items[0]?.clientId).toBeUndefined() // now the real server message
   })
 
@@ -426,6 +426,60 @@ describe('immutability', () => {
     expect(() =>
       run([{ type: 'message/received', message: msg('m1', '1', { chatId: 'ghost' }) }])
     ).not.toThrow()
+  })
+})
+
+describe('bounded live-message buffering', () => {
+  const seed: AppEvent[] = [
+    { type: 'chats/loaded', chats: [chat('c1'), chat('other')] },
+    { type: 'chat/selected', chatId: 'c1' },
+  ]
+
+  test('a live message for an unselected chat with no window is not buffered', () => {
+    // The chat's list row updates via `chats/upserted`; its history loads on
+    // open. Buffering every chat that receives traffic would grow without bound.
+    const s = run([
+      ...seed,
+      { type: 'message/received', message: msg('x', '1', { chatId: 'other' }) },
+    ])
+    expect(s.messagesByChat['other']).toBeUndefined()
+  })
+
+  test('a live message for the selected chat buffers even before history loads', () => {
+    const s = run([...seed, { type: 'message/received', message: msg('m1', '1') }])
+    expect(s.messagesByChat['c1']?.items).toHaveLength(1)
+  })
+
+  test('a live message for a previously-viewed chat (existing window) still buffers', () => {
+    const s = run([
+      ...seed,
+      { type: 'messages/loaded', chatId: 'other', page: 'initial', messages: [] },
+      { type: 'message/received', message: msg('x', '1', { chatId: 'other' }) },
+    ])
+    expect(s.messagesByChat['other']?.items).toHaveLength(1)
+  })
+
+  test('live overflow that evicts the oldest re-marks older history as loadable', () => {
+    const full = Array.from({ length: MAX_MESSAGES_PER_CHAT }, (_, n) =>
+      msg(`m${n}`, String(n).padStart(4, '0'))
+    )
+    let s = run([
+      ...seed,
+      {
+        type: 'messages/loaded',
+        chatId: 'c1',
+        page: 'initial',
+        messages: full,
+        hasMoreOlder: false,
+        olderCursor: null,
+      },
+    ])
+    expect(s.messagesByChat['c1']?.hasMoreOlder).toBe(false)
+    s = run([{ type: 'message/received', message: msg('newest', '9999') }], s)
+    expect(s.messagesByChat['c1']?.items).toHaveLength(MAX_MESSAGES_PER_CHAT)
+    // The oldest message was evicted, so older history exists again — claiming
+    // "start of conversation" here would be silently wrong.
+    expect(s.messagesByChat['c1']?.hasMoreOlder).toBe(true)
   })
 })
 
@@ -604,7 +658,7 @@ describe('notice', () => {
   })
 })
 
-describe('message selection + reply (Slice 11)', () => {
+describe('message selection + reply', () => {
   /** A chat c1 selected with three loaded messages (oldest → newest: m1,m2,m3). */
   function seeded(): AppState {
     return run([

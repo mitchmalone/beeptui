@@ -37,7 +37,7 @@ function attachmentLabel(attachment: AttachmentSummary): string {
 
 /**
  * Build the display fields for a message, degrading gracefully when optional
- * fields are absent (no `undefined`/`NaN` artifacts — Slice 4 acceptance). The
+ * fields are absent (no `undefined`/`NaN` artifacts). The
  * body folds in a reply marker, attachment placeholders, and an edited marker.
  */
 export function formatMessage(message: MessageEntity): FormattedMessage {
@@ -50,7 +50,7 @@ export function formatMessage(message: MessageEntity): FormattedMessage {
   let body = parts.join(' ')
   if (message.isEdited === true) body = body.length > 0 ? `${body} (edited)` : '(edited)'
   if (body.length === 0) body = '(no content)'
-  // Read-only reactions render as a trailing summary (Slice 14): `😄×2 👍`.
+  // Read-only reactions render as a trailing summary: `😄×2 👍`.
   const reactions = (message.reactions ?? [])
     .map((r) => (r.count > 1 ? `${r.key}×${r.count}` : r.key))
     .join(' ')
@@ -66,7 +66,7 @@ export function formatMessage(message: MessageEntity): FormattedMessage {
 }
 
 /** Single-line rendering used by the conversation list. A read receipt (`✓✓`)
- *  shows on our own delivered messages the recipient has seen (Slice 14). */
+ *  shows on our own delivered messages the recipient has seen. */
 export function messageLine(message: MessageEntity): string {
   const f = formatMessage(message)
   const marker =

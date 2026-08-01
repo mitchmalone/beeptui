@@ -115,7 +115,7 @@ export interface ActiveConversation {
   olderCursor: string | null
   scrollOffset: number
   newMessagesBelow: boolean
-  /** Id of the message cursor (Slice 11 selection), or null when scrolling. */
+  /** Id of the message cursor (selection), or null when scrolling. */
   selectedMessageId: string | null
 }
 

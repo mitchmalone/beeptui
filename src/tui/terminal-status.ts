@@ -47,7 +47,9 @@ export function createStatusWriter(options: StatusWriterOptions = {}): StatusWri
       if (inTmux) runTmux(['rename-window', ...target, label])
     },
     restore() {
-      // Hand the window name back to tmux's automatic-rename (removes our override).
+      // Clear our OSC 2 tab title (outside tmux it would otherwise outlive the
+      // app), and hand the tmux window name back to automatic-rename.
+      write(`\u001b]2;\u0007`)
       if (inTmux) runTmux(['set-window-option', ...target, '-u', 'automatic-rename'])
     },
   }

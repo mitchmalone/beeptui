@@ -81,7 +81,7 @@ export async function bootstrap(gateway: Gateway, dispatch: Dispatch): Promise<v
   }
 }
 
-/** Re-fetch chats (manual refresh stopgap until live updates land in Slice 6). */
+/** Re-fetch chats (manual refresh; the live watch normally keeps the list current). */
 export async function refreshChats(gateway: Gateway, dispatch: Dispatch): Promise<void> {
   try {
     const chats = await gateway.listChats()
@@ -176,7 +176,7 @@ export async function retrySend(
   await attemptSend(gateway, dispatch, params)
 }
 
-// ── Message search (Slice 10) ────────────────────────────────────────────
+// ── Message search ──────────────────────────────────────────────────────
 
 /**
  * Run a message search through the adapter and dispatch the results. Honest
@@ -235,7 +235,7 @@ export async function runMessageSearch(
   }
 }
 
-// ── Archive (Slice 10 follow-up) ─────────────────────────────────────────
+// ── Archive ─────────────────────────────────────────────────────────────
 
 /**
  * Archive or unarchive a chat (toggles based on its current state). Works from
@@ -291,7 +291,7 @@ export async function archiveChat(
   }
 }
 
-// ── Attachments (Slice 11) ───────────────────────────────────────────────
+// ── Attachments ─────────────────────────────────────────────────────────
 
 /** Opens a local file with the OS handler. Injected so the runtime stays pure /
  *  testable; the launch layer supplies the real `open`/`xdg-open` implementation.
@@ -303,15 +303,16 @@ export type FileOpener = (localPath: string) => Promise<void>
 export type FileSaver = (localPath: string, fileName: string) => Promise<{ savedName: string }>
 
 /** The first attachment of the currently-selected message, or a reason it can't
- *  be acted on. Pure — shared by open + save so their preconditions match. */
+ *  be acted on. Pure — shared by open + save so their preconditions match. The
+ *  narrowed return type carries the id guarantee, so callers never re-check. */
 function selectableAttachment(
   getState: () => AppState
-): { attachment: AttachmentSummary } | { reason: string } {
+): { attachment: AttachmentSummary & { id: string } } | { reason: string } {
   const message = selectSelectedMessage(getState())
   const attachment = message?.attachments?.[0]
   if (attachment === undefined) return { reason: 'No attachment on the selected message.' }
   if (attachment.id === undefined) return { reason: "This attachment can't be opened." }
-  return { attachment }
+  return { attachment: { ...attachment, id: attachment.id } }
 }
 
 /**
@@ -334,7 +335,7 @@ export async function openAttachment(
   const { attachment } = picked
   dispatch({ type: 'notice/shown', message: 'Opening attachment…' })
   try {
-    const { localPath } = await gateway.downloadAttachment(attachment.id as string)
+    const { localPath } = await gateway.downloadAttachment(attachment.id)
     await opener(localPath)
     dispatch({ type: 'notice/shown', message: 'Opened attachment.' })
   } catch (err) {
@@ -362,7 +363,7 @@ export async function saveAttachment(
   const { attachment } = picked
   dispatch({ type: 'notice/shown', message: 'Saving attachment…' })
   try {
-    const { localPath } = await gateway.downloadAttachment(attachment.id as string)
+    const { localPath } = await gateway.downloadAttachment(attachment.id)
     const { savedName } = await saver(localPath, attachment.fileName ?? attachment.kind)
     dispatch({ type: 'notice/shown', message: `Saved ${savedName} to Downloads.` })
   } catch (err) {
@@ -371,7 +372,7 @@ export async function saveAttachment(
   }
 }
 
-// ── Live updates (Slice 6) ───────────────────────────────────────────────
+// ── Live updates ────────────────────────────────────────────────────────
 
 /** Map a watch socket status to the app connection state (null = leave as-is). */
 export function watchStatusToConnection(status: WatchStatus): ConnectionState | null {

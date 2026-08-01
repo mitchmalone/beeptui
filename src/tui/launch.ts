@@ -3,7 +3,7 @@ import { createRoot } from '@opentui/react'
 import { createElement } from 'react'
 import { BeeperAdapter, resolveActiveToken, resolveConfig } from '@/beeper/index.ts'
 import { App } from '@/tui/app.tsx'
-import { createStore } from '@/tui/store.ts'
+import { createStore } from '@/state/store.ts'
 import { selectTotalUnread } from '@/state/selectors.ts'
 import { createStatusWriter } from '@/tui/terminal-status.ts'
 import { attachPersistence, openUiStore } from '@/store/index.ts'
@@ -51,7 +51,7 @@ export async function launch(): Promise<void> {
   const store = createStore()
 
   // Hydrate persisted UI state (drafts, cached inbox, last-view) before the live
-  // bootstrap runs, and write it through as it changes (Slice 7).
+  // bootstrap runs, and write it through as it changes.
   const uiStore = openUiStore()
   const persistence = attachPersistence(uiStore, store)
 

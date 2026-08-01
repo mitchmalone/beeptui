@@ -11,6 +11,8 @@ export interface StatusBarProps {
   /** Ephemeral notice (archive result / unsupported action); takes over the
    *  status text while present. */
   notice: string | null
+  /** Key hint trailer, derived from the effective keymap so rebinds show. */
+  keyHint: string
 }
 
 /** Bottom status bar: the connection banner when degraded, otherwise a healthy
@@ -24,6 +26,7 @@ export const StatusBar = memo(function StatusBar({
   archived,
   unreadOnly,
   notice,
+  keyHint,
 }: StatusBarProps) {
   const status =
     notice ??
@@ -37,7 +40,7 @@ export const StatusBar = memo(function StatusBar({
     <box style={{ height: 1, flexDirection: 'row', paddingLeft: 1, paddingRight: 1 }}>
       <text style={{ flexGrow: 1 }}>{status}</text>
       <text style={{ fg: '#94a3b8' }}>{`${filters}  `}</text>
-      <text>{'[ ] net · a arch · q quit'}</text>
+      <text>{keyHint}</text>
     </box>
   )
 })

@@ -14,7 +14,7 @@ describe('HelpOverlay', () => {
     for (const title of ['Global', 'Inbox', 'Conversation', 'Messages', 'Compose']) {
       expect(frame).toContain(title)
     }
-    // The Slice 11 selection keys are documented so they self-teach.
+    // The message-selection keys are documented so they self-teach.
     expect(frame).toContain('Reply to the selected message')
     expect(frame).toContain('Open its attachment')
   })

@@ -11,9 +11,9 @@ import {
 } from '@/state/selectors.ts'
 import { checkCapability } from '@/state/capabilities.ts'
 import { edgeSelection, moveSelection } from '@/tui/navigation.ts'
-import { helpGroups, KEYMAP, resolveCommand, type Binding } from '@/tui/keymap.ts'
+import { helpGroups, KEYMAP, resolveCommand, resolveKey, type Binding } from '@/tui/keymap.ts'
 import { searchChats } from '@/tui/fuzzy.ts'
-import type { Store } from '@/tui/store.ts'
+import type { Store } from '@/state/store.ts'
 import { InboxPane, type NetworkColors } from '@/tui/components/InboxPane.tsx'
 import { NetworkRail } from '@/tui/components/NetworkRail.tsx'
 import { StatusBar } from '@/tui/components/StatusBar.tsx'
@@ -105,6 +105,11 @@ export function App({
     ]
   )
   /* eslint-enable react-hooks/exhaustive-deps */
+  // Status-bar key hint from the effective keymap, so rebinds show their keys.
+  const keyHint = useMemo(() => {
+    const display = (command: string) => keymap.find((b) => b.command === command)?.display ?? ''
+    return `${display('network-cycle')} net · ${display('toggle-archived')} arch · ${display('quit')} quit`
+  }, [keymap])
   const scopeLabel = rail.find((e) => e.isSelected)?.label ?? 'All'
   const failedSend = selectLastFailedSend(state)
   const { width } = useTerminalDimensions()
@@ -178,35 +183,33 @@ export function App({
     // Compose owns every key while focused (letters must type, not run commands).
     if (s.focus === 'compose') return
 
-    // Openers are matched on the raw character (terminals name '/' and '?'
-    // inconsistently), so they work regardless of the reported key name.
-    if (key.sequence === '/') {
+    // Everything else resolves through the keymap (token first, then the raw
+    // character — see `resolveKey`) so config rebinds are honoured everywhere.
+    const match = resolveKey({ name: key.name, shift: key.shift, sequence: key.sequence }, keymap)
+    const command = match?.command ?? null
+
+    if (command === 'search') {
       store.dispatch({ type: 'overlay/opened', overlay: 'search' })
       return
     }
-    if (key.sequence === '?') {
+    if (command === 'help') {
       store.dispatch({ type: 'overlay/opened', overlay: 'help' })
       return
     }
     // Message search scopes to the active chat when one is open, else searches all.
-    if (resolveCommand({ name: key.name, shift: key.shift }, keymap) === 'search-messages') {
+    if (command === 'search-messages') {
       const scopeChatId = s.focus === 'conversation' ? s.selectedChatId : null
       store.dispatch({ type: 'messageSearch/opened', scopeChatId })
       return
     }
 
-    // Network-rail scope cycling is app-wide; brackets are matched on the raw
-    // character (terminals name them inconsistently, like '/' and '?' above).
-    if (key.sequence === ']') {
-      store.dispatch({ type: 'filter/scopeCycled', direction: 1 })
-      return
-    }
-    if (key.sequence === '[') {
-      store.dispatch({ type: 'filter/scopeCycled', direction: -1 })
+    // Network-rail scope cycling is app-wide. The matched key picks the
+    // direction: the binding's first key cycles forward, any other backward.
+    if (command === 'network-cycle' && match !== null) {
+      store.dispatch({ type: 'filter/scopeCycled', direction: match.keyIndex === 0 ? 1 : -1 })
       return
     }
 
-    const command = resolveCommand({ name: key.name, shift: key.shift }, keymap)
     // Archived / unread toggles are app-wide filters, handled before focus.
     if (command === 'toggle-archived') {
       store.dispatch({ type: 'filter/archivedToggled' })
@@ -450,6 +453,7 @@ export function App({
         archived={state.filter.archived}
         unreadOnly={state.filter.unreadOnly}
         notice={state.notice}
+        keyHint={keyHint}
       />
     </box>
   )
