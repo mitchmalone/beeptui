@@ -4,19 +4,28 @@ import { createElement } from 'react'
 import { BeeperAdapter, resolveConfig, resolveToken } from '@/beeper/index.ts'
 import { App } from '@/tui/app.tsx'
 import { createStore } from '@/tui/store.ts'
+import { selectTotalUnread } from '@/state/selectors.ts'
+import { createStatusWriter } from '@/tui/terminal-status.ts'
 import { attachPersistence, openUiStore } from '@/store/index.ts'
 import { startWatch, type WatchHandle } from '@/beeper/watch.ts'
 import {
   applyWatchEvent,
   bootstrap,
   loadOlderMessages,
+  archiveChat,
+  openAttachment,
   openChat,
   refreshChats,
   resyncAfterReconnect,
   retrySend,
+  runMessageSearch,
+  saveAttachment,
   submitSend,
   watchStatusToConnection,
 } from '@/tui/runtime.ts'
+import { openFile, runNotifier, saveToDownloads } from '@/tui/os-open.ts'
+import { buildNotifyArgs, shouldNotify } from '@/tui/notify.ts'
+import { applyKeymapOverrides, KEYMAP } from '@/tui/keymap.ts'
 
 /**
  * Boot the TUI: build the adapter from config + credential store, create the
@@ -26,8 +35,11 @@ import {
  * `status`/`doctor` CLI never pulls in the native renderer.
  */
 export async function launch(): Promise<void> {
-  const { endpoint } = resolveConfig()
+  const { endpoint, notify, keymap: keymapOverrides, theme } = resolveConfig()
   const token = resolveToken()
+  // A bad rebind (unknown command / empty keys) is fatal with a clear message —
+  // better than silently ignoring the user's config.
+  const keymap = keymapOverrides === null ? KEYMAP : applyKeymapOverrides(keymapOverrides)
   const adapter = new BeeperAdapter({ endpoint, accessToken: token })
   const store = createStore()
 
@@ -36,10 +48,17 @@ export async function launch(): Promise<void> {
   const uiStore = openUiStore()
   const persistence = attachPersistence(uiStore, store)
 
+  // Surface the unread count in the terminal / tmux window name. Reflects the
+  // total on every state change (deduped internally, so keystrokes are free).
+  const statusWriter = createStatusWriter()
+  store.subscribe(() => statusWriter.update(selectTotalUnread(store.getState())))
+  statusWriter.update(selectTotalUnread(store.getState()))
+
   const renderer = await createCliRenderer()
   let watch: WatchHandle | null = null
   const onQuit = () => {
     persistence.flush() // save the last debounce window before exiting
+    statusWriter.restore() // hand the tmux window name back before exiting
     watch?.close()
     renderer.destroy()
     process.exit(0)
@@ -53,12 +72,13 @@ export async function launch(): Promise<void> {
   const onLoadOlder = (chatId: string, cursor: string) => {
     void loadOlderMessages(adapter, store.dispatch, chatId, cursor)
   }
-  const onSend = (chatId: string, text: string) => {
+  const onSend = (chatId: string, text: string, replyToId?: string) => {
     void submitSend(adapter, store.dispatch, {
       chatId,
       clientId: crypto.randomUUID(),
       text,
       timestamp: new Date().toISOString(),
+      ...(replyToId !== undefined ? { replyToId } : {}),
     })
   }
   const onRetry = (chatId: string, clientId: string, text: string) => {
@@ -69,9 +89,35 @@ export async function launch(): Promise<void> {
       timestamp: new Date().toISOString(),
     })
   }
+  const onSearchMessages = (query: string, scopeChatId: string | null) => {
+    void runMessageSearch(adapter, store.dispatch, store.getState, query, scopeChatId)
+  }
+  const onArchiveChat = (chatId: string) => {
+    void archiveChat(adapter, store.dispatch, store.getState, chatId)
+  }
+  const onOpenAttachment = () => {
+    void openAttachment(adapter, store.dispatch, store.getState, openFile)
+  }
+  const onSaveAttachment = () => {
+    void saveAttachment(adapter, store.dispatch, store.getState, saveToDownloads)
+  }
 
   createRoot(renderer).render(
-    createElement(App, { store, onQuit, onRefresh, onOpenChat, onLoadOlder, onSend, onRetry })
+    createElement(App, {
+      store,
+      onQuit,
+      onRefresh,
+      onOpenChat,
+      onLoadOlder,
+      onSend,
+      onRetry,
+      onSearchMessages,
+      onArchiveChat,
+      onOpenAttachment,
+      onSaveAttachment,
+      keymap,
+      ...(theme !== null ? { networkColors: theme.networkColors } : {}),
+    })
   )
 
   // Fire-and-forget: bootstrap dispatches into the store, which re-renders the app.
@@ -86,6 +132,16 @@ export async function launch(): Promise<void> {
       accessToken: token,
       onEvent: (event) => {
         void applyWatchEvent(adapter, store.dispatch, event)
+        // Notification hook: fire the configured command for inbound messages in
+        // chats you're not currently reading. Redacted payload only (invariant 6).
+        if (notify !== null && event.kind === 'messages') {
+          const state = store.getState()
+          for (const message of event.messages) {
+            if (!shouldNotify(message, state.selectedChatId)) continue
+            const network = state.chats[message.chatId]?.network ?? 'a chat'
+            runNotifier(buildNotifyArgs(notify, network))
+          }
+        }
       },
       onStatus: (status) => {
         const connection = watchStatusToConnection(status)

@@ -22,6 +22,30 @@ export interface MessageHistoryPage {
   cursor: string | null
 }
 
+/** How to narrow a message search. Omit both to search everything. */
+export interface MessageSearchOptions {
+  /** Restrict to one chat (PRD: search scoped to the active chat when selected). */
+  chatId?: string
+  /** Restrict to one account/network. */
+  accountId?: string
+  limit?: number
+}
+
+/** Result of a message search through the Beeper API. */
+export interface MessageSearchPage {
+  messages: MessageSummary[]
+  /**
+   * Whether the server actually honored the requested scope — verified by
+   * checking every hit matches the chat/account we asked for. A server that
+   * ignores scope (returns cross-chat hits) reports `false`, so the caller can
+   * label the results honestly / fall back rather than show wrong results
+   * (CLAUDE.md invariant 8).
+   */
+  scopeHonored: boolean
+  /** True when the result was truncated at `limit` — more may exist server-side. */
+  capped: boolean
+}
+
 export interface BeeperAdapterOptions {
   endpoint: string
   /** Bearer token. Omit for an unauthenticated client (auth'd calls will 401). */
@@ -34,6 +58,7 @@ export interface BeeperAdapterOptions {
 
 const DEFAULT_TIMEOUT_MS = 30_000
 const DEFAULT_PAGE_LIMIT = 50
+const DEFAULT_SEARCH_LIMIT = 50
 
 /**
  * The typed adapter over the Beeper Desktop API — the only place the app talks
@@ -106,10 +131,76 @@ export class BeeperAdapter {
     })
   }
 
-  async sendMessage(chatID: string, text: string): Promise<SendResult> {
+  /**
+   * Search messages across chats through Beeper's search endpoint. Scoping is
+   * requested via `chatIDs` / `accountIDs`, but never trusted blindly: the
+   * result reports whether the server honored that scope so the caller can fall
+   * back to a labeled local search instead of surfacing cross-chat hits as if
+   * they were scoped.
+   */
+  async searchMessages(
+    query: string,
+    options: MessageSearchOptions = {}
+  ): Promise<MessageSearchPage> {
+    const limit = options.limit ?? DEFAULT_SEARCH_LIMIT
+    return this.#guard(async () => {
+      const params: BeeperDesktop.MessageSearchParams = { query }
+      if (options.chatId !== undefined) params.chatIDs = [options.chatId]
+      if (options.accountId !== undefined) params.accountIDs = [options.accountId]
+      const items = await this.#collect(this.#client.messages.search(params), limit)
+      const messages = items.map(mapMessage)
+      const scopeHonored = messages.every(
+        (m) =>
+          (options.chatId === undefined || m.chatId === options.chatId) &&
+          (options.accountId === undefined || m.accountId === options.accountId)
+      )
+      return { messages, scopeHonored, capped: messages.length >= limit }
+    })
+  }
+
+  /**
+   * Send a message. Pass `replyToId` to send it as a reply to an existing
+   * message (the network must support replies — the caller gates on
+   * `chat.canReply`; Beeper still owns the final say).
+   */
+  async sendMessage(
+    chatID: string,
+    text: string,
+    options: { replyToId?: string } = {}
+  ): Promise<SendResult> {
     return this.#guard(async () =>
-      mapSendResult(await this.#client.messages.send(chatID, { text }))
+      mapSendResult(
+        await this.#client.messages.send(chatID, {
+          text,
+          ...(options.replyToId !== undefined ? { replyToMessageID: options.replyToId } : {}),
+        })
+      )
     )
+  }
+
+  /**
+   * Download a message attachment to Beeper's device and return the local file
+   * path. `id` is the attachment identifier (typically an `mxc://` URL) surfaced
+   * on `AttachmentSummary`. Throws a `BeeperError` if the download fails or the
+   * server returns no local path — the caller degrades visibly (invariant 8).
+   * The returned path is never logged (invariant 6).
+   */
+  async downloadAttachment(id: string): Promise<{ localPath: string }> {
+    return this.#guard(async () => {
+      const result = await this.#client.assets.download({ url: id })
+      if (result.error !== undefined || result.srcURL === undefined) {
+        throw new Error(result.error ?? 'Attachment download returned no file path')
+      }
+      return { localPath: result.srcURL }
+    })
+  }
+
+  /** Archive (or unarchive) a chat via Beeper's dedicated endpoint. Beeper owns
+   *  the state; we just request the change (capability is gated by the caller). */
+  async setArchived(chatID: string, archived: boolean): Promise<void> {
+    return this.#guard(async () => {
+      await this.#client.chats.archive(chatID, { archived })
+    })
   }
 
   /** Run an SDK call, normalizing any thrown value into a `BeeperError`. */

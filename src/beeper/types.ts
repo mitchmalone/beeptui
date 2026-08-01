@@ -7,6 +7,22 @@ import type BeeperDesktop from '@beeper/desktop-api'
  * boundary where SDK shapes become domain shapes.
  */
 
+/**
+ * OAuth 2.0 endpoints the server advertises via `/v1/info` (RFC 8414-style
+ * discovery + RFC 7591 dynamic client registration). The groundwork for the
+ * Slice 13 remote-endpoint auth flow: PKCE authorize → token, with dynamic
+ * registration. Surfaced now (read-only) so the flow can be built against the
+ * server's own advertised endpoints rather than hard-coded URLs.
+ */
+export interface OAuthEndpoints {
+  authorizationEndpoint: string
+  tokenEndpoint: string
+  registrationEndpoint: string
+  introspectionEndpoint: string
+  revocationEndpoint: string
+  userinfoEndpoint: string
+}
+
 export interface ServerInfo {
   appName: string
   appVersion: string
@@ -16,6 +32,8 @@ export interface ServerInfo {
   port: number
   remoteAccessEnabled: boolean
   wsEventsUrl: string
+  /** OAuth endpoints advertised by the server (Slice 13 remote-auth groundwork). */
+  oauth: OAuthEndpoints
 }
 
 export interface Account {
@@ -35,6 +53,12 @@ export interface ChatSummary {
   unreadCount: number
   isArchived: boolean
   isMuted: boolean
+  /** Whether the platform supports archive/unarchive for this chat. Absent when
+   *  the API didn't report the capability (treated as "attempt, then degrade"). */
+  canArchive?: boolean
+  /** Whether the platform supports replying to a message (capability `reply` >= 1:
+   *  partially/fully supported). Absent when the API didn't report it. */
+  canReply?: boolean
   lastActivity?: string
 }
 
@@ -43,6 +67,21 @@ export type AttachmentKind = 'image' | 'video' | 'audio' | 'file'
 export interface AttachmentSummary {
   kind: AttachmentKind
   fileName?: string
+  /** Attachment identifier (typically an `mxc://` URL) — pass to the download
+   *  endpoint to fetch a local file path. Absent when the API didn't report it. */
+  id?: string
+  /** File size in bytes, when known. */
+  fileSize?: number
+  /** MIME type, when known (e.g. `image/png`). */
+  mimeType?: string
+}
+
+/** A reaction on a message, aggregated by key across participants (read-only,
+ *  Slice 14). `count` is how many participants reacted with this key. */
+export interface ReactionSummary {
+  key: string
+  count: number
+  isEmoji: boolean
 }
 
 export interface MessageSummary {
@@ -62,6 +101,11 @@ export interface MessageSummary {
   replyToId?: string
   /** Attachment placeholders (open/download is Slice 11). */
   attachments?: AttachmentSummary[]
+  /** Reactions aggregated by key (read-only display, Slice 14). */
+  reactions?: ReactionSummary[]
+  /** True when a read receipt reports this message as seen (read-only, Slice 14).
+   *  Only meaningful on our own sent messages. */
+  isSeen?: boolean
 }
 
 export interface SendResult {
@@ -79,6 +123,14 @@ export function mapInfo(info: BeeperDesktop.Info.InfoRetrieveResponse): ServerIn
     port: info.server.port,
     remoteAccessEnabled: info.server.remote_access,
     wsEventsUrl: info.endpoints.ws_events,
+    oauth: {
+      authorizationEndpoint: info.endpoints.oauth.authorization_endpoint,
+      tokenEndpoint: info.endpoints.oauth.token_endpoint,
+      registrationEndpoint: info.endpoints.oauth.registration_endpoint,
+      introspectionEndpoint: info.endpoints.oauth.introspection_endpoint,
+      revocationEndpoint: info.endpoints.oauth.revocation_endpoint,
+      userinfoEndpoint: info.endpoints.oauth.userinfo_endpoint,
+    },
   }
 }
 
@@ -103,6 +155,10 @@ export function mapChat(chat: BeeperDesktop.Chat): ChatSummary {
     isArchived: chat.isArchived ?? false,
     isMuted: chat.isMuted ?? false,
     // `exactOptionalPropertyTypes` — omit the key entirely rather than set undefined.
+    ...(chat.capabilities?.archive !== undefined ? { canArchive: chat.capabilities.archive } : {}),
+    // reply capability is a -2..2 scale (-2 rejected … 2 fully supported); treat
+    // >= 1 (partially/fully) as supported. Omit when the platform didn't report it.
+    ...(chat.capabilities?.reply !== undefined ? { canReply: chat.capabilities.reply >= 1 } : {}),
     ...(chat.lastActivity !== undefined ? { lastActivity: chat.lastActivity } : {}),
   }
 }
@@ -120,11 +176,38 @@ function mapAttachments(
   return attachments.map((a) => ({
     kind: ATTACHMENT_KIND[a.type] ?? 'file',
     ...(a.fileName !== undefined ? { fileName: a.fileName } : {}),
+    ...(a.id !== undefined ? { id: a.id } : {}),
+    ...(a.fileSize !== undefined ? { fileSize: a.fileSize } : {}),
+    ...(a.mimeType !== undefined ? { mimeType: a.mimeType } : {}),
   }))
+}
+
+function mapReactions(
+  reactions: BeeperDesktop.Message['reactions']
+): ReactionSummary[] | undefined {
+  if (reactions === undefined || reactions.length === 0) return undefined
+  // Aggregate by key across participants → one entry per distinct reaction.
+  const byKey = new Map<string, ReactionSummary>()
+  for (const r of reactions) {
+    const existing = byKey.get(r.reactionKey)
+    if (existing) existing.count += 1
+    else byKey.set(r.reactionKey, { key: r.reactionKey, count: 1, isEmoji: r.emoji ?? false })
+  }
+  return [...byKey.values()]
+}
+
+/** Collapse the `seen` read-receipt shape (boolean | timestamp string | per-user
+ *  map) into a single "was this read" boolean. Any truthy signal counts. */
+function mapSeen(seen: BeeperDesktop.Message['seen']): boolean {
+  if (seen === undefined) return false
+  if (typeof seen === 'boolean') return seen
+  if (typeof seen === 'string') return seen.length > 0
+  return Object.values(seen).some((v) => v === true || (typeof v === 'string' && v.length > 0))
 }
 
 export function mapMessage(message: BeeperDesktop.Message): MessageSummary {
   const attachments = mapAttachments(message.attachments)
+  const reactions = mapReactions(message.reactions)
   return {
     id: message.id,
     chatId: message.chatID,
@@ -139,6 +222,8 @@ export function mapMessage(message: BeeperDesktop.Message): MessageSummary {
     ...(message.editedTimestamp !== undefined ? { isEdited: true } : {}),
     ...(message.linkedMessageID !== undefined ? { replyToId: message.linkedMessageID } : {}),
     ...(attachments !== undefined ? { attachments } : {}),
+    ...(reactions !== undefined ? { reactions } : {}),
+    ...(mapSeen(message.seen) ? { isSeen: true } : {}),
   }
 }
 

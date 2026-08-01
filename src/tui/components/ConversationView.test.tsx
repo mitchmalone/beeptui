@@ -41,6 +41,7 @@ function conv(over: Partial<ActiveConversation> = {}): ActiveConversation {
     olderCursor: null,
     scrollOffset: 0,
     newMessagesBelow: false,
+    selectedMessageId: null,
     ...over,
   }
 }

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { BeeperAdapter } from '@/beeper/client.ts'
 import { accountsFixture, infoFixture } from '@/beeper/fixtures.ts'
-import { runDoctor, type DoctorContext } from '@/cli/doctor.ts'
+import { classifyEndpoint, runDoctor, type DoctorContext } from '@/cli/doctor.ts'
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -77,6 +77,38 @@ describe('runDoctor', () => {
     )
     expect(result.code).toBe(1)
     expect(result.checks.find((c) => /account/i.test(c.name))?.status).toBe('fail')
+  })
+
+  test('reports an Endpoint check and labels the local Desktop', async () => {
+    const result = await runDoctor(ctx(ok))
+    const endpoint = result.checks.find((c) => c.name === 'Endpoint')
+    expect(endpoint?.detail).toMatch(/local beeper desktop/i)
+  })
+
+  test('a remote endpoint is named as remote, with remote-specific remediation on failure', async () => {
+    const remoteCtx: DoctorContext = {
+      endpoint: 'https://beeper.example.com',
+      hasToken: true,
+      adapter: new BeeperAdapter({
+        endpoint: 'https://beeper.example.com',
+        accessToken: 'test-token',
+        fetch: (async () => {
+          throw new TypeError('fetch failed')
+        }) as unknown as typeof fetch,
+      }),
+    }
+    const result = await runDoctor(remoteCtx)
+    const reachable = result.checks[0]
+    expect(reachable?.name).toMatch(/remote endpoint/i)
+    expect(reachable?.remediation).toMatch(/remote access/i)
+  })
+
+  test('classifyEndpoint distinguishes loopback hosts from remote hosts', () => {
+    expect(classifyEndpoint('http://127.0.0.1:23373')).toBe('local')
+    expect(classifyEndpoint('http://localhost:23373')).toBe('local')
+    expect(classifyEndpoint('https://beeper.example.com')).toBe('remote')
+    expect(classifyEndpoint('http://[::1]:23373')).toBe('local') // IPv6 loopback (bracket-stripped)
+    expect(classifyEndpoint('not-a-url')).toBe('local') // default path
   })
 
   test('a failing check never leaks a token or raw body into its detail', async () => {

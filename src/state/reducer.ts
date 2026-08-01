@@ -1,5 +1,6 @@
 import type { Account, ChatSummary, MessageSummary } from '@/beeper/types.ts'
 import {
+  initialMessageSearch,
   MAX_MESSAGES_PER_CHAT,
   PENDING_SORT_PREFIX,
   type AppEvent,
@@ -35,9 +36,15 @@ function toEntity(message: MessageSummary): MessageEntity {
   return { ...message, status: 'sent' }
 }
 
-/** Sort key that keeps pending (optimistic) messages after all server messages. */
+/** Sort key that keeps our own unconfirmed messages (still carrying a clientId,
+ *  whether pending, failed, or optimistically-sent) after all server messages,
+ *  until the real echo — which has no clientId and a real sortKey — replaces it. */
 function effectiveKey(message: MessageEntity): string {
-  if (message.status === 'pending' || message.status === 'failed') {
+  if (
+    message.clientId !== undefined ||
+    message.status === 'pending' ||
+    message.status === 'failed'
+  ) {
     return PENDING_SORT_PREFIX + (message.clientId ?? message.timestamp)
   }
   return message.sortKey
@@ -60,6 +67,25 @@ function mergeMessages(
 ): ChatMessages {
   const byId = new Map<string, MessageEntity>()
   for (const m of window?.items ?? []) byId.set(m.id, m)
+
+  // Reconcile optimistic sends against their real echo. A live echo of one of
+  // our own messages arrives as a self-message with NO clientId and its own
+  // server id; drop the optimistic placeholder we created (which keeps its
+  // clientId) so the two don't double up despite the differing ids. Matched by
+  // chat-local text, and only on the live/newer path so loading old history
+  // with a repeated phrase can't evict a genuine pending message.
+  if (page === 'newer') {
+    for (const inc of incoming) {
+      if (!inc.isSender || inc.clientId !== undefined) continue
+      for (const [id, existing] of byId) {
+        if (existing.clientId !== undefined && existing.isSender && existing.text === inc.text) {
+          byId.delete(id)
+          break
+        }
+      }
+    }
+  }
+
   for (const m of incoming) {
     const existing = byId.get(m.id)
     byId.set(m.id, existing ? { ...existing, ...m } : m)
@@ -156,13 +182,53 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     }
 
     case 'chat/selected':
-      // Reset scroll to the newest message when the selection changes.
+      // Reset scroll to the newest message when the selection changes, and clear
+      // any transient notice (it belonged to the previous view). Message
+      // selection and any pending reply belong to the old chat — clear them too.
       return {
         ...state,
         selectedChatId: event.chatId,
+        selectedMessageId: null,
+        replyTo: null,
         conversationOffset: 0,
         newMessagesBelow: false,
+        notice: null,
       }
+
+    case 'messageSelection/started': {
+      // Enter selection at the newest loaded message of the active chat.
+      const items =
+        state.selectedChatId === null
+          ? []
+          : (state.messagesByChat[state.selectedChatId]?.items ?? [])
+      const newest = items[items.length - 1]
+      if (newest === undefined) return state
+      return { ...state, selectedMessageId: newest.id }
+    }
+
+    case 'messageSelection/moved': {
+      const items =
+        state.selectedChatId === null
+          ? []
+          : (state.messagesByChat[state.selectedChatId]?.items ?? [])
+      if (items.length === 0) return state
+      const current = items.findIndex((m) => m.id === state.selectedMessageId)
+      // From no selection, a move starts at the newest message.
+      const from = current === -1 ? items.length - 1 : current
+      const next = Math.min(items.length - 1, Math.max(0, from + event.delta))
+      return { ...state, selectedMessageId: items[next]?.id ?? state.selectedMessageId }
+    }
+
+    case 'messageSelection/cleared':
+      return { ...state, selectedMessageId: null }
+
+    case 'reply/started':
+      // Begin replying: record the target, leave selection mode (focus moves to
+      // compose, handled by the caller).
+      return { ...state, replyTo: event.messageId, selectedMessageId: null }
+
+    case 'reply/cancelled':
+      return { ...state, replyTo: null }
 
     case 'focus/changed':
       return { ...state, focus: event.focus }
@@ -202,23 +268,27 @@ export function reduce(state: AppState, event: AppEvent): AppState {
         isSender: true,
         isUnread: false,
         status: 'pending',
+        // A reply carries its target so the optimistic bubble shows the ↩ marker
+        // immediately (invariant 5: only ever on an explicit send).
+        ...(event.replyToId !== undefined ? { replyToId: event.replyToId } : {}),
       }
-      return withChatMessages(state, event.chatId, (window) =>
+      // The reply is consumed by this send — clear the pending reply context.
+      const next = event.replyToId !== undefined ? { ...state, replyTo: null } : state
+      return withChatMessages(next, event.chatId, (window) =>
         mergeMessages(window, [pending], 'newer')
       )
     }
 
     case 'send/succeeded':
-      return withChatMessages(state, event.chatId, (window) => {
-        // Drop the optimistic placeholder, then merge the real server message
-        // (dedupes if a live echo already arrived).
-        const withoutPending: ChatMessages = {
-          items: (window?.items ?? []).filter((m) => m.clientId !== event.clientId),
-          hasMoreOlder: window?.hasMoreOlder ?? false,
-          olderCursor: window?.olderCursor ?? null,
-        }
-        return mergeMessages(withoutPending, [toEntity(event.message)], 'newer')
-      })
+      // Just confirm the optimistic message (keep its clientId + position). We do
+      // NOT synthesize a server message here — the real one arrives via the live
+      // `message/received` echo and reconciles against this placeholder by text
+      // (see mergeMessages). If the echo already arrived, this is a no-op.
+      return withChatMessages(state, event.chatId, (window) =>
+        mapWindowItems(window, (m) =>
+          m.clientId === event.clientId ? { ...m, status: 'sent' } : m
+        )
+      )
 
     case 'send/failed':
       return withChatMessages(state, event.chatId, (window) =>
@@ -243,6 +313,95 @@ export function reduce(state: AppState, event: AppEvent): AppState {
 
     case 'search/queryChanged':
       return { ...state, searchQuery: event.query }
+
+    case 'filter/scopeCycled': {
+      // Rail order is 'all' followed by accounts in their loaded order.
+      const order = ['all', ...state.accountOrder]
+      const current = order.indexOf(state.filter.scope)
+      const from = current === -1 ? 0 : current
+      const next = (from + event.direction + order.length) % order.length
+      return { ...state, filter: { ...state.filter, scope: order[next] ?? 'all' } }
+    }
+
+    case 'filter/scopeSelected':
+      return { ...state, filter: { ...state.filter, scope: event.scope } }
+
+    case 'filter/archivedToggled':
+      return { ...state, filter: { ...state.filter, archived: !state.filter.archived } }
+
+    case 'filter/unreadToggled':
+      return { ...state, filter: { ...state.filter, unreadOnly: !state.filter.unreadOnly } }
+
+    case 'messageSearch/opened':
+      return {
+        ...state,
+        overlay: 'messageSearch',
+        messageSearch: { ...initialMessageSearch, scopeChatId: event.scopeChatId },
+      }
+
+    case 'messageSearch/queryChanged':
+      // Editing the query invalidates prior results (they must be re-fetched).
+      return {
+        ...state,
+        messageSearch: {
+          ...state.messageSearch,
+          query: event.query,
+          status: 'idle',
+          results: [],
+          selectedIndex: 0,
+          partial: false,
+          note: null,
+        },
+      }
+
+    case 'messageSearch/requested':
+      return { ...state, messageSearch: { ...state.messageSearch, status: 'searching' } }
+
+    case 'messageSearch/resultsLoaded':
+      return {
+        ...state,
+        messageSearch: {
+          ...state.messageSearch,
+          status: 'done',
+          results: event.results,
+          selectedIndex: 0,
+          partial: event.partial,
+          note: event.note,
+        },
+      }
+
+    case 'messageSearch/failed':
+      return {
+        ...state,
+        messageSearch: {
+          ...state.messageSearch,
+          status: 'error',
+          results: [],
+          selectedIndex: 0,
+          partial: false,
+          note: event.note,
+        },
+      }
+
+    case 'messageSearch/selectionMoved': {
+      const count = state.messageSearch.results.length
+      if (count === 0) return state
+      const max = count - 1
+      const selectedIndex = Math.min(
+        max,
+        Math.max(0, state.messageSearch.selectedIndex + event.delta)
+      )
+      return { ...state, messageSearch: { ...state.messageSearch, selectedIndex } }
+    }
+
+    case 'messageSearch/closed':
+      return { ...state, overlay: 'none', messageSearch: initialMessageSearch }
+
+    case 'notice/shown':
+      return { ...state, notice: event.message }
+
+    case 'notice/cleared':
+      return { ...state, notice: null }
 
     case 'error/raised':
       return { ...state, error: { kind: event.kind, message: event.message } }

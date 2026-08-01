@@ -6,6 +6,99 @@
 
 ---
 
+### 2026-08-01 · Slice 13 OAuth security review — passed; token-storage write deferred
+
+**Decision.** The remote-endpoint OAuth 2.0 + PKCE code (`src/beeper/oauth.ts`,
+`oauth-loopback.ts`) passed an independent security review with **no
+high-confidence exploitable findings**. It is cleared to proceed toward remote
+use, subject to the two standing gates below.
+
+**What was verified.** PKCE is **S256-only** (no `plain` path); `code_verifier`
+and CSRF `state` are 32-byte `crypto.getRandomValues`; `state` is verified before
+code exchange (CSRF); the loopback binds **127.0.0.1 only** and serves only
+`/callback`; `redirect_uri` is exact-match across registration/authorize/exchange;
+no token, refresh token, or verifier is written to logs, errors, terminal titles,
+or process argv (invariant 6); `spawn` is always called with an **args array**
+(no shell) so browser/file-open has no injection path; `saveToDownloads` applies
+`basename()` (no path traversal); no attacker-controlled SSRF (host/protocol).
+
+**One correctness fix (non-security).** `classifyEndpoint` mislabelled IPv6
+loopback because `URL.hostname` brackets it (`[::1]`); now bracket-stripped.
+
+**Open gate — token persistence write.** Not implemented. Writing to the macOS
+Keychain via `security add-generic-password -w <secret>` exposes the secret in
+argv (invariant 6), and a plaintext 0600 file isn't the platform credential store.
+An argv-free write mechanism (native keystore binding, or an accepted encrypted
+store) must be chosen before the remote flow can persist tokens end-to-end. Until
+then the flow returns tokens to the caller but does not save them.
+
+**Open gate — live validation.** The full flow is unvalidatable without a real
+remote endpoint (`remote_access` is `false` on the local Desktop). Unit tests
+cover it against a fake authorization server.
+
+### 2026-07-31 · tmux unread badge uses `rename-window`, and only ever shows a count
+
+**Decision.** The terminal/tmux unread badge sets the tmux **window name** to
+`Beeper [n]` via `tmux rename-window` (plus an OSC 2 terminal-tab title
+everywhere), and restores tmux's `automatic-rename` on exit. It emits **only** the
+app name and an integer count — never a chat name, sender, or preview. Count is
+total unread across non-archived chats.
+
+**Why.** OSC 2 alone doesn't drive the tmux window name under default settings
+(modern `automatic-rename` follows `pane_current_command`, not the pane title; the
+`ESC k` rename escape needs `allow-rename on`, off by default). `rename-window`
+works with zero user config. Restricting the payload to a count keeps it clear of
+invariant 6 (no message content in terminal titles) and shoulder-surf-safe.
+
+**Consequence.** Shelling out to `tmux` (not the `beeper` CLI — invariant 2 is
+about Beeper, unaffected), best-effort and non-fatal if tmux is absent. It's not a
+network call (invariant 7 holds). Configurability / bell / desktop notifications
+remain Slice 14.
+
+### 2026-07-31 · The network rail IS a focus target, and archive is an action (reverses the earlier same-day call)
+
+**Decision.** After live use of the Slice 10 build, reverse two decisions from the entry below:
+
+1. **The rail is a real focus target.** `FocusTarget` gains `'rail'` (ordered outer→inner: rail →
+   inbox → conversation → compose). `Esc`/`h`/`←` walks out one level (conversation → list → rail);
+   `l`/`→`/`Enter` drills back in; `j`/`k` switch networks while the rail is focused. The `[`/`]`
+   quick-keys still work from anywhere.
+2. **Archive is an action, not only a view.** `Shift+A` archives/unarchives a chat via
+   `chats.archive` — from the list (on the highlighted chat) or an open conversation — **gated on
+   `chat.capabilities.archive`**; an unsupported platform shows a named notice and makes no call.
+   It's non-optimistic (await → refetch → reconcile; never fake success), then selects the chat that
+   takes the archived one's slot and returns focus to the list (cursor stays put for rapid
+   archiving).
+
+**Why.** The quick-keys-only rail failed the hand test: a column you can see, you try to step into
+with `Esc`/`←`, and nothing happening reads as broken. And Mitch asked for an archive key directly.
+The original "view-only" scoping was a deferral, not a principle — the API supports the write and
+reports the capability, so doing it properly (capability-gated, visible degrade, no fake success)
+honors invariants 1 and 8 rather than violating them.
+
+**Consequence.** Adds a `notice` primitive (`state.notice`, shown in the status bar). The
+out-of-scope line in the Slice 10 plan (archive actions deferred) is superseded. Deep-linking in
+message search remains partial (Slice 11).
+
+### 2026-07-31 · The network rail is a quick-key filter, not a fourth focus pane; archive is view-only
+
+**Decision.** The `slk`-style leftmost network rail (Slice 10) switches inbox scope via app-wide
+quick keys — `[`/`]` cycle All + per-network, `a` toggles archived, `U` toggles unread-only — rather
+than being a pane you Tab/arrow into. Archived is a **view filter over Beeper's per-chat archive
+state**, composing with the selected scope; the TUI does **not** archive/unarchive. Message search
+gets its own opener (`S`), distinct from chat search (`/`).
+
+**Why.** Keeping the rail out of the focus ring preserves the proven `inbox → conversation → compose`
+flow (no reflow of existing keymaps/tests) and matches how Slack's workspace switcher actually
+behaves (jump keys, not a list you traverse). Archive-as-view honors invariant 1 (Beeper owns state;
+we're a client) and the Slice 10 scope line "archiving is Beeper's job; we only filter by its state";
+archive/unarchive _actions_ are a separate adapter-write + capability-gating concern, deferred.
+Separate openers avoid overloading `Enter`/`/` with mode ambiguity.
+
+**Consequence.** Archive/unarchive actions remain unbuilt (candidate for a later slice). Message
+search verifies server scope rather than trusting it, falling back to a labeled local search — so a
+scope-ignoring or unavailable endpoint degrades visibly, never returns silently-wrong results.
+
 ### 2026-07-30 · Bindings use a thin in-repo keymap, not the `@opentui/keymap` package
 
 **Decision.** Declare keybindings in a small in-repo module (`src/tui/keymap.ts`) — a static data

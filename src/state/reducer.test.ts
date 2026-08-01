@@ -320,20 +320,16 @@ describe('optimistic send lifecycle', () => {
     })
   })
 
-  test('succeeded reconciles the pending into a sent server message', () => {
-    const s = run([
-      requested,
-      {
-        type: 'send/succeeded',
-        chatId: 'c1',
-        clientId: 'cid-1',
-        message: msg('server-9', '9', { isSender: true }),
-      },
-    ])
+  test('succeeded confirms the pending as sent, keeping its clientId until the echo', () => {
+    const s = run([requested, { type: 'send/succeeded', chatId: 'c1', clientId: 'cid-1' }])
     const items = s.messagesByChat.c1?.items ?? []
     expect(items).toHaveLength(1)
-    expect(items[0]).toMatchObject({ id: 'server-9', status: 'sent' })
-    expect(items[0]?.clientId).toBeUndefined()
+    expect(items[0]).toMatchObject({
+      id: 'cid-1',
+      status: 'sent',
+      clientId: 'cid-1',
+      text: 'On it.',
+    })
   })
 
   test('failed marks the pending visible-failed; retry returns it to pending', () => {
@@ -343,45 +339,71 @@ describe('optimistic send lifecycle', () => {
     expect(s.messagesByChat.c1?.items[0]?.status).toBe('pending')
   })
 
-  test('success after a failure still reconciles (race)', () => {
+  test('success after a failure still confirms as sent', () => {
     const s = run([
       requested,
       { type: 'send/failed', chatId: 'c1', clientId: 'cid-1' },
-      {
-        type: 'send/succeeded',
-        chatId: 'c1',
-        clientId: 'cid-1',
-        message: msg('server-9', '9', { isSender: true }),
-      },
+      { type: 'send/succeeded', chatId: 'c1', clientId: 'cid-1' },
     ])
     const items = s.messagesByChat.c1?.items ?? []
     expect(items).toHaveLength(1)
-    expect(items[0]).toMatchObject({ id: 'server-9', status: 'sent' })
+    expect(items[0]).toMatchObject({ status: 'sent', clientId: 'cid-1' })
   })
 
   test('duplicate succeeded does not duplicate the message', () => {
-    const succeed: AppEvent = {
-      type: 'send/succeeded',
-      chatId: 'c1',
-      clientId: 'cid-1',
-      message: msg('server-9', '9', { isSender: true }),
-    }
+    const succeed: AppEvent = { type: 'send/succeeded', chatId: 'c1', clientId: 'cid-1' }
     const s = run([requested, succeed, succeed])
     expect(s.messagesByChat.c1?.items).toHaveLength(1)
   })
 
-  test('a live echo of the same server id after success does not duplicate', () => {
+  test('the live echo replaces the optimistic message (own id + real sender) — no double-up', () => {
+    // The reported bug: the WS echo has its own server id and real sender name,
+    // so it must reconcile against our optimistic "You" message by text, not id.
+    const s = run([
+      requested, // optimistic "On it." (senderId 'me')
+      { type: 'send/succeeded', chatId: 'c1', clientId: 'cid-1' },
+      {
+        type: 'message/received',
+        message: msg('server-9', '9', {
+          isSender: true,
+          senderName: 'gracehopper',
+          text: 'On it.',
+        }),
+      },
+    ])
+    const items = s.messagesByChat.c1?.items ?? []
+    expect(items).toHaveLength(1) // was 2: optimistic "You" + echo "gracehopper"
+    expect(items[0]).toMatchObject({ id: 'server-9', senderName: 'gracehopper', text: 'On it.' })
+    expect(items[0]?.clientId).toBeUndefined() // now the real server message
+  })
+
+  test('a live echo arriving before send/succeeded still reconciles to one', () => {
     const s = run([
       requested,
       {
-        type: 'send/succeeded',
-        chatId: 'c1',
-        clientId: 'cid-1',
-        message: msg('server-9', '9', { isSender: true }),
+        type: 'message/received',
+        message: msg('server-9', '9', { isSender: true, text: 'On it.' }),
       },
-      { type: 'message/received', message: msg('server-9', '9', { isSender: true }) },
+      { type: 'send/succeeded', chatId: 'c1', clientId: 'cid-1' },
     ])
-    expect(s.messagesByChat.c1?.items).toHaveLength(1)
+    const items = s.messagesByChat.c1?.items ?? []
+    expect(items).toHaveLength(1)
+    expect(items[0]?.id).toBe('server-9')
+  })
+
+  test('loading OLDER history with a repeated phrase does not evict a pending send', () => {
+    const s = run([
+      requested, // pending "On it."
+      {
+        type: 'messages/loaded',
+        chatId: 'c1',
+        page: 'older',
+        messages: [msg('old-1', '1', { isSender: true, text: 'On it.' })],
+      },
+    ])
+    const items = s.messagesByChat.c1?.items ?? []
+    expect(items).toHaveLength(2) // old sent one + our still-pending one
+    expect(items.some((m) => m.clientId === 'cid-1' && m.status === 'pending')).toBe(true)
   })
 })
 
@@ -404,5 +426,277 @@ describe('immutability', () => {
     expect(() =>
       run([{ type: 'message/received', message: msg('m1', '1', { chatId: 'ghost' }) }])
     ).not.toThrow()
+  })
+})
+
+describe('inbox filter (network rail)', () => {
+  const withAccounts = run([
+    {
+      type: 'accounts/loaded',
+      accounts: [
+        {
+          id: 'wa',
+          network: 'WhatsApp',
+          bridgeType: 'whatsapp',
+          provider: 'local',
+          displayName: 'WA',
+        },
+        {
+          id: 'fb',
+          network: 'Facebook',
+          bridgeType: 'facebook',
+          provider: 'local',
+          displayName: 'FB',
+        },
+      ],
+    },
+  ])
+
+  test('defaults to all / active / all-messages', () => {
+    expect(initialState.filter).toEqual({ scope: 'all', archived: false, unreadOnly: false })
+  })
+
+  test('scopeCycled walks all → accounts → wrap, forward and back', () => {
+    const s1 = reduce(withAccounts, { type: 'filter/scopeCycled', direction: 1 })
+    expect(s1.filter.scope).toBe('wa')
+    const s2 = reduce(s1, { type: 'filter/scopeCycled', direction: 1 })
+    expect(s2.filter.scope).toBe('fb')
+    const s3 = reduce(s2, { type: 'filter/scopeCycled', direction: 1 })
+    expect(s3.filter.scope).toBe('all') // wraps
+    const back = reduce(withAccounts, { type: 'filter/scopeCycled', direction: -1 })
+    expect(back.filter.scope).toBe('fb') // wraps backward
+  })
+
+  test('scopeSelected sets scope directly', () => {
+    const s = reduce(withAccounts, { type: 'filter/scopeSelected', scope: 'fb' })
+    expect(s.filter.scope).toBe('fb')
+  })
+
+  test('archived and unread toggles flip independently', () => {
+    const a = reduce(withAccounts, { type: 'filter/archivedToggled' })
+    expect(a.filter).toMatchObject({ archived: true, unreadOnly: false })
+    const b = reduce(a, { type: 'filter/unreadToggled' })
+    expect(b.filter).toMatchObject({ archived: true, unreadOnly: true })
+    const c = reduce(b, { type: 'filter/archivedToggled' })
+    expect(c.filter).toMatchObject({ archived: false, unreadOnly: true })
+  })
+
+  test('cycling with no accounts stays on all', () => {
+    const s = reduce(initialState, { type: 'filter/scopeCycled', direction: 1 })
+    expect(s.filter.scope).toBe('all')
+  })
+})
+
+describe('message search overlay', () => {
+  const hit = (id: string) => ({
+    messageId: id,
+    chatId: 'c1',
+    chatTitle: 'Chat',
+    network: 'WhatsApp',
+    senderName: 'Grace',
+    timestamp: '2026-07-30T00:00:00.000Z',
+    snippet: id,
+  })
+
+  test('opened sets the overlay and captures the scope', () => {
+    const s = reduce(initialState, { type: 'messageSearch/opened', scopeChatId: 'c1' })
+    expect(s.overlay).toBe('messageSearch')
+    expect(s.messageSearch.scopeChatId).toBe('c1')
+    expect(s.messageSearch.status).toBe('idle')
+  })
+
+  test('queryChanged invalidates prior results', () => {
+    const s = run([
+      { type: 'messageSearch/opened', scopeChatId: null },
+      { type: 'messageSearch/requested' },
+      { type: 'messageSearch/resultsLoaded', results: [hit('a')], partial: false, note: null },
+      { type: 'messageSearch/queryChanged', query: 'fri' },
+    ])
+    expect(s.messageSearch.query).toBe('fri')
+    expect(s.messageSearch.status).toBe('idle')
+    expect(s.messageSearch.results).toEqual([])
+  })
+
+  test('requested → resultsLoaded carries partial + note', () => {
+    const s = run([
+      { type: 'messageSearch/opened', scopeChatId: null },
+      { type: 'messageSearch/requested' },
+      {
+        type: 'messageSearch/resultsLoaded',
+        results: [hit('a'), hit('b')],
+        partial: true,
+        note: 'Local results',
+      },
+    ])
+    expect(s.messageSearch.status).toBe('done')
+    expect(s.messageSearch.results).toHaveLength(2)
+    expect(s.messageSearch.partial).toBe(true)
+    expect(s.messageSearch.note).toBe('Local results')
+  })
+
+  test('failed clears results and records a note', () => {
+    const s = run([
+      { type: 'messageSearch/opened', scopeChatId: null },
+      { type: 'messageSearch/failed', note: 'Search unavailable' },
+    ])
+    expect(s.messageSearch.status).toBe('error')
+    expect(s.messageSearch.results).toEqual([])
+    expect(s.messageSearch.note).toBe('Search unavailable')
+  })
+
+  test('selectionMoved clamps within results', () => {
+    const base = run([
+      { type: 'messageSearch/opened', scopeChatId: null },
+      {
+        type: 'messageSearch/resultsLoaded',
+        results: [hit('a'), hit('b')],
+        partial: false,
+        note: null,
+      },
+    ])
+    const up = reduce(base, { type: 'messageSearch/selectionMoved', delta: -1 })
+    expect(up.messageSearch.selectedIndex).toBe(0) // clamped at top
+    const down = reduce(base, { type: 'messageSearch/selectionMoved', delta: 1 })
+    expect(down.messageSearch.selectedIndex).toBe(1)
+    const past = reduce(down, { type: 'messageSearch/selectionMoved', delta: 1 })
+    expect(past.messageSearch.selectedIndex).toBe(1) // clamped at bottom
+  })
+
+  test('closed resets the overlay and search state', () => {
+    const s = run([
+      { type: 'messageSearch/opened', scopeChatId: 'c1' },
+      { type: 'messageSearch/closed' },
+    ])
+    expect(s.overlay).toBe('none')
+    expect(s.messageSearch.scopeChatId).toBeNull()
+    expect(s.messageSearch.results).toEqual([])
+  })
+})
+
+describe('render stability (compose typing perf)', () => {
+  test('draft/changed leaves the slices the panels memoize on referentially identical', () => {
+    const base = run([
+      { type: 'accounts/loaded', accounts: [] },
+      { type: 'chats/loaded', chats: [chat('c1')] },
+      { type: 'chat/selected', chatId: 'c1' },
+      { type: 'messages/loaded', chatId: 'c1', page: 'initial', messages: [msg('m1', '1')] },
+    ])
+    const after = reduce(base, { type: 'draft/changed', chatId: 'c1', text: 'hi' })
+    // Typing must not invalidate the inbox / rail / conversation memo deps, or
+    // the whole tree re-renders per keystroke (the jank we fixed).
+    expect(after.chats).toBe(base.chats)
+    expect(after.chatOrder).toBe(base.chatOrder)
+    expect(after.messagesByChat).toBe(base.messagesByChat)
+    expect(after.selectedChatId).toBe(base.selectedChatId)
+    expect(after.filter).toBe(base.filter)
+    expect(after.accounts).toBe(base.accounts)
+    expect(after.drafts).not.toBe(base.drafts) // only drafts changed
+  })
+})
+
+describe('notice', () => {
+  test('shown sets it; cleared and selecting a chat both clear it', () => {
+    const shown = reduce(initialState, { type: 'notice/shown', message: 'Chat archived.' })
+    expect(shown.notice).toBe('Chat archived.')
+    expect(reduce(shown, { type: 'notice/cleared' }).notice).toBeNull()
+    // Navigating to another chat clears a stale notice.
+    expect(reduce(shown, { type: 'chat/selected', chatId: 'c9' }).notice).toBeNull()
+  })
+})
+
+describe('message selection + reply (Slice 11)', () => {
+  /** A chat c1 selected with three loaded messages (oldest → newest: m1,m2,m3). */
+  function seeded(): AppState {
+    return run([
+      { type: 'chats/loaded', chats: [chat('c1')] },
+      { type: 'chat/selected', chatId: 'c1' },
+      {
+        type: 'messages/loaded',
+        chatId: 'c1',
+        messages: [msg('m1', '1'), msg('m2', '2'), msg('m3', '3')],
+        page: 'initial',
+      },
+    ])
+  }
+
+  test('started selects the newest loaded message', () => {
+    const s = reduce(seeded(), { type: 'messageSelection/started' })
+    expect(s.selectedMessageId).toBe('m3')
+  })
+
+  test('started is a no-op when the active chat has no messages', () => {
+    const empty = run([
+      { type: 'chats/loaded', chats: [chat('c1')] },
+      { type: 'chat/selected', chatId: 'c1' },
+    ])
+    expect(reduce(empty, { type: 'messageSelection/started' }).selectedMessageId).toBeNull()
+  })
+
+  test('moved from no selection starts at the newest, then walks older/newer and clamps', () => {
+    let s = reduce(seeded(), { type: 'messageSelection/moved', delta: -1 })
+    expect(s.selectedMessageId).toBe('m2') // newest is m3; -1 → m2
+    s = reduce(s, { type: 'messageSelection/moved', delta: -1 })
+    expect(s.selectedMessageId).toBe('m1')
+    s = reduce(s, { type: 'messageSelection/moved', delta: -1 })
+    expect(s.selectedMessageId).toBe('m1') // clamped at the oldest
+    s = reduce(s, { type: 'messageSelection/moved', delta: 1 })
+    expect(s.selectedMessageId).toBe('m2')
+  })
+
+  test('cleared drops the selection', () => {
+    const s = reduce(seeded(), { type: 'messageSelection/started' })
+    expect(reduce(s, { type: 'messageSelection/cleared' }).selectedMessageId).toBeNull()
+  })
+
+  test('reply/started records the target and exits selection mode', () => {
+    const s = reduce(seeded(), { type: 'messageSelection/started' })
+    const replying = reduce(s, { type: 'reply/started', messageId: 'm2' })
+    expect(replying.replyTo).toBe('m2')
+    expect(replying.selectedMessageId).toBeNull()
+  })
+
+  test('reply/cancelled clears the reply target', () => {
+    const s = reduce(seeded(), { type: 'reply/started', messageId: 'm2' })
+    expect(reduce(s, { type: 'reply/cancelled' }).replyTo).toBeNull()
+  })
+
+  test('selecting another chat clears selection + reply', () => {
+    const s = run(
+      [{ type: 'messageSelection/started' }, { type: 'reply/started', messageId: 'm3' }],
+      seeded()
+    )
+    // reply/started already cleared selection; set one again to prove chat switch clears both.
+    const withBoth = reduce(s, { type: 'messageSelection/started' })
+    const switched = reduce(withBoth, { type: 'chat/selected', chatId: 'c2' })
+    expect(switched.selectedMessageId).toBeNull()
+    expect(switched.replyTo).toBeNull()
+  })
+
+  test('an edited inbound message updates in place with the edit marker (no duplicate)', () => {
+    const base = seeded()
+    const edited = reduce(base, {
+      type: 'message/received',
+      message: msg('m2', '2', { text: 'edited body', isEdited: true }),
+    })
+    const items = edited.messagesByChat['c1']?.items ?? []
+    expect(items).toHaveLength(3) // replaced in place, not appended
+    const m2 = items.find((m) => m.id === 'm2')
+    expect(m2?.text).toBe('edited body')
+    expect(m2?.isEdited).toBe(true)
+  })
+
+  test('send/requested with a reply carries the target and consumes the reply context', () => {
+    const s = reduce(seeded(), { type: 'reply/started', messageId: 'm2' })
+    const sent = reduce(s, {
+      type: 'send/requested',
+      chatId: 'c1',
+      clientId: 'cid-1',
+      text: 'sure',
+      timestamp: '2026-07-30T02:00:10.000Z',
+      replyToId: 'm2',
+    })
+    expect(sent.replyTo).toBeNull()
+    const pending = sent.messagesByChat['c1']?.items.find((m) => m.clientId === 'cid-1')
+    expect(pending?.replyToId).toBe('m2')
   })
 })
