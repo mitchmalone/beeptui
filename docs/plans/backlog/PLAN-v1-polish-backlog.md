@@ -32,10 +32,12 @@ v1 definition of done.
   `doctor` reports support honestly. **Residual:** in-TUI rendering (coordinating with the
   OpenTUI native framebuffer) — can't be validated headlessly; attachments degrade visibly to
   the text placeholder + open/save until then.
-- [~] **brew tap / versioned releases** — `src/packaging/homebrew.ts` renders a validated formula;
-  `release.yml` publishes `sha256sums.txt` and has a guarded tap-publish job; README documents
-  it. **Residual:** create the `homebrew-tap` repo, set `HOMEBREW_TAP_REPO` + `HOMEBREW_TAP_TOKEN`,
-  and cut a real `v*` tag to exercise the workflow end-to-end (it's only ever run structurally).
+- [~] **brew tap / versioned releases** — `src/packaging/homebrew.ts` renders a validated formula
+  (landed on `main`); the matching `release.yml` change (publish `sha256sums.txt` + a guarded
+  tap-publish job) is committed on branch `feat/v1-polish` but **not yet on `main`** — pushing a
+  workflow file needs a `workflow`-scoped token the CI session didn't have. **Residual:** push that
+  `release.yml` change; create the `homebrew-tap` repo, set `HOMEBREW_TAP_REPO` +
+  `HOMEBREW_TAP_TOKEN`, and cut a real `v*` tag to exercise the workflow end-to-end.
 
 ## Residual / still open
 

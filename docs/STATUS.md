@@ -14,9 +14,11 @@
 the PRD's 3s/2s budgets; **inline image-preview capability** (`src/tui/media-preview.ts`: kitty /
 iTerm2 / WezTerm detection + escape-sequence builders, all tested; `doctor` reports support
 honestly — in-TUI rendering deferred, degrades visibly); and **Homebrew packaging**
-(`src/packaging/homebrew.ts` formula renderer + `release.yml` checksums + guarded tap-publish job;
-README documents it). **452 tests** green; typecheck + lint clean. Residuals (in-TUI image render,
-live render-loop profiling, first real tagged release + tap) tracked in the polish backlog.
+(`src/packaging/homebrew.ts` formula renderer, tested; README documents it). **452 tests** green;
+typecheck + lint clean. **Landed on `main` via `feat/v1-polish-core`** minus the `release.yml`
+change (checksums + guarded tap-publish job) — that one file needs a `workflow`-scoped push and is
+held on branch `feat/v1-polish` pending it. Residuals (release.yml push, in-TUI image render, live
+render-loop profiling, first real tagged release + tap) tracked in the polish backlog.
 
 **Open-source prep pass done (2026-08-01, `chore/open-source-prep`)** — a full security + quality
 audit ahead of the public flip (`docs/plans/done/PLAN-open-source-prep.md`). Fixed: an

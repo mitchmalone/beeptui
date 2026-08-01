@@ -23,6 +23,11 @@
 - **Perf reality check:** the PRD's 3s/2s budgets are I/O-bound; our reducer/selectors are
   microseconds (8µs/event, 0.2ms to select 5000 chats). So the useful deliverable was a
   regression-tripwire benchmark + `docs/PERF.md`, not an optimisation.
+- **Workflow-scope push wall:** pushing this branch failed — GitHub refuses a push that edits
+  `.github/workflows/release.yml` unless the token carries the `workflow` scope, which the session's
+  HTTPS token lacks. Worked around it by landing `feat/v1-polish-core` (everything _except_ the
+  release.yml change) and holding the release.yml commit on `feat/v1-polish` for a workflow-scoped
+  push. Lesson: any branch touching a workflow file can't be pushed with the plain gh token.
 - **Brew without a tap:** the release job's tap-publish step is guarded on `vars.HOMEBREW_TAP_REPO`
   so it's an honest skipped no-op until the tap repo + token exist — never a failed release. The
   formula renderer is a tested pure function; only a real `v*` tag exercises the workflow.
