@@ -50,14 +50,16 @@ needs a real remote endpoint (`remote_access:false` locally).
 
 **Slice 14 (polish) — unblocked features landed.** Read-only **reactions** (`👍×2 🎉`, aggregated),
 **read receipts** (`✓✓` on own seen messages), **notification hooks** (`config.notify.command` runs a
-redacted app+network-only command on new inbound messages, argv-free), and **config keymap
-overrides** (`config.keymap` rebinds any command; validated, help reflects it). **Packaging:**
+redacted app+network-only command on new inbound messages, argv-free), and **config-file
+customization** — `config.keymap` rebinds any command (validated, help reflects it) and
+`config.theme.networkColors` overrides the per-network accent colours (validated hex). **Packaging:**
 `bun run build` compiles a standalone `dist/beeper-tui` (~69 MB Mach-O arm64) that runs
 `--help`/`doctor`/TUI with no Bun at runtime — OpenTUI/Bun compat validated on macOS arm64; README
-has Install + Configuration docs. **363 tests** green; typecheck + lint + format + security review
-clean. Remaining Slice 14 (colour themes/densities, perf profiling, media preview, brew tap/releases)
-is a sprawling theming refactor, fuzzy-scoped profiling, terminal-specific media, or gated on
-decision #6 (open-source flip) → license + public distribution — the plan calls for a re-plan/split.
+has Install + Configuration docs. **366 tests** green; typecheck + lint + format + security review
+clean. Remaining Slice 14 (densities, perf profiling, media preview, brew tap/releases) is
+fuzzy-scoped profiling, terminal-specific media, or gated on decision #6 (open-source flip) → license
+
+- public distribution — the plan calls for a re-plan/split.
 
 **🎉 Phase 1 complete — Slices 0–9 done (all merged to `main`).**
 The MVP is real and live-validated against Beeper Desktop 4.2.1004: browse the inbox, read history
