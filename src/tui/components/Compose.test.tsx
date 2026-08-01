@@ -44,6 +44,34 @@ describe('Compose', () => {
     expect(captureCharFrame()).toContain('press R to retry')
   })
 
+  test('shows the reply context header when replying', async () => {
+    const { renderOnce, captureCharFrame } = await testRender(
+      <Compose {...props({ replyContext: { sender: 'Grace', snippet: 'Ship it.' } })} />,
+      { width: 60, height: 6 }
+    )
+    await renderOnce()
+    const frame = captureCharFrame()
+    expect(frame).toContain('Replying to Grace')
+    expect(frame).toContain('Ship it.')
+  })
+
+  test('blurring while replying cancels the reply', async () => {
+    let cancelled = false
+    const { renderOnce, mockInput } = await testRender(
+      <Compose
+        {...props({
+          focused: true,
+          replyContext: { sender: 'Grace', snippet: 'Ship it.' },
+          onCancelReply: () => (cancelled = true),
+        })}
+      />,
+      { width: 60, height: 6 }
+    )
+    await renderOnce()
+    await mockInput.pressKey('TAB') // Esc/Tab both blur; both must cancel the reply
+    expect(cancelled).toBe(true)
+  })
+
   test('typing when focused edits and Enter sends the text', async () => {
     let edited = ''
     let sent = ''

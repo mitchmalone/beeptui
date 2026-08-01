@@ -1,13 +1,16 @@
 import { describe, expect, test } from 'bun:test'
 import { testRender } from '@opentui/react/test-utils'
 import { App, type AppProps } from '@/tui/app.tsx'
+import { applyKeymapOverrides } from '@/tui/keymap.ts'
 import { createStore, type Store } from '@/tui/store.ts'
 import type { ChatSummary, MessageSummary } from '@/beeper/types.ts'
 
 function chat(id: string, title: string, network: string): ChatSummary {
   return {
     id,
-    accountId: 'a',
+    // Accounts seeded below: 'a' = WhatsApp, 'b' = Slack. Keep chat.accountId
+    // consistent with its network so scope filtering behaves realistically.
+    accountId: network === 'Slack' ? 'b' : 'a',
     network,
     title,
     type: 'single',
@@ -51,6 +54,10 @@ async function renderApp(store: Store, over: Partial<AppProps> = {}) {
     onLoadOlder: noop,
     onSend: noop,
     onRetry: noop,
+    onSearchMessages: noop,
+    onArchiveChat: noop,
+    onOpenAttachment: noop,
+    onSaveAttachment: noop,
     ...over,
   }
   return testRender(<App {...props} />, { width: 100, height: 24 })
@@ -103,6 +110,34 @@ describe('App shell', () => {
     expect(store.getState().selectedChatId).toBe('c2')
     await mockInput.pressKey('RETURN')
     expect(opened).toEqual(['c2'])
+  })
+
+  test('a config keymap override rebinds a command end-to-end', async () => {
+    const store = seededStore()
+    let quit = 0
+    const { renderOnce, mockInput } = await renderApp(store, {
+      onQuit: () => (quit += 1),
+      keymap: applyKeymapOverrides({ quit: ['x'] }),
+    })
+    await renderOnce()
+    await mockInput.pressKey('q') // no longer bound to quit
+    expect(quit).toBe(0)
+    await mockInput.pressKey('x') // the rebound key quits
+    expect(quit).toBe(1)
+  })
+
+  test('A archives the highlighted chat straight from the list (no need to open it)', async () => {
+    const store = seededStore()
+    const archived: string[] = []
+    const { renderOnce, mockInput } = await renderApp(store, {
+      onArchiveChat: (id) => archived.push(id),
+    })
+    await renderOnce()
+    await mockInput.pressKey('j') // highlight the first chat, still in the inbox
+    expect(store.getState().focus).toBe('inbox')
+    expect(store.getState().selectedChatId).toBe('c1')
+    await mockInput.pressKey('A', { shift: true })
+    expect(archived).toEqual(['c1'])
   })
 
   test('conversation renders messages once loaded, and Esc returns focus to the inbox', async () => {
@@ -225,6 +260,17 @@ describe('App shell', () => {
       expect(sent).toEqual([])
     })
 
+    test('A archives the open chat from the conversation', async () => {
+      const store = openChatStore()
+      const archived: string[] = []
+      const { renderOnce, mockInput } = await renderApp(store, {
+        onArchiveChat: (id) => archived.push(id),
+      })
+      await renderOnce()
+      await mockInput.pressKey('A', { shift: true })
+      expect(archived).toEqual(['c1'])
+    })
+
     test('R retries the last failed send from the conversation', async () => {
       const store = openChatStore()
       store.dispatch({
@@ -278,6 +324,60 @@ describe('App shell', () => {
       expect(store.getState().overlay).toBe('none') // but the overlay closes
     })
 
+    test('S opens message search; typing then Enter runs the scoped search; Enter opens a hit', async () => {
+      const store = seededStore()
+      const searched: Array<[string, string | null]> = []
+      const opened: string[] = []
+      const { renderOnce, captureCharFrame, mockInput } = await renderApp(store, {
+        onSearchMessages: (q, scope) => {
+          searched.push([q, scope])
+          // Simulate the runtime dispatching a result back into the store.
+          store.dispatch({
+            type: 'messageSearch/resultsLoaded',
+            results: [
+              {
+                messageId: 'm9',
+                chatId: 'c2',
+                chatTitle: 'engineering',
+                network: 'Slack',
+                senderName: 'Bob',
+                timestamp: '2026-07-31T02:00:00.000Z',
+                snippet: 'Friday deploy is green',
+              },
+            ],
+            partial: false,
+            note: null,
+          })
+        },
+        onOpenChat: (id) => opened.push(id),
+      })
+      await renderOnce()
+      await mockInput.pressKey('S', { shift: true })
+      expect(store.getState().overlay).toBe('messageSearch')
+      await mockInput.pressKeys(['f', 'r', 'i'])
+      expect(store.getState().messageSearch.query).toBe('fri')
+      await mockInput.pressKey('RETURN') // runs the search
+      expect(searched).toEqual([['fri', null]]) // unscoped from the inbox
+      await renderOnce()
+      expect(captureCharFrame()).toContain('Friday deploy is green')
+      await mockInput.pressKey('RETURN') // opens the selected hit
+      expect(opened).toEqual(['c2'])
+      expect(store.getState().overlay).toBe('none')
+    })
+
+    test('message search from an open chat scopes to that chat', async () => {
+      const store = openChatStore() // c1 open, conversation focused
+      const searched: Array<[string, string | null]> = []
+      const { renderOnce, mockInput } = await renderApp(store, {
+        onSearchMessages: (q, scope) => searched.push([q, scope]),
+      })
+      await renderOnce()
+      await mockInput.pressKey('S', { shift: true })
+      await mockInput.pressKeys(['h', 'i'])
+      await mockInput.pressKey('RETURN')
+      expect(searched).toEqual([['hi', 'c1']]) // scoped to the active chat
+    })
+
     test('? opens the help overlay listing bindings generated from the keymap', async () => {
       const store = seededStore()
       const { renderOnce, captureCharFrame, mockInput } = await renderApp(store)
@@ -291,6 +391,75 @@ describe('App shell', () => {
       expect(frame).toContain('Compose')
       await mockInput.pressKey('x') // any key dismisses help
       expect(store.getState().overlay).toBe('none')
+    })
+  })
+
+  describe('rail focus navigation (Esc walks out)', () => {
+    test('Esc walks conversation → inbox → rail; l/Enter drills back in', async () => {
+      const store = openChatStore() // c1 open, conversation focused
+      const { renderOnce, mockInput } = await renderApp(store)
+      await renderOnce()
+      expect(store.getState().focus).toBe('conversation')
+      await mockInput.pressKey('h') // conversation → inbox
+      expect(store.getState().focus).toBe('inbox')
+      await mockInput.pressKey('h') // inbox → rail (the new step)
+      expect(store.getState().focus).toBe('rail')
+      await mockInput.pressKey('l') // rail → inbox (drill back in)
+      expect(store.getState().focus).toBe('inbox')
+    })
+
+    test('in the rail, j/k switch networks', async () => {
+      const store = seededStore()
+      store.dispatch({ type: 'focus/changed', focus: 'rail' })
+      const { renderOnce, mockInput } = await renderApp(store)
+      await renderOnce()
+      expect(store.getState().filter.scope).toBe('all')
+      await mockInput.pressKey('j') // next network
+      expect(store.getState().filter.scope).toBe('a') // WhatsApp
+      await mockInput.pressKey('k') // back up
+      expect(store.getState().filter.scope).toBe('all')
+    })
+
+    test('the rail shows a focus indicator when focused', async () => {
+      const store = seededStore()
+      store.dispatch({ type: 'focus/changed', focus: 'rail' })
+      const { renderOnce, captureCharFrame } = await renderApp(store)
+      await renderOnce()
+      expect(captureCharFrame()).toContain('Net●') // focus marker in the rail title
+    })
+  })
+
+  describe('network rail filters', () => {
+    test('] cycles scope to the first network and filters the inbox', async () => {
+      const store = seededStore()
+      const { renderOnce, captureCharFrame, mockInput } = await renderApp(store)
+      await renderOnce()
+      expect(captureCharFrame()).toContain('engineering') // Slack chat visible under All
+      await mockInput.pressKey(']')
+      expect(store.getState().filter.scope).toBe('a') // WhatsApp account
+      await renderOnce()
+      const frame = captureCharFrame()
+      expect(frame).toContain('Grace Hopper') // WhatsApp chat stays
+      expect(frame).not.toContain('engineering') // Slack chat filtered out
+      await mockInput.pressKey('[')
+      expect(store.getState().filter.scope).toBe('all') // wraps back
+    })
+
+    test('a toggles the archived view', async () => {
+      const store = seededStore()
+      const { renderOnce, mockInput } = await renderApp(store)
+      await renderOnce()
+      expect(store.getState().filter.archived).toBe(false)
+      await mockInput.pressKey('a')
+      expect(store.getState().filter.archived).toBe(true)
+    })
+
+    test('U toggles unread-only', async () => {
+      const store = seededStore()
+      const { renderOnce, mockInput } = await renderApp(store)
+      await renderOnce()
+      await mockInput.pressKey('U', { shift: true })
+      expect(store.getState().filter.unreadOnly).toBe(true)
     })
   })
 

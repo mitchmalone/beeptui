@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { formatMessage, formatTime, messageLine } from '@/tui/message-format.ts'
+import { formatMessage, formatSize, formatTime, messageLine } from '@/tui/message-format.ts'
 import type { MessageEntity } from '@/state/types.ts'
 
 // Base omits the optional fields (senderName, text, …) so tests add only what
@@ -51,8 +51,37 @@ describe('formatMessage', () => {
     expect(f.body).not.toContain('undefined')
   })
 
+  test('renders read-only reactions as a trailing summary with counts', () => {
+    const f = formatMessage(
+      message({
+        text: 'ship it',
+        reactions: [
+          { key: '👍', count: 2, isEmoji: true },
+          { key: '🎉', count: 1, isEmoji: true },
+        ],
+      })
+    )
+    expect(f.body).toBe('ship it  👍×2 🎉')
+  })
+
+  test('attachment label includes size when known', () => {
+    const f = formatMessage(
+      message({ attachments: [{ kind: 'image', fileName: 'a.png', fileSize: 20480 }] })
+    )
+    expect(f.body).toBe('[image: a.png · 20 KB]')
+  })
+
   test('a message with no text and no attachments degrades to (no content)', () => {
     expect(formatMessage(message({})).body).toBe('(no content)')
+  })
+})
+
+describe('formatSize', () => {
+  test('renders bytes, KB, MB with sensible rounding', () => {
+    expect(formatSize(512)).toBe('512 B')
+    expect(formatSize(20480)).toBe('20 KB')
+    expect(formatSize(1536)).toBe('1.5 KB')
+    expect(formatSize(1_500_000)).toBe('1.4 MB')
   })
 })
 
@@ -72,5 +101,17 @@ describe('messageLine', () => {
 
   test('omits the time prefix cleanly when the timestamp is unparseable', () => {
     expect(messageLine(message({ senderName: 'X', text: 'y', timestamp: '' }))).toBe('X: y')
+  })
+
+  test('shows a ✓✓ read receipt on our own seen messages, not on inbound or unseen', () => {
+    expect(
+      messageLine(message({ isSender: true, senderName: 'You', text: 'hi', isSeen: true }))
+    ).toContain('✓✓')
+    // Not on an inbound message, even if flagged seen.
+    expect(messageLine(message({ isSender: false, text: 'hi', isSeen: true }))).not.toContain('✓✓')
+    // Not on our own message that isn't seen yet.
+    expect(messageLine(message({ isSender: true, senderName: 'You', text: 'hi' }))).not.toContain(
+      '✓✓'
+    )
   })
 })

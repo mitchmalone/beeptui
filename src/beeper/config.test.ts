@@ -61,4 +61,74 @@ describe('resolveConfig', () => {
     })
     expect(JSON.stringify(cfg)).not.toContain('should-be-ignored')
   })
+
+  test('notify defaults to null and parses a valid command array', () => {
+    expect(resolveConfig({ env: {}, homedir: home, readFile: () => undefined }).notify).toBeNull()
+    const cfg = resolveConfig({
+      env: {},
+      homedir: home,
+      readFile: () => JSON.stringify({ notify: { command: ['terminal-notifier', '-message'] } }),
+    })
+    expect(cfg.notify).toEqual({ command: ['terminal-notifier', '-message'] })
+  })
+
+  test('rejects a malformed notify config with a clear error', () => {
+    expect(() =>
+      resolveConfig({
+        env: {},
+        homedir: home,
+        readFile: () => JSON.stringify({ notify: { command: [] } }),
+      })
+    ).toThrow(/notify\.command/)
+    expect(() =>
+      resolveConfig({
+        env: {},
+        homedir: home,
+        readFile: () => JSON.stringify({ notify: { command: 'not-an-array' } }),
+      })
+    ).toThrow(/notify\.command/)
+  })
+
+  test('keymap defaults to null and parses valid overrides', () => {
+    expect(resolveConfig({ env: {}, homedir: home, readFile: () => undefined }).keymap).toBeNull()
+    const cfg = resolveConfig({
+      env: {},
+      homedir: home,
+      readFile: () => JSON.stringify({ keymap: { quit: ['x'], 'move-down': ['down', 'shift+j'] } }),
+    })
+    expect(cfg.keymap).toEqual({ quit: ['x'], 'move-down': ['down', 'shift+j'] })
+  })
+
+  test('rejects a malformed keymap override with a clear error', () => {
+    expect(() =>
+      resolveConfig({ env: {}, homedir: home, readFile: () => JSON.stringify({ keymap: [] }) })
+    ).toThrow(/keymap.*object/)
+    expect(() =>
+      resolveConfig({
+        env: {},
+        homedir: home,
+        readFile: () => JSON.stringify({ keymap: { quit: 'x' } }),
+      })
+    ).toThrow(/keymap\.quit/)
+  })
+
+  test('theme defaults to null and parses valid network colours', () => {
+    expect(resolveConfig({ env: {}, homedir: home, readFile: () => undefined }).theme).toBeNull()
+    const cfg = resolveConfig({
+      env: {},
+      homedir: home,
+      readFile: () => JSON.stringify({ theme: { networkColors: { WhatsApp: '#123abc' } } }),
+    })
+    expect(cfg.theme).toEqual({ networkColors: { WhatsApp: '#123abc' } })
+  })
+
+  test('rejects a non-hex theme colour with a clear error', () => {
+    expect(() =>
+      resolveConfig({
+        env: {},
+        homedir: home,
+        readFile: () => JSON.stringify({ theme: { networkColors: { WhatsApp: 'green' } } }),
+      })
+    ).toThrow(/networkColors\.WhatsApp.*hex/)
+  })
 })

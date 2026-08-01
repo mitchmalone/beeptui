@@ -5,6 +5,214 @@
 
 ---
 
+### 2026-08-01 — Slice 14 unblocked features: receipts, notification hooks, standalone binary
+
+- **Read receipts were the same map→format pattern as reactions.** `Message.seen` has three shapes
+  (bool | timestamp string | per-user map); `mapSeen` collapses any truthy signal to `isSeen`, and
+  `messageLine` shows `✓✓` only on our own (`isSender`) seen messages. Completes the PRD
+  reactions/edits/receipts display trio — all read-only, no capability gate (display what's there).
+- **Notification hooks stay honest by construction.** `config.notify.command` runs on new inbound
+  messages in a chat you're not reading. The pure part (`shouldNotify` + `notificationText`) is
+  testable; the payload is app + **network name only** — never sender, chat, or body (invariant 6) —
+  and `runNotifier` spawns with an arg array (no shell), best-effort (a missing notifier can't crash
+  the TUI). Config validated with explicit errors so a typo never silently disables it.
+- **`bun build --compile` just works on macOS arm64.** One command → a 69 MB standalone `dist/beeper-tui`
+  that runs `--help`/`doctor`/TUI with no Bun at runtime, native OpenTUI renderer bundled. This was
+  the PRD's flagged compatibility risk (OpenTUI/Bun/Zig on macOS arm64); validated by running the
+  built binary's `doctor` (all checks green). `dist/` was already gitignored.
+- **Where I stopped, and why.** Config keymap overrides is only ~3 call sites in `app.tsx` but crosses
+  the `src/beeper` (config) → `src/tui` (keymap/Command names) layer boundary for validation, plus
+  display-string regeneration — real complexity for a nice-to-have. Left it, perf profiling, media
+  preview, and brew/releases (gated on #6) for a Slice-14 re-plan rather than grind marginal items.
+
+### 2026-08-01 — Slice 13 OAuth core + Slice 14 reactions; security review passed
+
+- **OAuth is fully discoverable — no guessing.** `/v1/info` advertises the whole OAuth 2.0 endpoint
+  set (`endpoints.oauth`: authorize/token/register/introspect/revoke/userinfo — RFC 8414 discovery +
+  RFC 7591 dynamic registration). SDK docstring confirms bearer tokens via "OAuth2 PKCE flow." So the
+  flow is Authorization Code + PKCE against advertised URLs; the SDK doesn't implement it (takes
+  `baseURL`+`accessToken` only) — it's ours. Surfaced the endpoints on `ServerInfo.oauth` so the flow
+  targets discovered URLs, not hard-coded ones.
+- **Kept the flow unit-testable by injecting all I/O.** `authorize` takes `startLoopback`,
+  `openBrowser`, and an `OAuthHttp` (fetch + injected clock) — so register→browser→loopback→exchange
+  is tested end-to-end against a fake auth server with no sockets and deterministic expiry. The real
+  loopback (Bun.serve on 127.0.0.1:0) + browser-open live in `oauth-loopback.ts`, unwired from tests.
+- **Token persistence write is the genuinely-hard gate.** macOS `security add-generic-password -w`
+  puts the secret in argv (invariant 6 violation); a plaintext 0600 file isn't the platform store.
+  Rather than ship either, the flow returns tokens and leaves persistence unimplemented, flagged for
+  the security review to resolve (native binding vs accepted encrypted store). Don't paper over this.
+- **Security review passed** (independent subagent): S256-only PKCE, `crypto.getRandomValues`, state
+  verified pre-exchange, loopback 127.0.0.1-only, exact redirect match, no secret/path leakage,
+  `spawn` with arg arrays (no shell), `basename()` defeats save-path traversal. One non-security fix:
+  `classifyEndpoint` mislabelled `[::1]` (URL.hostname brackets IPv6) — bracket-stripped.
+- **Reactions were as cheap as edits.** `Message.reactions` maps to a per-key aggregate
+  (`ReactionSummary {key,count,isEmoji}`); `formatMessage` appends `👍×2 🎉`. Read-only, no capability
+  gate — display what's there. Same pattern as attachments/edits: map → format → fixture test.
+
+### 2026-07-31 — Slice 12: capability messaging unified; live matrix blocked on unconnected networks
+
+- **One capability-unavailable pattern.** Reply + archive were the only two gated actions, each with
+  its own ad-hoc notice string. Centralized into `src/state/capabilities.ts`: `checkCapability(chat,
+cap)` returns `{allowed}` or `{allowed:false, notice}`, and `capabilityUnavailableMessage` renders
+  one source-naming template ("Replies not available for Slack via Beeper" — PRD scenario 6). Absent
+  flag → allowed (attempt-then-degrade), only an explicit `false` blocks. Verb-agnostic phrasing so
+  one template covers plural (Replies) and singular (Archiving) capabilities.
+- **Live capability matrix (redacted, connected networks).** WhatsApp + Facebook **report** reply
+  support (all chats ✓); Beeper/Matrix doesn't report it; **archive is unreported on all three** →
+  the explicit-unsupported branch is fixture-covered, not live-hit here. Useful truth: the reply gate
+  is grounded in real data; archive leans on attempt-then-degrade for now.
+- **Blocked, honestly.** Discord/Instagram/X aren't connected on this Beeper, so the slice's headline
+  live matrix can't run and **Phase 2 isn't declarable complete**. Recorded as a manual gate rather
+  than faked. The code hardening (the durable deliverable) is done + tested; a burst smoke scenario
+  (12 rapid inbound while scrolled up) proves reading position holds under busy-channel load.
+
+### 2026-07-31 — Slice 11: replies, edits & attachments
+
+- **Reply keys can't use `resolveCommand`.** The plan wanted `r` = reply, but `r` is the global
+  refresh binding and `s` collides with save; `resolveCommand` is context-blind (first match wins).
+  Fix: a message-selection _mode_ (entered with `v`, tracked by `state.selectedMessageId`), and while
+  it's active the app matches `r`/`o`/`s` on the **raw key** before falling through — so the global
+  bindings are untouched outside the mode. The mode keys are documented via a `MESSAGE_SELECT_HELP`
+  block (like `COMPOSE_HELP`), not real KEYMAP entries, to avoid the same collision in help.
+- **Edit-in-place was already free.** `mergeMessages` dedupes by id (`{...existing, ...incoming}`),
+  so an inbound edit with the same id replaces the row; `formatMessage` already appended `(edited)`
+  from `isEdited`. Slice 11 only needed a reducer test to lock it in — no new machinery.
+- **Reply capability is a −2..2 scale.** `chat.capabilities.reply` (−2 rejected … 2 fully) maps to
+  `canReply = reply >= 1`. Gate like archive: `canReply === false` → named notice, else attempt.
+  `undefined` (not reported) → attempt-then-degrade, consistent with archive.
+- **Attachment open/save side-effects are injected.** `openAttachment`/`saveAttachment` (runtime)
+  take a `FileOpener`/`FileSaver` so they stay pure + unit-testable; the real `open`/`xdg-open` +
+  copy-to-Downloads live in `os-open.ts`, wired only in `launch.ts`. Invariant 6: the local path is
+  passed to the OS as a process **argument**, never through a shell or a notice — tests assert the
+  path never appears in any `notice/shown` message (the notice names the _file_, not its location).
+- **Live-validated the read-only halves:** `messages.send`'s `replyToMessageID` param shape, and
+  `assets.download` returning a local path for a real image attachment (redacted). **Did NOT** send a
+  live reply — that posts a real message to a contact (invariant 5), so it's a manual gate for Mitch.
+- **Help overlay overflow (again).** The two-column split was by group _count_; a 5th group made the
+  left column 3 heavy groups tall and its flex boxes **overlapped** (OpenTUI boxes overlap, not clip
+  — the garble the earlier note warned about). Fixed by balancing columns by **row weight** (greedy:
+  each group joins the shorter column). Added a `HelpOverlay` test asserting the balance invariant.
+
+### 2026-07-31 — Slice 10 done: search endpoint live-validated (scope + caps + deep-link)
+
+- Ran a **redacted** live probe against Beeper Desktop's real `messages.search` (3 connected
+  networks: WhatsApp/Facebook/Beeper). Findings that were "unknown until probed" in the plan:
+  - **Scope is genuinely honored server-side.** Chat-scoped search returned only hits in the
+    requested chat; account-scoped returned only hits in the requested account. Our
+    `scopeHonored` cross-check (every hit matches the requested chat/account) came back `true` for
+    both — so the labeled-fallback path is a real safety net, not the normal case, on these networks.
+  - **Results cap/paginate.** A broad query hit the 50-item limit → `capped=true`, as designed.
+  - **Deep-linking is supported.** Every hit carries `id`+`chatId`+`accountId`, so opening a result
+    lands in the right chat and loads its recent page. Anchoring to an _older, off-page_ message is
+    still Slice 11 (needs history paging to the match).
+- **Caveat:** Discord isn't connected on this setup, so the literal scenario-5 network wasn't
+  exercised; the endpoint _semantics_ (the actual risk) were, across three real networks.
+- Probe was throwaway (`local/`, gitignored); prints only counts/booleans/network-types — no message
+  text, ids, or names (invariant 9).
+
+### 2026-07-31 — Slice 10 follow-up: sent messages showed twice
+
+- **Root cause:** the optimistic send path _synthesized_ a "sent" message with the server's
+  `pendingMessageID`, but the live `message.upserted` echo carries the message's own (different) id
+  and the real sender name — so dedup-by-id failed and you saw both `You: …` and `mitchmalone: …`.
+- **Fix:** `send/succeeded` no longer synthesizes anything — it just flips the optimistic message to
+  `sent`, keeping its `clientId`. `mergeMessages` now reconciles: a real self-echo (an `isSender`
+  message with **no** `clientId`) supersedes our optimistic placeholder, matched by chat-local
+  **text** (ids don't line up). `effectiveKey` pins any `clientId`-bearing message to the bottom
+  until its echo replaces it. Reconcile is gated to the `newer` page so loading old history with a
+  repeated phrase can't evict a genuine pending send. Dropped `message` from the `send/succeeded`
+  event and the `sentMessage()` builder.
+- **Text-match caveat:** if Beeper ever echoes transformed text (markdown→HTML) the match could miss
+  and the duplicate return; plain-text sends (the norm) reconcile cleanly. Revisit if it bites.
+
+### 2026-07-31 — Slice 10 follow-up: rail focus + archive action (live-use feedback)
+
+- **The quick-keys-only rail was wrong in the hand.** Live-testing, Mitch pressed `Esc`/`←` to step
+  into the leftmost column and nothing happened. Reversed the 10a decision: the rail is now a real
+  focus target. `FocusTarget` gained `'rail'` (ordered outer→inner: rail → inbox → conversation →
+  compose); `Esc`/`h`/`←` walks out one level, `l`/`→`/`Enter` drills back in. Lesson: a spatial UI
+  element people can _see_ they'll try to _enter_ — don't make it keys-only just to avoid a focus
+  state.
+- **Archive action pulled in from deferred.** `chats.archive(id, {archived})` exists, and the chat
+  payload reports `capabilities.archive` — so we gate honestly: `Shift+A` archives/unarchives the
+  open chat, but a platform that reports `archive:false` gets a named notice and no call (degrade
+  visibly). Non-optimistic (await the call, then refetch → `chats/upserted`) so we never fake
+  success; then deselect + focus the list (gmail-style close).
+- **Added a general `notice` primitive** (`state.notice`, shown in the status bar, cleared on
+  `chat/selected`) rather than overloading the connection `error`. Reusable for future per-action
+  feedback.
+- **Archive works from the list too** (feedback: don't make me open a chat to archive it). `Shift+A`
+  is bound in both inbox and conversation contexts; `archiveChat` takes the target id (not "the open
+  chat") and, after the chat leaves the view, selects the chat that takes its slot so the cursor
+  doesn't jump to the top — quick successive archiving. Needed a store-threaded test harness: the
+  "select next" logic reads `getState()` _after_ the reconcile, which a fixed fake `getState` can't
+  model.
+- **Help overlay went two-column.** Adding bindings pushed it past a 24-row terminal; the nested
+  flex group-boxes _overlap_ (not clip) when they can't fit, silently garbling rows. Splitting groups
+  into two columns halves the height. Watch this ceiling as bindings grow.
+- **Archive "select next" must be computed _before_ the call, not after.** First cut read the list
+  after the reconcile and picked the row in the vacated slot — but Beeper's archived state can
+  propagate a beat late, so the row lingered, selection stayed on it, and when a live event finally
+  removed it the next keypress fell back to the top (`moveSelection`'s not-found → row[0]). Fix:
+  compute the neighbour (below, else above) from the pre-archive list and select it up front.
+- **Per-network colour** (`networkColor`, alongside `networkMarker` in `InboxPane.tsx`) tints the
+  network marker in the chat list, the rail, and the conversation header so networks are scannable.
+  Colours aren't visible in `captureCharFrame`, so it's covered by a pure unit test, not a render one.
+- **Archive is optimistic now** (feedback: the await made it feel slow). Flip state immediately,
+  fire the call in the background, roll back + notice on failure. Dropped the post-call `getChat`
+  refetch entirely — the live `chat.upserted` event reconciles the full object, so the extra
+  round-trip was pure latency. Still honest: a failed archive visibly reappears with a reason.
+- **Typing jank was whole-tree re-render per keystroke.** `Compose` mirrors each key to the store
+  (`draft/changed`) for persistence, and `useSyncExternalStore` re-renders the whole App — so the
+  conversation panel (every message line) repainted on every key. Fix: `memo()` the four panels
+  (Inbox/Rail/Conversation/StatusBar) and derive their props via `useMemo` keyed on the _specific_
+  state slices they read. Since `draft/changed` only replaces `state.drafts`, those memo deps stay
+  referentially identical (guarded by a reducer test), so the panels skip re-rendering while typing.
+  `exhaustive-deps` wants the whole `state`; disabled for that block on purpose (would defeat it).
+- **Title width gotcha:** an OpenTUI `box` `title` longer than the inner width silently renders
+  blank. The width-8 rail dropped `'Net ●'` (5 chars) entirely; `'Net●'` (4) fits. Also `◂` didn't
+  render in the test char-frame but `●` does — mirror ConversationView's proven `●` focus marker.
+
+### 2026-07-31 — Slice 10: network rail, filters & message search
+
+- **The rail is a filter, not a new focus target.** Scope (`[`/`]`), archived (`a`), unread-only
+  (`U`) are app-wide keys handled _before_ the per-focus switch in `app.tsx`, so the
+  `inbox → conversation → compose` flow is untouched. Bracket keys are matched on `key.sequence`
+  (like `/` and `?`) because terminals name them inconsistently; letters go through `resolveCommand`.
+- **`selectInboxRows` is now filter-aware; `selectNetworkRail` derives the rail.** Rail unread dots
+  honor the current archived view (so counts match the visible list) but ignore unread-only (that's
+  a list filter, not a rail concern). Kept marker derivation (`networkMarker`) in the component —
+  `src/state` must not import `src/tui`.
+- **Test-data bug surfaced by scoping:** `app.test.tsx`'s `seededStore` hardcoded `accountId:'a'`
+  for _both_ chats, so a per-account scope couldn't distinguish them. Fixed the helper to map
+  network→account. Lesson: filter/scope features expose latent inconsistencies in shared fixtures.
+- **Message search verifies scope, never trusts it.** The adapter requests `chatIDs`/`accountIDs`
+  but then checks every hit actually matches; a scope-ignoring server reports `scopeHonored:false`
+  so the runtime scopes locally + labels it partial. Server failure → local search over loaded
+  history (labeled partial), or a named error when even that is empty. No silent wrong results
+  (invariant 8).
+- **Message search is a two-phase overlay:** type → `Enter` runs the adapter search; with results,
+  `↑`/`↓` select and `Enter` opens. Disambiguated by `status` (`done` + results → open, else run).
+  `j`/`k` can't move the selection — letters must type — so selection uses arrows only.
+- **Deep-link is honest-partial:** opening a hit selects + loads the chat's recent page; if the hit
+  is older than that page it isn't anchored yet (message-anchored loading is Slice 11 territory).
+  Not a dead control — you land in the right conversation.
+
+### 2026-07-31 — tmux/terminal unread badge
+
+- Shows `1: Beeper [n]` in the tmux status line. The app sets the window **name**
+  to `Beeper [n]`; tmux prepends its own window **index** (`1:`).
+- **Prototyped the escape first** (the one real unknown). OSC 2 sets only the
+  _pane title_; modern tmux `automatic-rename` follows `pane_current_command`, not
+  the title, so the window name stayed `bash`. The native `ESC k` rename escape
+  needs `allow-rename on` (off by default). What works config-free is
+  `tmux rename-window`; restore via `set-window-option -u automatic-rename`.
+- `createStatusWriter` (env/write/tmux-runner injectable → tty-free unit tests)
+  dedupes on the count, so it costs nothing on unrelated store changes (typing).
+  Also verified end-to-end against a real isolated tmux server, not just mocks.
+- **Only ever emits `Beeper [n]`** — no chat name/sender/content in a terminal
+  title (invariant 6). Total unread across non-archived chats.
+
 ### 2026-07-31 — Slice 9: Phase 1 validated & closed
 
 - **Golden-path smoke harness** (`smoke.test.tsx`): drives the real App by keyboard against a fake

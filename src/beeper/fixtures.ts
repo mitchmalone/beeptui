@@ -70,6 +70,7 @@ export const chatsFixture: BeeperDesktop.Chat[] = [
     unreadCount: 0,
     isArchived: false,
     isMuted: true,
+    capabilities: { archive: false, reply: 2 },
     lastActivity: '2026-07-30T01:30:00.000Z',
   },
 ]
@@ -89,7 +90,20 @@ export const messagesFixture: BeeperDesktop.Message[] = [
     type: 'TEXT',
     editedTimestamp: '2026-07-30T01:59:30.000Z',
     linkedMessageID: 'msg-0',
-    attachments: [{ type: 'img', fileName: 'diagram.png' }],
+    attachments: [
+      {
+        type: 'img',
+        fileName: 'diagram.png',
+        id: 'mxc://beeper.local/diagram',
+        fileSize: 20480,
+        mimeType: 'image/png',
+      },
+    ],
+    reactions: [
+      { id: 'p1👍', participantID: 'p1', reactionKey: '👍', emoji: true },
+      { id: 'p2👍', participantID: 'p2', reactionKey: '👍', emoji: true },
+      { id: 'p3🎉', participantID: 'p3', reactionKey: '🎉', emoji: true },
+    ],
   },
   {
     id: 'msg-2',
@@ -109,3 +123,34 @@ export const sendFixture: BeeperDesktop.MessageSendResponse = {
   chatID: '!wa-1:beeper.local',
   pendingMessageID: 'pending-abc123',
 }
+
+/** Search hits spanning two chats — used to exercise scope-honoring detection
+ *  (a server that ignores a chat scope returns the out-of-scope hit too). */
+export const searchFixture: BeeperDesktop.Message[] = [
+  {
+    id: 'search-wa-1',
+    accountID: 'local-whatsapp',
+    chatID: '!wa-1:beeper.local',
+    senderID: 'wa-grace',
+    senderName: 'Grace Hopper',
+    sortKey: '0000000010',
+    timestamp: '2026-07-30T03:00:00.000Z',
+    text: 'Are we still on for Friday?',
+    isSender: false,
+    isUnread: false,
+    type: 'TEXT',
+  },
+  {
+    id: 'search-slack-1',
+    accountID: 'slackgo.ACME-ada',
+    chatID: '!slack-1:beeper.local',
+    senderID: 'slack-bob',
+    senderName: 'Bob',
+    sortKey: '0000000011',
+    timestamp: '2026-07-30T03:05:00.000Z',
+    text: 'Friday deploy is green.',
+    isSender: false,
+    isUnread: false,
+    type: 'TEXT',
+  },
+]

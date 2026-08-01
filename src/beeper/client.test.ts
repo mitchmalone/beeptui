@@ -5,6 +5,7 @@ import {
   chatsFixture,
   infoFixture,
   messagesFixture,
+  searchFixture,
   sendFixture,
 } from '@/beeper/fixtures.ts'
 
@@ -96,6 +97,62 @@ describe('BeeperAdapter happy paths', () => {
     expect(sentQuery).toContain('direction=before')
   })
 
+  test('searchMessages returns mapped hits and reports scope honored when unscoped', async () => {
+    const a = adapter(
+      fakeFetch((_m, p) => (p.endsWith('/messages/search') ? page(searchFixture) : json({}, 404)))
+    )
+    const result = await a.searchMessages('Friday')
+    expect(result.messages.map((m) => m.id)).toEqual(['search-wa-1', 'search-slack-1'])
+    expect(result.scopeHonored).toBe(true) // nothing requested to honor
+    expect(result.capped).toBe(false)
+  })
+
+  test('searchMessages passes the query and chat scope', async () => {
+    let sentQuery = ''
+    const capturing = (async (input: string | URL | Request) => {
+      const url = new URL(typeof input === 'string' ? input : input.toString())
+      sentQuery = url.search
+      return page(searchFixture)
+    }) as unknown as typeof fetch
+    await adapter(capturing).searchMessages('Friday', { accountId: 'local-whatsapp' })
+    expect(sentQuery).toContain('query=Friday')
+    expect(sentQuery).toContain('local-whatsapp')
+  })
+
+  test('a scope-ignoring server is detected (scopeHonored false), never silently wrong', async () => {
+    // We ask for one chat; the server returns hits from another chat too.
+    const a = adapter(
+      fakeFetch((_m, p) => (p.endsWith('/messages/search') ? page(searchFixture) : json({}, 404)))
+    )
+    const result = await a.searchMessages('Friday', { chatId: '!wa-1:beeper.local' })
+    expect(result.messages.length).toBe(2) // includes the out-of-scope slack hit
+    expect(result.scopeHonored).toBe(false) // so the caller can fall back / label
+  })
+
+  test('a scope-honoring server reports scopeHonored true', async () => {
+    const onlyWa = searchFixture.filter((m) => m.chatID === '!wa-1:beeper.local')
+    const a = adapter(
+      fakeFetch((_m, p) => (p.endsWith('/messages/search') ? page(onlyWa) : json({}, 404)))
+    )
+    const result = await a.searchMessages('Friday', { chatId: '!wa-1:beeper.local' })
+    expect(result.scopeHonored).toBe(true)
+    expect(result.messages.map((m) => m.id)).toEqual(['search-wa-1'])
+  })
+
+  test('setArchived posts to the archive endpoint with the archived flag', async () => {
+    let body: unknown = null
+    let path = ''
+    const capturing = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(typeof input === 'string' ? input : input.toString())
+      path = url.pathname
+      body = init?.body ? JSON.parse(String(init.body)) : null
+      return json({})
+    }) as unknown as typeof fetch
+    await adapter(capturing).setArchived('!wa-1:beeper.local', true)
+    expect(path).toContain('/archive')
+    expect(body).toMatchObject({ archived: true })
+  })
+
   test('sendMessage posts and returns the pending id', async () => {
     let sawPost = false
     const a = adapter(
@@ -110,6 +167,48 @@ describe('BeeperAdapter happy paths', () => {
     const result = await a.sendMessage('!wa-1:beeper.local', 'On it.')
     expect(sawPost).toBe(true)
     expect(result.pendingMessageId).toBe('pending-abc123')
+  })
+
+  test('sendMessage carries replyToMessageID when replying', async () => {
+    let body: Record<string, unknown> | null = null
+    const capturing = (async (_input: string | URL | Request, init?: RequestInit) => {
+      body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : null
+      return json(sendFixture)
+    }) as unknown as typeof fetch
+    await adapter(capturing).sendMessage('!wa-1:beeper.local', 'On it.', {
+      replyToId: 'msg-original',
+    })
+    expect(body).toMatchObject({ text: 'On it.', replyToMessageID: 'msg-original' })
+  })
+
+  test('sendMessage omits replyToMessageID for a plain send', async () => {
+    let body: Record<string, unknown> | null = null
+    const capturing = (async (_input: string | URL | Request, init?: RequestInit) => {
+      body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : null
+      return json(sendFixture)
+    }) as unknown as typeof fetch
+    await adapter(capturing).sendMessage('!wa-1:beeper.local', 'Hi.')
+    expect(body).not.toHaveProperty('replyToMessageID')
+  })
+
+  test('downloadAttachment posts the id and returns the local path', async () => {
+    let path = ''
+    let body: Record<string, unknown> | null = null
+    const capturing = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(typeof input === 'string' ? input : input.toString())
+      path = url.pathname
+      body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : null
+      return json({ srcURL: '/cache/beeper/file.png' })
+    }) as unknown as typeof fetch
+    const result = await adapter(capturing).downloadAttachment('mxc://beeper.local/abc')
+    expect(path).toContain('/assets/download')
+    expect(body).toMatchObject({ url: 'mxc://beeper.local/abc' })
+    expect(result.localPath).toBe('/cache/beeper/file.png')
+  })
+
+  test('downloadAttachment throws when the server reports an error', async () => {
+    const a = adapter(fakeFetch(() => json({ error: 'not found' })))
+    await expect(a.downloadAttachment('mxc://beeper.local/missing')).rejects.toBeTruthy()
   })
 })
 

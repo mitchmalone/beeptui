@@ -20,6 +20,14 @@ describe('mapInfo', () => {
       port: 23373,
       remoteAccessEnabled: false,
       wsEventsUrl: 'ws://127.0.0.1:23373/v1/ws',
+      oauth: {
+        authorizationEndpoint: 'http://127.0.0.1:23373/oauth/authorize',
+        tokenEndpoint: 'http://127.0.0.1:23373/oauth/token',
+        registrationEndpoint: 'http://127.0.0.1:23373/oauth/register',
+        introspectionEndpoint: 'http://127.0.0.1:23373/oauth/introspect',
+        revocationEndpoint: 'http://127.0.0.1:23373/oauth/revoke',
+        userinfoEndpoint: 'http://127.0.0.1:23373/oauth/userinfo',
+      },
     })
   })
 })
@@ -55,6 +63,27 @@ describe('mapChat', () => {
     })
     expect(slack?.isMuted).toBe(true)
   })
+
+  test('surfaces the archive capability when reported, omits it when absent', () => {
+    const [wa, slack] = chatsFixture.map(mapChat)
+    expect(slack?.canArchive).toBe(false) // capabilities.archive: false
+    expect(wa && 'canArchive' in wa).toBe(false) // no capabilities → key omitted
+  })
+
+  test('surfaces the reply capability (>= 1 supported) when reported, omits it when absent', () => {
+    const [wa, slack] = chatsFixture.map(mapChat)
+    expect(slack?.canReply).toBe(true) // capabilities.reply: 2 → supported
+    expect(wa && 'canReply' in wa).toBe(false) // no capabilities → key omitted
+  })
+
+  test('maps a non-supporting reply capability (< 1) to canReply false', () => {
+    const [rejected, dropped] = [
+      mapChat({ ...chatsFixture[1]!, capabilities: { reply: 0 } }),
+      mapChat({ ...chatsFixture[1]!, capabilities: { reply: -2 } }),
+    ]
+    expect(rejected.canReply).toBe(false)
+    expect(dropped.canReply).toBe(false)
+  })
 })
 
 describe('mapMessage', () => {
@@ -77,12 +106,39 @@ describe('mapMessage', () => {
     expect(withMeta).toMatchObject({
       isEdited: true,
       replyToId: 'msg-0',
-      attachments: [{ kind: 'image', fileName: 'diagram.png' }],
+      attachments: [
+        {
+          kind: 'image',
+          fileName: 'diagram.png',
+          id: 'mxc://beeper.local/diagram',
+          fileSize: 20480,
+          mimeType: 'image/png',
+        },
+      ],
     })
     // Plain message carries none of the optional keys.
     expect(plain && 'isEdited' in plain).toBe(false)
     expect(plain && 'replyToId' in plain).toBe(false)
     expect(plain && 'attachments' in plain).toBe(false)
+    expect(plain && 'reactions' in plain).toBe(false)
+  })
+
+  test('aggregates reactions by key with counts; omits when absent', () => {
+    const [withMeta, plain] = messagesFixture.map(mapMessage)
+    expect(withMeta?.reactions).toEqual([
+      { key: '👍', count: 2, isEmoji: true },
+      { key: '🎉', count: 1, isEmoji: true },
+    ])
+    expect(plain && 'reactions' in plain).toBe(false)
+  })
+
+  test('collapses the seen read-receipt shape (bool / string / per-user map) to isSeen', () => {
+    const base = messagesFixture[1]! // plain outgoing message
+    expect(mapMessage({ ...base, seen: true }).isSeen).toBe(true)
+    expect(mapMessage({ ...base, seen: '2026-07-30T02:00:05Z' }).isSeen).toBe(true)
+    expect(mapMessage({ ...base, seen: { u1: true, u2: false } }).isSeen).toBe(true)
+    expect(mapMessage({ ...base, seen: false }).isSeen).toBeUndefined() // omitted when unseen
+    expect('isSeen' in mapMessage(base)).toBe(false) // absent → omitted
   })
 })
 

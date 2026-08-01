@@ -7,9 +7,13 @@ export interface ComposeProps {
   draft: string
   focused: boolean
   hasFailedSend: boolean
+  /** Reply context to show above the editor while replying, or null. */
+  replyContext?: { sender: string; snippet: string } | null
   onEdit: (text: string) => void
   onSend: (text: string) => void
   onBlur: () => void
+  /** Cancel an in-progress reply (called when blurring while replying). */
+  onCancelReply?: () => void
 }
 
 const CARET = '▏'
@@ -26,7 +30,16 @@ interface EditorState {
  * persistence. Enter sends only a non-empty message — the single explicit send
  * trigger (invariant 5).
  */
-export function Compose({ draft, focused, hasFailedSend, onEdit, onSend, onBlur }: ComposeProps) {
+export function Compose({
+  draft,
+  focused,
+  hasFailedSend,
+  replyContext,
+  onEdit,
+  onSend,
+  onBlur,
+  onCancelReply,
+}: ComposeProps) {
   const [editor, setEditor] = useState<EditorState>(() => ({ text: draft, cursor: draft.length }))
   const ref = useRef(editor)
   ref.current = editor
@@ -58,6 +71,9 @@ export function Compose({ draft, focused, hasFailedSend, onEdit, onSend, onBlur 
         }
         break
       case 'blur':
+        // Leaving compose abandons an in-progress reply so the quoted context
+        // can't linger on the next message.
+        if (replyContext) onCancelReply?.()
         onBlur()
         break
       case 'none':
@@ -82,6 +98,11 @@ export function Compose({ draft, focused, hasFailedSend, onEdit, onSend, onBlur 
         paddingRight: 1,
       }}
     >
+      {replyContext ? (
+        <text style={{ fg: '#38bdf8' }}>
+          {`↩ Replying to ${replyContext.sender}: ${replyContext.snippet}  (Esc to cancel)`}
+        </text>
+      ) : null}
       {showPlaceholder ? (
         <text style={{ fg: '#94a3b8' }}>Press Tab to write a message…</text>
       ) : (

@@ -88,6 +88,47 @@ bun run format       # prettier --write
 bun test             # bun:test — unit + component tests
 ```
 
+## Install
+
+`beeper-tui` runs against a local Beeper Desktop (with the API enabled in its
+settings). Two ways to install:
+
+```bash
+# 1. A standalone binary (no Bun needed at runtime) — validated on macOS arm64.
+bun run build              # → dist/beeper-tui (a single ~69 MB executable)
+./dist/beeper-tui doctor   # verify the connection + auth
+./dist/beeper-tui          # launch the TUI
+
+# 2. Directly, if you have Bun.
+bunx beeper-tui doctor
+```
+
+Commands: `beeper-tui` (TUI), `beeper-tui status`, `beeper-tui doctor` (add
+`--json` for machine-readable output).
+
+## Configuration
+
+Optional config lives at `$XDG_CONFIG_HOME/beeper-tui/config.json` (default
+`~/.config/beeper-tui/config.json`). It never holds secrets — tokens live in the
+platform credential store.
+
+```jsonc
+{
+  // Point at a non-default endpoint (env BEEPER_TUI_ENDPOINT takes precedence).
+  "endpoint": "http://127.0.0.1:23373",
+  // Run a command on each new inbound message in a chat you're not reading.
+  // The command receives ONE extra argument: "beeper-tui: new message on <Network>".
+  // Only the app name + network are ever passed — never a sender, chat, or message body.
+  "notify": { "command": ["terminal-notifier", "-title", "Beeper", "-message"] },
+  // Rebind keys: command name → key tokens (e.g. "down", "shift+j", "ctrl+n").
+  // Unknown commands or empty lists fail fast with a clear error. Press ? for the
+  // command list; the help overlay reflects your overrides.
+  "keymap": { "quit": ["x"], "refresh": ["ctrl+r"] },
+  // Override the per-network accent colours (hex). Unlisted networks keep theirs.
+  "theme": { "networkColors": { "WhatsApp": "#25d366", "Slack": "#611f69" } },
+}
+```
+
 ## Stack
 
 TypeScript (strict, ESM) · Bun · OpenTUI (`@opentui/react` + `@opentui/keymap`) · SQLite for local
