@@ -18,7 +18,7 @@ import type { OAuthEndpoints, ServerInfo } from '@/beeper/types.ts'
 import { resolveToken } from '@/beeper/keychain.ts'
 
 /**
- * The OAuth session lifecycle (Slice 13): tie the PKCE flow (`oauth.ts`) to
+ * The OAuth session lifecycle: tie the PKCE flow (`oauth.ts`) to
  * persistent storage (`token-store.ts`). Pure orchestration with injected deps
  * (secret store, HTTP + clock, `getInfo`) so login/logout/refresh/resolution are
  * unit-tested without a live endpoint or the real keychain.

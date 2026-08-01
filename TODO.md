@@ -29,6 +29,14 @@ accounts/endpoints that don't exist in the current environment.
 - [ ] Confirm `launch`/`status`/`doctor` resolve the stored remote token; confirm `logout` revokes.
 - [ ] Note the first-real-endpoint result in `PLAN-slice-13` / `STATUS.md`.
 
+## Open-source flip — history rewrite first (decided 2026-08-01)
+
+- [ ] Run `git filter-repo` to drop the 59 MB `.bun-build` blob (committed in PR #12, untracked
+      2026-08-01) and the private Notion URL from history. Safe while the repo is private; do it
+      **immediately before** flipping public (`DECISIONS.md` 2026-08-01). Force-push rewrites
+      `main` — re-clone afterwards.
+- [ ] Then flip the repo public (closes decision #6).
+
 ## Slice 11 — per-network reply rendering (minor)
 
 - [ ] Note per-network reply rendering (threaded vs quoted vs unsupported) in `LEARNINGS.md` as

@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path'
 import type { SecretStore } from '@/beeper/token-store.ts'
 
 /**
- * Encrypted-file fallback for the token store (Slice 13). Used only where
+ * Encrypted-file fallback for the token store. Used only where
  * `Bun.secrets` has no OS keyring to talk to — headless Linux / minimal
  * containers with no Secret Service daemon. Everywhere else uses the platform
  * credential store directly.

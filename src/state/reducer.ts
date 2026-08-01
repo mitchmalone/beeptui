@@ -14,7 +14,7 @@ function assertNever(value: never): never {
   throw new Error(`Unhandled AppEvent: ${JSON.stringify(value)}`)
 }
 
-// ── Chat ordering ──────────────────────────────────────────────────────────
+// ── Chat ordering ───────────────────────────────────────────────────────
 
 /** Inbox order: most recent activity first; chats without activity sort last,
  *  ties broken by id for determinism. */
@@ -30,7 +30,7 @@ function orderChats(chats: Record<string, ChatSummary>): string[] {
   })
 }
 
-// ── Message windows ────────────────────────────────────────────────────────
+// ── Message windows ─────────────────────────────────────────────────────
 
 function toEntity(message: MessageSummary): MessageEntity {
   return { ...message, status: 'sent' }
@@ -91,9 +91,16 @@ function mergeMessages(
     byId.set(m.id, existing ? { ...existing, ...m } : m)
   }
   const merged = [...byId.values()].sort((a, b) => effectiveKey(a).localeCompare(effectiveKey(b)))
+  const items = capWindow(merged, page)
+  // Live growth that evicts from the front makes older history real again, even
+  // for a window that had been paged back to its start — claiming "start of
+  // conversation" after eviction would be silently wrong. (If the cursor is
+  // stale or null, scrollback refetches what it can; reopening the chat reloads
+  // the newest page cleanly.)
+  const evictedOldest = page === 'newer' && items.length < merged.length
   return {
-    items: capWindow(merged, page),
-    hasMoreOlder: window?.hasMoreOlder ?? false,
+    items,
+    hasMoreOlder: evictedOldest || (window?.hasMoreOlder ?? false),
     olderCursor: window?.olderCursor ?? null,
   }
 }
@@ -121,7 +128,7 @@ function mapWindowItems(
   }
 }
 
-// ── Reducer ──────────────────────────────────────────────────────────────
+// ── Reducer ─────────────────────────────────────────────────────────────
 
 /**
  * The single pure transition function. `(state, event) => state`, no I/O, never
@@ -164,6 +171,14 @@ export function reduce(state: AppState, event: AppEvent): AppState {
 
     case 'message/received': {
       const chatId = event.message.chatId
+      // Bounded memory: live messages are only buffered into windows that
+      // already exist (open now or viewed earlier) or the selected chat. Any
+      // other chat's list row still updates via `chats/upserted`, and its
+      // history loads on open — buffering every chat that receives traffic
+      // would grow with the whole account.
+      if (state.messagesByChat[chatId] === undefined && chatId !== state.selectedChatId) {
+        return state
+      }
       const before = state.messagesByChat[chatId]?.items.length ?? 0
       const next = withChatMessages(state, chatId, (window) =>
         mergeMessages(window, [toEntity(event.message)], 'newer')

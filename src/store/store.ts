@@ -115,7 +115,11 @@ export function openUiStore(options: OpenOptions = {}): UiStore {
 
     getCachedChats() {
       const rows = db
-        .query(`SELECT * FROM chat_cache ORDER BY last_activity DESC`)
+        .query(
+          `SELECT id, account_id, network, title, type, unread_count, is_archived, is_muted,
+                  last_activity
+           FROM chat_cache ORDER BY last_activity DESC`
+        )
         .all() as CachedChatRow[]
       return rows.map((row) => ({
         id: row.id,

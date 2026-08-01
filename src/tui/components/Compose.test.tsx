@@ -41,7 +41,8 @@ describe('Compose', () => {
       { width: 60, height: 6 }
     )
     await renderOnce()
-    expect(captureCharFrame()).toContain('press R to retry')
+    // The hint spells out leaving compose first — while focused, R just types.
+    expect(captureCharFrame()).toContain('Esc, then R to retry')
   })
 
   test('shows the reply context header when replying', async () => {

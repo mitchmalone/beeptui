@@ -12,16 +12,18 @@ import {
 } from '@/beeper/index.ts'
 import { formatDoctor, runDoctor } from '@/cli/doctor.ts'
 import { runStatus } from '@/cli/status.ts'
+import { version } from '../../package.json'
 
 const USAGE = `beeper-tui — a terminal client for Beeper
 
 Usage:
-  beeper-tui              Launch the TUI
+  beeper-tui              Launch the TUI (alias: run)
   beeper-tui status       Show endpoint, auth state, and connected accounts
   beeper-tui doctor       Run diagnostic checks (non-zero exit on any failure)
   beeper-tui login        Authenticate a remote endpoint via OAuth (browser)
   beeper-tui logout       Revoke + forget the stored OAuth session
   beeper-tui --help       Show this help
+  beeper-tui --version    Show the version
 
 Flags:
   --json                  Machine-readable output (status, doctor)
@@ -118,6 +120,10 @@ async function main(argv: string[]): Promise<void> {
     case '-h':
       console.log(USAGE)
       return
+    case '--version':
+    case '-v':
+      console.log(version)
+      return
     default:
       console.error(`Unknown command: ${command}\n`)
       console.error(USAGE)
@@ -125,4 +131,10 @@ async function main(argv: string[]): Promise<void> {
   }
 }
 
-await main(process.argv.slice(2))
+try {
+  await main(process.argv.slice(2))
+} catch (err) {
+  // One honest line, never a raw stack trace — e.g. a malformed config file.
+  console.error(err instanceof Error ? err.message : String(err))
+  process.exit(1)
+}

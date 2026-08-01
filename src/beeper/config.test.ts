@@ -53,6 +53,32 @@ describe('resolveConfig', () => {
     )
   })
 
+  test('rejects plain http for a non-loopback endpoint (token would transit cleartext)', () => {
+    expect(() =>
+      resolveConfig({
+        env: { BEEPER_TUI_ENDPOINT: 'http://my-vps.example:23373' },
+        homedir: home,
+        readFile: () => undefined,
+      })
+    ).toThrow(/https/i)
+  })
+
+  test('allows http for loopback hosts and https for remote hosts', () => {
+    for (const endpoint of [
+      'http://localhost:23373',
+      'http://127.0.0.1:23373',
+      'http://[::1]:23373',
+      'https://remote.example:23373',
+    ]) {
+      const cfg = resolveConfig({
+        env: { BEEPER_TUI_ENDPOINT: endpoint },
+        homedir: home,
+        readFile: () => undefined,
+      })
+      expect(cfg.endpoint).toBe(endpoint)
+    }
+  })
+
   test('never sources a token from the config file (config holds no secrets)', () => {
     const cfg = resolveConfig({
       env: {},

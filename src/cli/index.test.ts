@@ -62,4 +62,19 @@ describe('beeper-tui CLI', () => {
     expect(code).toBe(2)
     expect(stderr).toMatch(/unknown command/i)
   })
+
+  test('--version prints the version and exits 0', async () => {
+    const { code, stdout } = await runCli(['--version'])
+    expect(code).toBe(0)
+    expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/)
+  })
+
+  test('a bad config surfaces one clear line, not a stack trace', async () => {
+    const { code, stderr } = await runCli(['status'], {
+      BEEPER_TUI_ENDPOINT: 'http://not-loopback.example:23373',
+    })
+    expect(code).toBe(1)
+    expect(stderr).toMatch(/https/i)
+    expect(stderr).not.toMatch(/at .*\.ts:\d+/) // no stack frames
+  })
 })

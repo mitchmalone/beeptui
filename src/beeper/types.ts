@@ -1,4 +1,5 @@
 import type BeeperDesktop from '@beeper/desktop-api'
+import { validateOAuthEndpoints } from '@/beeper/oauth.ts'
 
 /**
  * Domain models the rest of the app consumes. These are intentionally leaner
@@ -10,7 +11,7 @@ import type BeeperDesktop from '@beeper/desktop-api'
 /**
  * OAuth 2.0 endpoints the server advertises via `/v1/info` (RFC 8414-style
  * discovery + RFC 7591 dynamic client registration). The groundwork for the
- * Slice 13 remote-endpoint auth flow: PKCE authorize → token, with dynamic
+ * remote-endpoint auth flow: PKCE authorize → token, with dynamic
  * registration. Surfaced now (read-only) so the flow can be built against the
  * server's own advertised endpoints rather than hard-coded URLs.
  */
@@ -32,7 +33,7 @@ export interface ServerInfo {
   port: number
   remoteAccessEnabled: boolean
   wsEventsUrl: string
-  /** OAuth endpoints advertised by the server (Slice 13 remote-auth groundwork). */
+  /** OAuth endpoints advertised by the server (remote-auth discovery). */
   oauth: OAuthEndpoints
 }
 
@@ -76,8 +77,8 @@ export interface AttachmentSummary {
   mimeType?: string
 }
 
-/** A reaction on a message, aggregated by key across participants (read-only,
- *  Slice 14). `count` is how many participants reacted with this key. */
+/** A reaction on a message, aggregated by key across participants (read-only
+ *  display). `count` is how many participants reacted with this key. */
 export interface ReactionSummary {
   key: string
   count: number
@@ -99,11 +100,11 @@ export interface MessageSummary {
   isEdited?: boolean
   /** Id of the message this replies to, if any. */
   replyToId?: string
-  /** Attachment placeholders (open/download is Slice 11). */
+  /** Attachments on the message (openable/savable via the download endpoint). */
   attachments?: AttachmentSummary[]
-  /** Reactions aggregated by key (read-only display, Slice 14). */
+  /** Reactions aggregated by key (read-only display). */
   reactions?: ReactionSummary[]
-  /** True when a read receipt reports this message as seen (read-only, Slice 14).
+  /** True when a read receipt reports this message as seen (read-only).
    *  Only meaningful on our own sent messages. */
   isSeen?: boolean
 }
@@ -123,14 +124,16 @@ export function mapInfo(info: BeeperDesktop.Info.InfoRetrieveResponse): ServerIn
     port: info.server.port,
     remoteAccessEnabled: info.server.remote_access,
     wsEventsUrl: info.endpoints.ws_events,
-    oauth: {
+    // Discovery is where the server names the URLs we will send credentials to —
+    // validated here so no consumer can use an unvetted endpoint set.
+    oauth: validateOAuthEndpoints({
       authorizationEndpoint: info.endpoints.oauth.authorization_endpoint,
       tokenEndpoint: info.endpoints.oauth.token_endpoint,
       registrationEndpoint: info.endpoints.oauth.registration_endpoint,
       introspectionEndpoint: info.endpoints.oauth.introspection_endpoint,
       revocationEndpoint: info.endpoints.oauth.revocation_endpoint,
       userinfoEndpoint: info.endpoints.oauth.userinfo_endpoint,
-    },
+    }),
   }
 }
 

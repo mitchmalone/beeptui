@@ -3,7 +3,7 @@ import { rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { openUiStore } from '@/store/store.ts'
 import { attachPersistence } from '@/store/persistence.ts'
-import { createStore } from '@/tui/store.ts'
+import { createStore } from '@/state/store.ts'
 import type { ChatSummary } from '@/beeper/types.ts'
 
 let counter = 0

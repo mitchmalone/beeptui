@@ -1,4 +1,4 @@
-import type { Store } from '@/tui/store.ts'
+import type { Store } from '@/state/store.ts'
 import type { AppState } from '@/state/types.ts'
 import type { UiStore } from '@/store/store.ts'
 
@@ -17,7 +17,9 @@ export interface AttachOptions {
 const DEFAULT_DEBOUNCE_MS = 400
 
 /** The persisted scroll anchor: the message id at the top of the visible window,
- *  or null when pinned to the newest message. Restored "where safe" later. */
+ *  or null when pinned to the newest message. Persisted but not yet restored on
+ *  hydrate — restoring requires paging history to the anchored message, a
+ *  tracked follow-up (`TODO.md`); reopening currently lands on the newest page. */
 function scrollAnchorId(state: AppState): string | null {
   const id = state.selectedChatId
   if (id === null || state.conversationOffset === 0) return null
@@ -53,6 +55,9 @@ export function attachPersistence(
   }
 
   // ── Persist (write-through) ───────────────────────────────────────────────
+  // Deliberately a full rewrite of drafts + view state + chat cache on each
+  // (debounced) run: at UI-store scale that is cheaper than diffing, and it
+  // keeps the persisted picture impossible to drift from state.
   function persist(): void {
     const state = app.getState()
 

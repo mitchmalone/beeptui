@@ -11,7 +11,7 @@ links:
 # Slice 14 — Polish, power features & packaging
 
 > Phase 3 — coarse outline. **Re-plan (likely split into 2–4 slices) before starting.** Scope also
-> depends on pending decisions #1 (name) and #6 (private vs open-source).
+> depends on pending decision #6 (private vs open-source); naming (#1) was resolved 2026-07-30.
 
 ## Goal
 
@@ -66,5 +66,5 @@ between "works for Mitch's checkout" and "a tool someone installs".
 
 ## Risks / open questions
 
-- Naming decision blocks public packaging (pending decision #1); open-source decision (#6) gates
-  license, repo hygiene, and README audience.
+- Open-source decision (#6) gates license, repo hygiene, and README audience (naming — #1 — is
+  resolved: `beeper-tui`).

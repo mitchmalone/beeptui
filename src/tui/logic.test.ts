@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { createStore } from '@/tui/store.ts'
+import { createStore } from '@/state/store.ts'
 import { edgeSelection, moveSelection } from '@/tui/navigation.ts'
 import { helpGroups, KEYMAP, keyToken, resolveCommand } from '@/tui/keymap.ts'
 import type { InboxRow } from '@/state/selectors.ts'

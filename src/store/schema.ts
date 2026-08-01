@@ -64,7 +64,9 @@ export function runMigrations(db: Database, migrations: Migration[] = MIGRATIONS
 
   for (let i = version; i < migrations.length; i++) {
     const migrate = migrations[i]
-    if (migrate === undefined) continue
+    // A hole in the migration list means the upgrade path is corrupt — refuse
+    // rather than skip a version and claim it ran.
+    if (migrate === undefined) throw new Error(`Missing migration for schema version ${i + 1}`)
     const apply = db.transaction(() => {
       migrate(db)
       db.query(`UPDATE schema_meta SET version = ?`).run(i + 1)

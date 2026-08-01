@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { applyKeymapOverrides, helpGroups, KEYMAP, resolveCommand } from '@/tui/keymap.ts'
+import {
+  applyKeymapOverrides,
+  helpGroups,
+  KEYMAP,
+  resolveCommand,
+  resolveKey,
+} from '@/tui/keymap.ts'
 
 describe('resolveCommand', () => {
   test('resolves against the base keymap by default', () => {
@@ -9,7 +15,7 @@ describe('resolveCommand', () => {
   })
 })
 
-describe('applyKeymapOverrides (Slice 14)', () => {
+describe('applyKeymapOverrides', () => {
   test('replaces a command’s keys and regenerates its help display', () => {
     const effective = applyKeymapOverrides({ quit: ['x'] })
     // The rebound key now resolves; the old one no longer does.
@@ -39,6 +45,41 @@ describe('applyKeymapOverrides (Slice 14)', () => {
     const before = KEYMAP.find((b) => b.command === 'quit')?.keys
     applyKeymapOverrides({ quit: ['x'] })
     expect(KEYMAP.find((b) => b.command === 'quit')?.keys).toEqual(before ?? [])
+  })
+})
+
+describe('resolveKey (raw-character fallback + direction)', () => {
+  test('punctuation resolves by the typed character even when the key name differs', () => {
+    // '?' arrives as shift+'/' in many terminals — the raw sequence must still hit.
+    expect(resolveKey({ name: '/', shift: true, sequence: '?' })?.command).toBe('help')
+    expect(resolveKey({ name: 'slash', sequence: '/' })?.command).toBe('search')
+  })
+
+  test('network-cycle reports which key matched so the caller knows the direction', () => {
+    expect(resolveKey({ name: ']', sequence: ']' })).toEqual({
+      command: 'network-cycle',
+      keyIndex: 0,
+    })
+    expect(resolveKey({ name: '[', sequence: '[' })).toEqual({
+      command: 'network-cycle',
+      keyIndex: 1,
+    })
+  })
+
+  test('search/help/network-cycle rebinds are honoured, not silently ignored', () => {
+    const effective = applyKeymapOverrides({
+      search: ['f'],
+      help: ['shift+h'],
+      'network-cycle': ['n', 'p'],
+    })
+    expect(resolveKey({ name: 'f', sequence: 'f' }, effective)?.command).toBe('search')
+    expect(resolveKey({ name: 'h', shift: true, sequence: 'H' }, effective)?.command).toBe('help')
+    expect(resolveKey({ name: 'n', sequence: 'n' }, effective)).toEqual({
+      command: 'network-cycle',
+      keyIndex: 0,
+    })
+    // The old keys no longer fire the commands.
+    expect(resolveKey({ name: '/', sequence: '/' }, effective)?.command).toBeUndefined()
   })
 })
 

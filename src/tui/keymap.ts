@@ -1,5 +1,5 @@
 /**
- * The single source of truth for keybindings. The Slice 8 help overlay is
+ * The single source of truth for keybindings. The help overlay is
  * generated from this table (CLAUDE.md keymap intent; see docs/DECISIONS.md for
  * why this is in-repo rather than `@opentui/keymap`).
  */
@@ -165,6 +165,13 @@ export const COMPOSE_HELP: ReadonlyArray<{ display: string; description: string 
   { display: 'Esc / Tab', description: 'Back to conversation' },
 ]
 
+/** Network-rail keys (while the rail has focus); j/k reuse the move bindings and
+ *  drill-in mirrors `open`, so these are listed for the help overlay only. */
+export const RAIL_HELP: ReadonlyArray<{ display: string; description: string }> = [
+  { display: 'j / k', description: 'Switch network' },
+  { display: '⏎ / l / →', description: 'Back into the chat list' },
+]
+
 /** Message-selection keys (active after `v`); handled by raw match in the app so
  *  they don't shadow the global `r`/`s`, and listed here for the help overlay. */
 export const MESSAGE_SELECT_HELP: ReadonlyArray<{ display: string; description: string }> = [
@@ -197,6 +204,7 @@ export function helpGroups(keymap: readonly Binding[] = KEYMAP): HelpGroup[] {
       .filter((b) => b.context === context)
       .map((b) => ({ display: b.display, description: b.description })),
   }))
+  groups.push({ title: 'Network rail', bindings: RAIL_HELP })
   groups.push({ title: 'Messages', bindings: MESSAGE_SELECT_HELP })
   groups.push({ title: CONTEXT_TITLES.compose, bindings: COMPOSE_HELP })
   return groups
@@ -209,14 +217,47 @@ export function keyToken(key: { name: string; shift?: boolean }): string {
   return key.shift && name.length === 1 ? `shift+${name}` : name
 }
 
+export interface KeyEvent {
+  name: string
+  shift?: boolean
+  /** The raw typed character, when the terminal reports one. */
+  sequence?: string
+}
+
+export interface KeyMatch {
+  command: Command
+  /** Index of the matched key within the binding's `keys` — for commands where
+   *  the key picks a direction (`network-cycle`: first key cycles forward,
+   *  any later key cycles backward). */
+  keyIndex: number
+}
+
+/**
+ * Resolve a key event against the keymap: first by normalized token, then by
+ * the raw typed character. The raw fallback is what makes punctuation bindings
+ * (`/`, `?`, `[`, `]`) work everywhere — terminals name those keys
+ * inconsistently, and shifted punctuation tokenizes as `shift+/` rather
+ * than `?`.
+ */
+export function resolveKey(key: KeyEvent, keymap: readonly Binding[] = KEYMAP): KeyMatch | null {
+  const token = keyToken(key)
+  for (const b of keymap) {
+    const keyIndex = b.keys.indexOf(token)
+    if (keyIndex !== -1) return { command: b.command, keyIndex }
+  }
+  if (key.sequence !== undefined && key.sequence.length === 1 && key.sequence !== token) {
+    for (const b of keymap) {
+      const keyIndex = b.keys.indexOf(key.sequence)
+      if (keyIndex !== -1) return { command: b.command, keyIndex }
+    }
+  }
+  return null
+}
+
 /** Resolve a key event to a command, or null if unbound. Pass an effective
  *  keymap (base + user overrides) to honour config-file rebinds. */
-export function resolveCommand(
-  key: { name: string; shift?: boolean },
-  keymap: readonly Binding[] = KEYMAP
-): Command | null {
-  const token = keyToken(key)
-  return keymap.find((b) => b.keys.includes(token))?.command ?? null
+export function resolveCommand(key: KeyEvent, keymap: readonly Binding[] = KEYMAP): Command | null {
+  return resolveKey(key, keymap)?.command ?? null
 }
 
 /** The set of valid command names, for validating config overrides. */
@@ -248,7 +289,7 @@ function keysToDisplay(keys: string[]): string {
  * Build the effective keymap from the base bindings plus user overrides. Each
  * override replaces a command's keys (and regenerates its help display). An
  * override for an unknown command throws with a clear message so a config typo
- * surfaces instead of silently doing nothing (Slice 14: validated config).
+ * surfaces instead of silently doing nothing.
  */
 export function applyKeymapOverrides(
   overrides: KeymapOverrides,

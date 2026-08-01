@@ -574,7 +574,7 @@ describe('archiveChat', () => {
   })
 })
 
-describe('reply send (Slice 11)', () => {
+describe('reply send', () => {
   test('carries replyToId to the adapter and into the send/requested event', async () => {
     let sentOptions: { replyToId?: string } | undefined
     const { dispatch, events } = capture()
@@ -593,7 +593,7 @@ describe('reply send (Slice 11)', () => {
   })
 })
 
-describe('attachments (Slice 11)', () => {
+describe('attachments', () => {
   /** State with c1 open, a message selected that carries an image attachment. */
   function withSelectedAttachment(attachmentOver: Record<string, unknown> = {}): AppState {
     const message: MessageSummary = {

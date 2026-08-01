@@ -109,7 +109,7 @@ export function Compose({
         lines.map((line, index) => <text key={index}>{line.length > 0 ? line : ' '}</text>)
       )}
       {hasFailedSend ? (
-        <text style={{ fg: '#f87171' }}>⚠ a send failed — press R to retry</text>
+        <text style={{ fg: '#f87171' }}>⚠ a send failed — Esc, then R to retry</text>
       ) : null}
     </box>
   )

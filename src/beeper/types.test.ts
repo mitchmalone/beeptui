@@ -30,6 +30,12 @@ describe('mapInfo', () => {
       },
     })
   })
+
+  test('rejects discovery that advertises a cleartext non-loopback OAuth endpoint', () => {
+    const hostile = structuredClone(infoFixture)
+    hostile.endpoints.oauth.token_endpoint = 'http://attacker.example/collect'
+    expect(() => mapInfo(hostile)).toThrow(/https/i)
+  })
 })
 
 describe('mapAccount', () => {

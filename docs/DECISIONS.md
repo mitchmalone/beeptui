@@ -6,6 +6,35 @@
 
 ---
 
+### 2026-08-01 · MIT license; history rewrite before the public flip
+
+**Decision.** The project is licensed **MIT** (Mitch, 2026-08-01) — `LICENSE` added,
+`package.json` carries `"license": "MIT"`. Separately: before the public flip (decision #6's
+remaining half), run a **`git filter-repo`** pass to drop the accidentally-committed 59 MB
+`.bun-build` blob and the private Notion URL from history. Tracked in `TODO.md`.
+
+**Why.** MIT is the least-friction choice for a small tool an outside audience should be able to
+read, run, and contribute to; nothing here needs Apache-2.0's patent machinery. The rewrite is safe
+while the repo is private (no external clones to break) and saves every future public clone ~60 MB.
+
+### 2026-08-01 · https floor for non-loopback endpoints (config + OAuth discovery)
+
+**Decision.** Plain `http` endpoints are **refused unless the host is loopback**
+(`localhost` / `127.x` / `::1`) — in `resolveConfig` for the configured endpoint, and in
+`mapInfo`/`authorize` for every OAuth endpoint the server advertises via `/v1/info`. Non-http(s)
+schemes are refused everywhere (including `openUrl`, so a hostile `authorization_endpoint` can't
+reach an arbitrary OS URL handler).
+
+**Why.** The bearer token rides every request and the WS; over cleartext to a remote host it (and
+message content) is MITM-readable — and a MITM'd `/v1/info` could then point `introspection_endpoint`
+at an attacker collector that receives the token on the next `doctor` run (invariant 7 violation by
+proxy). Discovery is the one place the server tells _us_ where to send credentials, so it is
+validated at the mapping choke point, not per call site.
+
+**Consequences.** A remote endpoint must be https (the local Desktop default is unaffected). There
+is deliberately no opt-out flag; if a legitimate cleartext-remote need ever appears (e.g. an SSH
+tunnel that terminates on a non-loopback bind), revisit with an explicit, named escape hatch.
+
 ### 2026-08-01 · Token storage — `Bun.secrets` (closes the security review's open item)
 
 **Decision.** OAuth tokens persist via **`Bun.secrets`**, Bun's built-in cross-platform OS

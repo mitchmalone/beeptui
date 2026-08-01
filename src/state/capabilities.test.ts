@@ -20,7 +20,7 @@ function chat(over: Partial<ChatSummary> = {}): ChatSummary {
   }
 }
 
-describe('capability messaging (Slice 12)', () => {
+describe('capability messaging', () => {
   test('the unavailable message names the capability and its source', () => {
     expect(capabilityUnavailableMessage('reply', 'Signal')).toBe(
       'Replies not available for Signal via Beeper.'

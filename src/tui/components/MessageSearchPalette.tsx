@@ -10,9 +10,16 @@ export interface MessageSearchPaletteProps {
  *  ↑/↓ move between hits, ⏎ opens the selected one, Esc dismisses. Coverage that
  *  is partial (local fallback / server ignored scope) is labeled honestly.
  *  Presentational — the App owns input and the adapter call. */
+/** Result rows shown at once; the visible window follows the selection. */
+const VISIBLE_RESULTS = 12
+
 export function MessageSearchPalette({ state }: MessageSearchPaletteProps) {
   const { query, status, results, selectedIndex, partial, note, scopeChatId } = state
   const title = scopeChatId !== null ? 'Search messages (this chat)' : 'Search messages'
+  const windowStart = Math.max(
+    0,
+    Math.min(selectedIndex - VISIBLE_RESULTS + 1, results.length - VISIBLE_RESULTS)
+  )
 
   const statusLine =
     status === 'searching'
@@ -34,7 +41,10 @@ export function MessageSearchPalette({ state }: MessageSearchPaletteProps) {
         {partial ? `${statusLine} · partial` : statusLine}
       </text>
       <box style={{ flexGrow: 1, flexDirection: 'column' }}>
-        {results.slice(0, 12).map((hit, index) => {
+        {/* Window the visible rows around the selection so the cursor can never
+            walk off-screen when there are more hits than fit. */}
+        {results.slice(windowStart, windowStart + VISIBLE_RESULTS).map((hit, offset) => {
+          const index = windowStart + offset
           const selected = index === selectedIndex
           const time = formatTime(hit.timestamp)
           const context = `${networkMarker(hit.network)} ${hit.chatTitle} · ${hit.senderName}${

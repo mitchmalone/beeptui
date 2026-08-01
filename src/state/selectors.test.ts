@@ -195,7 +195,7 @@ describe('selectActiveConversation', () => {
   })
 })
 
-describe('message selection + reply context (Slice 11)', () => {
+describe('message selection + reply context', () => {
   function msg(id: string, over: Partial<MessageSummary> = {}): MessageSummary {
     return {
       id,

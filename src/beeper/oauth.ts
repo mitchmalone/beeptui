@@ -1,9 +1,10 @@
 import type { OAuthEndpoints } from '@/beeper/types.ts'
-import { normalizeError } from '@/beeper/errors.ts'
+import { BeeperError, normalizeError } from '@/beeper/errors.ts'
+import { isLoopbackHost } from '@/beeper/config.ts'
 
 /**
  * OAuth 2.0 Authorization Code + PKCE flow for the remote Beeper Server Client
- * endpoint (Slice 13). The endpoints come from `/v1/info` discovery
+ * endpoint. The endpoints come from `/v1/info` discovery
  * (`ServerInfo.oauth`), the client is registered dynamically (RFC 7591), and the
  * redirect is a localhost loopback (RFC 8252 native-app pattern).
  *
@@ -34,6 +35,49 @@ function randomToken(byteLength: number): string {
   const bytes = new Uint8Array(byteLength)
   crypto.getRandomValues(bytes)
   return base64url(bytes)
+}
+
+/**
+ * Validate the OAuth endpoint set a server advertised via `/v1/info` before any
+ * of it is trusted. Discovery is the one place the server tells *us* where to
+ * send credentials, so every URL must be https — or http only to a loopback
+ * host (the local Desktop) — and nothing else (no `file:`, no custom schemes
+ * that would reach an arbitrary OS handler). Throws a `BeeperError` with a
+ * clear, secret-free message naming the offending URL.
+ */
+export function validateOAuthEndpoints(endpoints: OAuthEndpoints): OAuthEndpoints {
+  for (const value of Object.values(endpoints)) {
+    let url: URL
+    try {
+      url = new URL(value)
+    } catch {
+      throw new BeeperError('unknown', `Server advertised an invalid OAuth endpoint URL: ${value}`)
+    }
+    const httpsOrLocal =
+      url.protocol === 'https:' || (url.protocol === 'http:' && isLoopbackHost(url.hostname))
+    if (!httpsOrLocal) {
+      throw new BeeperError(
+        'unknown',
+        `Refusing OAuth endpoint ${value} — advertised endpoints must use https ` +
+          `(or http on the local machine); credentials would otherwise be sent unsafely`
+      )
+    }
+  }
+  return endpoints
+}
+
+/** Strip terminal-hostile bytes (C0/C1 controls, DEL) from text that came from
+ *  an untrusted source before it can reach the user's terminal, and cap its
+ *  length. Escape sequences in an OAuth `error_description` must never execute. */
+function sanitizeDisplayText(text: string, maxLength = 200): string {
+  let out = ''
+  for (const ch of text) {
+    const code = ch.codePointAt(0) ?? 0
+    const isControl = code < 0x20 || (code >= 0x7f && code <= 0x9f)
+    if (!isControl) out += ch
+    if (out.length >= maxLength) break
+  }
+  return out
 }
 
 export interface PkcePair {
@@ -97,7 +141,8 @@ export function parseCallback(
     return { error: 'Malformed callback URL' }
   }
   const error = params.get('error')
-  if (error !== null) return { error: params.get('error_description') ?? error }
+  if (error !== null)
+    return { error: sanitizeDisplayText(params.get('error_description') ?? error) }
   if (params.get('state') !== expectedState) return { error: 'State mismatch — possible CSRF' }
   const code = params.get('code')
   if (code === null || code.length === 0) return { error: 'No authorization code in callback' }
@@ -287,8 +332,10 @@ export interface LoopbackReceiver {
 
 export interface AuthorizeDeps {
   http: OAuthHttp
-  /** Start the loopback receiver (opens a port, returns its redirect URI). */
-  startLoopback(): Promise<LoopbackReceiver>
+  /** Start the loopback receiver (opens a port, returns its redirect URI). It is
+   *  armed with the flow's CSRF `state` so it can ignore forged callbacks that
+   *  don't carry it (a local port-scanner must not consume the one-shot wait). */
+  startLoopback(expectedState: string): Promise<LoopbackReceiver>
   /** Open the user's browser at the authorization URL. */
   openBrowser(url: string): Promise<void>
   scope?: string
@@ -306,11 +353,12 @@ export async function authorize(
   endpoints: OAuthEndpoints,
   deps: AuthorizeDeps
 ): Promise<{ clientId: string; tokens: TokenSet }> {
-  const receiver = await deps.startLoopback()
+  validateOAuthEndpoints(endpoints)
+  const pkce = await generatePkce()
+  const state = generateState()
+  const receiver = await deps.startLoopback(state)
   try {
     const { clientId } = await registerClient(endpoints, receiver.redirectUri, deps.http)
-    const pkce = await generatePkce()
-    const state = generateState()
     const authUrl = buildAuthorizationUrl(endpoints, {
       clientId,
       redirectUri: receiver.redirectUri,

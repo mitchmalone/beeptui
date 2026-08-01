@@ -5,6 +5,34 @@
 
 ---
 
+### 2026-08-01 — Open-source prep audit: what the reviews actually caught
+
+- A **59 MB compiled binary** (`.bun-build` intermediate) had been committed in PR #12 despite a
+  gitignore rule for `*.bun-build` — the file was added before the rule could help, and nothing in
+  CI flagged repository size. Untracked now; it (plus a private Notion URL) lives on in history, so
+  a `git filter-repo` pass before the public flip is the recommendation.
+- **The security review's one theme:** everything the server says via `/v1/info` was trusted
+  verbatim. Combined with plain `http` being accepted for remote endpoints, a MITM could redirect
+  token POSTs (introspection sends the token to whatever `introspection_endpoint` claims). Fixed
+  structurally: an https-or-loopback floor at _both_ choke points (config validation and OAuth
+  discovery mapping) rather than per-call checks.
+- **Two "fake success" honesty bugs**, both in OS side-effects: `openFile` resolved before spawn
+  confirmed (missing `xdg-open` still showed "Opened attachment.") and `saveToDownloads` silently
+  overwrote an existing file with a **sender-controlled filename** (`Setup.dmg` attack). Fixed with
+  spawn-event resolution + `COPYFILE_EXCL` suffix loops. Lesson: injected side-effect seams hid
+  these from the (otherwise thorough) runtime tests — the seam itself needs tests too.
+- **Reducer bounded-memory gap:** live messages created a window for _every_ chat that received
+  traffic (200 × N chats on a big account). Now only the selected chat or already-viewed windows
+  buffer; list rows update via `chats/upserted` regardless. And front-eviction now re-flags
+  `hasMoreOlder` so a fully-paged chat can't falsely claim "start of conversation" after overflow.
+- **Rebind honesty:** `/` `?` `[` `]` were raw-sequence-matched in `app.tsx`, so config rebinds of
+  `search`/`help`/`network-cycle` were accepted (help even displayed them) but silently ignored.
+  The fix moved raw-sequence fallback _into_ the keymap layer (`resolveKey`) so every binding
+  resolves the same way — and `network-cycle` reports which key matched for direction.
+- The slice-numbered comments ("Slice 13", "Slice 10 follow-up") read as an internal changelog to
+  an outside reader; a repo-wide sweep rewrote them as behavior descriptions. `git grep Slice src/`
+  is now clean and worth keeping that way.
+
 ### 2026-08-01 — Slices 12 & 13 closed with live tests deferred (accepted risk)
 
 - Mitch chose to **close Slices 12 and 13 on the code** rather than hold them open on live gates he
@@ -167,7 +195,7 @@ cap)` returns `{allowed}` or `{allowed:false, notice}`, and `capabilityUnavailab
 
 - **Root cause:** the optimistic send path _synthesized_ a "sent" message with the server's
   `pendingMessageID`, but the live `message.upserted` echo carries the message's own (different) id
-  and the real sender name — so dedup-by-id failed and you saw both `You: …` and `gracehopper: …`.
+  and the real sender name — so dedup-by-id failed and you saw both `You: …` and `<own-handle>: …`.
 - **Fix:** `send/succeeded` no longer synthesizes anything — it just flips the optimistic message to
   `sent`, keeping its `clientId`. `mergeMessages` now reconciles: a real self-echo (an `isSender`
   message with **no** `clientId`) supersedes our optimistic placeholder, matched by chat-local

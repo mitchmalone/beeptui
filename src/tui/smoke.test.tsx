@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { testRender } from '@opentui/react/test-utils'
 import { App, type AppProps } from '@/tui/app.tsx'
-import { createStore } from '@/tui/store.ts'
+import { createStore } from '@/state/store.ts'
 import {
   applyWatchEvent,
   archiveChat,
