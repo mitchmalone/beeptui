@@ -12,7 +12,8 @@ function json(body: unknown, status = 200): Response {
 
 function ctx(
   handler: (method: string, path: string) => Response | never,
-  hasToken = true
+  hasToken = true,
+  env: Record<string, string | undefined> = {} // deterministic: no image protocol
 ): DoctorContext {
   const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = new URL(typeof input === 'string' ? input : input.toString())
@@ -21,6 +22,7 @@ function ctx(
   return {
     endpoint: 'http://127.0.0.1:23373',
     hasToken,
+    env,
     adapter: new BeeperAdapter({
       endpoint: 'http://127.0.0.1:23373',
       accessToken: hasToken ? 'test-token' : '',
@@ -39,7 +41,24 @@ describe('runDoctor', () => {
   test('all green: reachable, authenticated, accounts connected → exit 0', async () => {
     const result = await runDoctor(ctx(ok))
     expect(result.code).toBe(0)
-    expect(result.checks.every((c) => c.status === 'pass')).toBe(true)
+    // Every check passes except the informational image-preview line, which is
+    // environment-dependent ('skip' here since the test env has no protocol).
+    expect(
+      result.checks.every((c) => c.status === 'pass' || c.name === 'Inline image preview')
+    ).toBe(true)
+    expect(result.checks.some((c) => c.status === 'fail')).toBe(false)
+  })
+
+  test('image-preview check reflects the terminal: pass with kitty, skip without', async () => {
+    const withKitty = await runDoctor(ctx(ok, true, { TERM: 'xterm-kitty' }))
+    const kittyCheck = withKitty.checks.find((c) => c.name === 'Inline image preview')
+    expect(kittyCheck?.status).toBe('pass')
+    expect(kittyCheck?.detail).toMatch(/kitty/)
+
+    const plain = await runDoctor(ctx(ok, true, {}))
+    const plainCheck = plain.checks.find((c) => c.name === 'Inline image preview')
+    expect(plainCheck?.status).toBe('skip')
+    expect(plain.code).toBe(0) // a missing capability is never a failure
   })
 
   test('Beeper closed → reachable fails, later checks skipped, exit non-zero', async () => {
