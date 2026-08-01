@@ -1,7 +1,6 @@
 # RUNBOOK
 
 > Operational procedures that are run by hand. Keep each entry copy-pasteable.
-> Mostly placeholders until Slice 0/1 land — fill in real commands as they ship.
 
 ## Prerequisites
 

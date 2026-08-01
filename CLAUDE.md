@@ -75,7 +75,8 @@ for project-specific gotchas.
   receipts, reactions, search scope) is gated on what the API reports, with an explicit fallback
   state.
 - **Keyboard bindings are declared, not scattered.** All bindings go through the keymap layer
-  (`@opentui/keymap`) so the help overlay can be generated from the same source.
+  (`src/tui/keymap.ts` — see `docs/DECISIONS.md` 2026-07-30) so the help overlay can be generated
+  from the same source.
 - **Bounded memory.** Message history is paged and capped; never accumulate an unbounded array of
   messages or an entire account's history.
 

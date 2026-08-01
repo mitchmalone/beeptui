@@ -17,8 +17,9 @@ start, plans, docs close-out) lives in `CLAUDE.md`.
 
 ## Project conventions
 
-- **Stack:** TypeScript (strict, ESM, ES2022+), Bun, OpenTUI (`@opentui/react`,
-  `@opentui/keymap`), SQLite (`bun:sqlite`) for local UI state.
+- **Stack:** TypeScript (strict, ESM, ES2022+), Bun, OpenTUI (`@opentui/react`; keybindings via
+  the in-repo `src/tui/keymap.ts` — see `DECISIONS.md` 2026-07-30), SQLite (`bun:sqlite`) for
+  local UI state.
 - **Version pinning matters here.** OpenTUI ships a native Zig core — pin exact versions of
   `@opentui/*` and record the tested Bun version. Upgrades are deliberate, tested changes, and any
   quirk found goes in `LEARNINGS.md`.

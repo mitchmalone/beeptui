@@ -7,6 +7,17 @@
 
 ## Where we are
 
+**Open-source prep pass done (2026-08-01, `chore/open-source-prep`)** — a full security + quality
+audit ahead of the public flip (`docs/plans/active/PLAN-open-source-prep.md`). Fixed: an
+accidentally-committed 59 MB build binary (untracked; history rewrite recommended before flipping
+public), personal identifiers scrubbed (fixture handle, private Notion URL, PRD mockup), an https
+floor for non-loopback endpoints (config + discovered OAuth endpoints), a state-armed OAuth loopback,
+control-character sanitization on OAuth error text, collision-safe attachment saves, honest
+`openFile` failures, live-buffer bounding + eviction pagination honesty in the reducer, keymap-honest
+rebinds for `/` `?` `[` `]`, a windowed search palette, a top-level CLI error handler + `--version`,
+the `Store` moved to `src/state/`, and a repo-wide sweep of slice-numbered comments. **429 tests**
+green. Remaining: LICENSE choice (Mitch) + the public flip itself (decision #6).
+
 **Slices 10–14 code landed and merged to `main`** (PRs #12–#22). **Slices 11, 12 and 13 are now
 closed** — 11 fully (live reply send done 2026-08-01); 12 and 13 as **code-complete with their live
 tests deferred to `TODO.md`** (accepted-risk call, Mitch 2026-08-01: no Discord/IG/X accounts and no
@@ -90,7 +101,6 @@ no silent failures. Fixed pagination resilience along the way. **199 tests** gre
   runs (Discord/IG/X matrix; remote-endpoint `login`) are tracked there, accepted-risk. Declaring
   **Phase 2 complete** waits on the Slice 12 matrix actually running — the code is done, the
   production run is not, and the docs won't claim otherwise.
-- **Slice 14 re-plan** (split into 2–4) is the main open code work — see above.
 
 ## Deferred live validation (accepted risk, Mitch 2026-08-01) → `TODO.md`
 
@@ -112,6 +122,10 @@ live in `TODO.md`.
 - Slice 6 deferrals: polling fallback (this build has the WS), delete-event application, the
   quit-Beeper-mid-draft manual dance, and cross-network send-echo id confirmation — all for Slice 9.
 - Slice 7 deferral: scroll-anchor _restore_ into the loaded page (Slice 6/9 territory).
+- Open-source-prep follow-ups (2026-08-01): extract the ~265-line modal key router in
+  `src/tui/app.tsx` into a pure, unit-testable `routeKey` module; add a refetch path for
+  scrollback after live-overflow eviction when the stored older-cursor is stale/null (the reducer
+  now re-flags `hasMoreOlder` honestly; reopening the chat reloads cleanly).
 
 ## Pending decisions (from PRD "Open questions")
 

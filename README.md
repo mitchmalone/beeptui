@@ -5,13 +5,13 @@ Browse conversations across networks, read history, receive live updates, and re
 terminal, over Beeper's Desktop/Server Client API. Beeper stays the account, sync, and encryption
 boundary; this is a local client, not a bridge.
 
-**Status: Phase 1 complete; Phases 2–3 substantially built.** Browse your unified inbox, read
-history, receive live updates over WebSocket, and send real messages. A network rail, filters, and
-message search (Slice 10); replies, edits & attachment open/save, reactions and read receipts
-(Slices 11, 14); a unified capability-unavailable UX (Slice 12); an OAuth 2.0 + PKCE remote-endpoint
-flow with cross-platform token storage (Slice 13); and config (keymap, colours, notification hooks) +
-a standalone binary (Slice 14). Remaining work is gated on live actions (sending, connecting more
-networks, a remote host) and a couple of product decisions. See [`docs/STATUS.md`](docs/STATUS.md).
+**Status: usable daily against a local Beeper Desktop.** Browse your unified inbox, read history,
+receive live updates over WebSocket, and send real messages. Also built: a network rail with
+archived/unread filters, message search, replies, edits, attachment open/save, reactions, read
+receipts, honest per-network capability messaging, an OAuth 2.0 + PKCE flow for remote endpoints
+with cross-platform token storage, config for keymap/colours/notification hooks, and a standalone
+binary. Remaining work is gated on live validation (more networks, a real remote host) and a couple
+of product decisions. See [`docs/STATUS.md`](docs/STATUS.md) for the precise state.
 
 ## Docs
 
@@ -103,9 +103,11 @@ bun run build              # → dist/beeper-tui (a single ~69 MB executable)
 ./dist/beeper-tui doctor   # verify the connection + auth
 ./dist/beeper-tui          # launch the TUI
 
-# 2. Directly, if you have Bun.
-bunx beeper-tui doctor
+# 2. Directly from a checkout, if you have Bun.
+bun run src/cli/index.ts doctor
 ```
+
+(Not yet published to npm or Homebrew — install from a checkout for now.)
 
 Commands: `beeper-tui` (TUI), `beeper-tui status`, `beeper-tui doctor` (add
 `--json` for machine-readable output), and — for a remote endpoint —
@@ -143,8 +145,8 @@ platform credential store.
 
 ## Stack
 
-TypeScript (strict, ESM) · Bun · OpenTUI (`@opentui/react` + `@opentui/keymap`) · SQLite for local
-UI state. See `docs/PRD.md` § Technical approach.
+TypeScript (strict, ESM) · Bun · OpenTUI (`@opentui/react`; keybindings live in an in-repo keymap
+layer, `src/tui/keymap.ts`) · SQLite for local UI state. See `docs/PRD.md` § Technical approach.
 
 ## Working on this repo
 

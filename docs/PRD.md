@@ -1,10 +1,8 @@
 # PRD: Beeper terminal chat TUI
 
-> Source of truth for product scope. Mirrored from Notion:
-> https://www.notion.so/ramenamok/3ac3d7d179ad8127a6a1fdcbe311029f
-> If this file and Notion diverge, reconcile them — don't let them drift silently.
+> Source of truth for product scope.
 
-**Status:** Proposed
+**Status:** Accepted — in delivery (see `STATUS.md`)
 **Owner:** Mitch Malone
 **Product:** Local-first terminal chat client
 **Working name:** `beeper-tui` (repo: `beeptui`)
@@ -37,7 +35,7 @@ conversation, and the bottom is a proper compose box.
 ```
 ┌ Accounts / chats ───────────┬ Conversation ───────────────────────────────┐
 │ ● Unread                    │ Sarah · WhatsApp                             │
-│ ● @mitch (X DM)             │                                              │
+│ ● @ada (X DM)               │                                              │
 │   #product (Slack)          │ 09:41 Sarah  Are we still on for Friday?     │
 │ ● Tom · Telegram            │ 09:42 You    Yep — 10am works.               │
 │                             │                                              │
@@ -152,9 +150,9 @@ action exists in v1.
 ### Architecture
 
 Build a standalone TypeScript application with Bun and OpenTUI. Use `@opentui/react` for the
-component model, `@opentui/keymap` for explicit keyboard commands, and OpenTUI's native Zig core for
-rendering and input. This gives v1 a high-performance terminal renderer while keeping product
-iteration in the TypeScript ecosystem.
+component model, a declared keymap layer for explicit keyboard commands (in-repo — see
+`DECISIONS.md` 2026-07-30), and OpenTUI's native Zig core for rendering and input. This gives v1 a
+high-performance terminal renderer while keeping product iteration in the TypeScript ecosystem.
 
 1. **Beeper client adapter** — typed HTTP client plus WebSocket/watch client for the documented
    Desktop/Server Client API. It owns authentication, pagination, capability detection, and error
