@@ -1,8 +1,8 @@
 ---
 title: Slice 12 — Remaining networks & capability messaging
-status: active
+status: done
 created: 2026-07-30
-updated: 2026-07-31
+updated: 2026-08-01
 links:
   - ../../PRD.md § Phased delivery (Phase 2), § Acceptance scenarios (6)
   - PLAN-slice-9-phase1-validation.md
@@ -68,8 +68,18 @@ attempt-then-degrade there (the explicit-`false` unsupported path is fixture-cov
       its source ("Replies not available for Slack via Beeper") — one shared pattern, no dead
       controls; audited (reply + archive are the only gated actions today).
 - [x] Busy-channel live bursts don't break reading position (smoke scenario 3b).
-- [~] `docs/STATUS.md` declares Phase 2 complete. **Held** — Phase 2 close needs the Discord/IG/X
-  live matrix, which is blocked on those networks being connected.
+- [~] `docs/STATUS.md` declares Phase 2 complete. **Closed with accepted risk (Mitch, 2026-08-01):**
+  the code + capability plumbing are done and green; the Discord/IG/X live matrix could not be run
+  (those networks aren't connected) and is **deferred to `TODO.md`**, not blocking slice closure.
+
+## Closure note (2026-08-01)
+
+Closed as **code-complete, live-validation deferred**. Everything buildable is done, tested, and
+merged (PR #12). The one thing outstanding — the live list/read/send/reply/search/attachments matrix
+on **Discord / Instagram DMs / X DMs** — needs those accounts connected in Beeper Desktop, which
+isn't possible right now. Mitch chose to close the slice and carry the live matrix as a tracked
+follow-up in `TODO.md` rather than hold Phase 2 open on it. The capability probe on the connected
+networks (WhatsApp/Facebook/Beeper) passed, so the plumbing is grounded in real data.
 
 ## Out of scope
 
