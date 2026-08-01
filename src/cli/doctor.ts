@@ -3,8 +3,8 @@ import { BeeperError } from '@/beeper/errors.ts'
 import type { ServerInfo } from '@/beeper/types.ts'
 
 /** Classify a configured endpoint as the local Desktop loopback or a remote
- *  server, from its host — so `doctor` can name local-vs-remote failure modes
- *  (Slice 13). A non-URL string is treated as local (the default path). */
+ *  server, from its host — so `doctor` can name local-vs-remote failure modes.
+ *  A non-URL string is treated as local (the default path). */
 export function classifyEndpoint(endpoint: string): 'local' | 'remote' {
   try {
     // `URL.hostname` brackets IPv6 (`[::1]`), so strip brackets before comparing.

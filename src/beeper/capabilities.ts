@@ -8,9 +8,9 @@ import type { ServerInfo } from '@/beeper/types.ts'
  * are reported separately by later slices from the chat payload.
  */
 export interface Capabilities {
-  /** The server advertises a WebSocket events endpoint (Slice 6 live updates). */
+  /** The server advertises a WebSocket events endpoint (live updates). */
   liveUpdates: boolean
-  /** Remote access is enabled on this instance (relevant to Slice 13). */
+  /** Remote access is enabled on this instance (remote endpoints). */
   remoteAccess: boolean
 }
 

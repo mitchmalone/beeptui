@@ -26,7 +26,7 @@ const auth: StoredAuth = {
   tokens: { accessToken: 'AT', refreshToken: 'RT', expiresAt: 1_700_000_000_000 },
 }
 
-describe('token store (Slice 13)', () => {
+describe('token store', () => {
   test('save then load round-trips the OAuth session', async () => {
     const store = fakeStore()
     await saveAuth(auth, store)

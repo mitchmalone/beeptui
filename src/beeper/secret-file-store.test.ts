@@ -13,7 +13,7 @@ function memIO(): FileIO & { files: Map<string, string> } {
 
 const entry = { service: 'beeper-tui', name: 'oauth-session' }
 
-describe('encrypted file secret store (Slice 13 headless fallback)', () => {
+describe('encrypted file secret store (headless fallback)', () => {
   test('set then get round-trips the value', async () => {
     const io = memIO()
     const store = createFileSecretStore('/cfg', io)

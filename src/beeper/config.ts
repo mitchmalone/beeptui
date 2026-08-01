@@ -4,14 +4,14 @@ import { homedir as osHomedir } from 'node:os'
 /** Default local Beeper Desktop API endpoint (see docs/JOURNAL.md 2026-07-30). */
 export const DEFAULT_ENDPOINT = 'http://127.0.0.1:23373'
 
-/** User-configurable notification hook (Slice 14): a command run on a new
+/** User-configurable notification hook: a command run on a new
  *  inbound message. Only a redacted summary (app + network) is ever passed —
  *  never sender or message content (invariant 6). */
 export interface NotifyConfig {
   command: string[]
 }
 
-/** Visual theme overrides (Slice 14). Currently per-network accent colours. */
+/** Visual theme overrides. Currently per-network accent colours. */
 export interface ThemeConfig {
   /** Network name → hex colour (e.g. `{ "WhatsApp": "#25d366" }`). */
   networkColors: Record<string, string>
@@ -50,6 +50,17 @@ function defaultReadFile(path: string): string | undefined {
   }
 }
 
+/** Is this URL hostname the local machine? (`localhost`, IPv4 loopback, `::1` —
+ *  with or without the URL-literal brackets). */
+export function isLoopbackHost(hostname: string): boolean {
+  return (
+    hostname === 'localhost' ||
+    hostname === '::1' ||
+    hostname === '[::1]' ||
+    hostname.startsWith('127.')
+  )
+}
+
 function validateEndpoint(endpoint: string): string {
   let url: URL
   try {
@@ -59,6 +70,14 @@ function validateEndpoint(endpoint: string): string {
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
     throw new Error(`Invalid Beeper endpoint (must be http/https): ${endpoint}`)
+  }
+  // Plain http is only safe on the local machine: over a network it would carry
+  // the bearer token and message content in cleartext (invariant 6).
+  if (url.protocol === 'http:' && !isLoopbackHost(url.hostname)) {
+    throw new Error(
+      `Refusing plain-http endpoint ${endpoint} — a non-loopback endpoint must use https ` +
+        `(the access token and messages would otherwise transit unencrypted)`
+    )
   }
   return endpoint
 }

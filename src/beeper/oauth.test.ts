@@ -11,6 +11,7 @@ import {
   refreshTokens,
   registerClient,
   revokeToken,
+  validateOAuthEndpoints,
   type LoopbackReceiver,
   type OAuthHttp,
 } from '@/beeper/oauth.ts'
@@ -126,6 +127,26 @@ describe('parseCallback', () => {
     expect(parseCallback('http://127.0.0.1:49152/callback?state=S', 'S')).toEqual({
       error: 'No authorization code in callback',
     })
+  })
+
+  test('strips control characters from attacker-controlled error text (terminal escape injection)', () => {
+    // An OSC title-spoof payload arriving via the loopback query string must not
+    // reach the terminal intact: ESC/BEL/C1 bytes are stripped before display.
+    const description = encodeURIComponent('bad\u001b]0;pwned\u0007\u009btext')
+    const result = parseCallback(
+      `http://127.0.0.1:49152/callback?error=x&error_description=${description}&state=S`,
+      'S'
+    )
+    expect(result).toEqual({ error: 'bad]0;pwnedtext' })
+  })
+
+  test('caps attacker-controlled error text at a sane display length', () => {
+    const description = encodeURIComponent('x'.repeat(1000))
+    const result = parseCallback(
+      `http://127.0.0.1:49152/callback?error=e&error_description=${description}&state=S`,
+      'S'
+    )
+    expect('error' in result && result.error.length <= 200).toBe(true)
   })
 })
 
@@ -253,9 +274,11 @@ describe('authorize (full flow orchestration)', () => {
       },
       close: () => events.push('close'),
     }
+    const armed: string[] = []
     const deps = {
       http,
-      startLoopback: async () => {
+      startLoopback: async (expectedState: string) => {
+        armed.push(expectedState)
         events.push('loopback')
         return receiver
       },
@@ -264,7 +287,7 @@ describe('authorize (full flow orchestration)', () => {
         issuedState = new URL(url).searchParams.get('state') ?? ''
       },
     }
-    return { deps, events }
+    return { deps, events, armed }
   }
 
   test('registers, opens the browser, exchanges the code, and returns clientId + tokens', async () => {
@@ -290,6 +313,53 @@ describe('authorize (full flow orchestration)', () => {
     const { deps, events } = fakeFlow({ state: 'error' })
     await expect(authorize(endpoints, deps)).rejects.toThrow(/denied/)
     expect(events).toContain('close')
+  })
+
+  test('arms the loopback receiver with the CSRF state it must expect', async () => {
+    const { deps, armed } = fakeFlow()
+    const urlStates: string[] = []
+    const openBrowser = deps.openBrowser
+    await authorize(endpoints, {
+      ...deps,
+      openBrowser: async (url: string) => {
+        urlStates.push(new URL(url).searchParams.get('state') ?? '')
+        await openBrowser(url)
+      },
+    })
+    expect(armed).toHaveLength(1)
+    expect(armed[0]?.length).toBeGreaterThan(0)
+    expect(urlStates[0]).toBe(armed[0] ?? '')
+  })
+})
+
+describe('validateOAuthEndpoints', () => {
+  test('accepts all-https endpoints and loopback http (the local Desktop)', () => {
+    expect(() => validateOAuthEndpoints(endpoints)).not.toThrow()
+    const local = Object.fromEntries(
+      Object.entries(endpoints).map(([k, v]) => [
+        k,
+        v.replace('https://beeper.example', 'http://127.0.0.1:23373'),
+      ])
+    ) as OAuthEndpoints
+    expect(() => validateOAuthEndpoints(local)).not.toThrow()
+  })
+
+  test('rejects a non-loopback http endpoint — the token would transit cleartext', () => {
+    expect(() =>
+      validateOAuthEndpoints({
+        ...endpoints,
+        tokenEndpoint: 'http://beeper.example/oauth/token',
+      })
+    ).toThrow(/https/i)
+  })
+
+  test('rejects non-http(s) schemes (file:, custom OS handlers)', () => {
+    expect(() =>
+      validateOAuthEndpoints({
+        ...endpoints,
+        authorizationEndpoint: 'file:///etc/passwd',
+      })
+    ).toThrow(/https/i)
   })
 })
 

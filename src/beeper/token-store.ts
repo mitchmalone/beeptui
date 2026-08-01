@@ -3,7 +3,7 @@ import { createFileSecretStore, fallbackDir } from '@/beeper/secret-file-store.t
 import { resolveConfig } from '@/beeper/config.ts'
 
 /**
- * Persistence for the OAuth session (Slice 13). Backed by `Bun.secrets` — Bun's
+ * Persistence for the OAuth session. Backed by `Bun.secrets` — Bun's
  * built-in cross-platform OS credential store (macOS Keychain / Linux
  * Secret Service / Windows Credential Manager). In-process, so the secret never
  * touches a command line (invariant 6), and it *is* the platform credential
