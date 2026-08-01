@@ -266,10 +266,11 @@ describe('authorize (full flow orchestration)', () => {
     return { deps, events }
   }
 
-  test('registers, opens the browser, exchanges the code, and returns tokens', async () => {
+  test('registers, opens the browser, exchanges the code, and returns clientId + tokens', async () => {
     const { deps, events } = fakeFlow()
-    const tokens = await authorize(endpoints, deps)
-    expect(tokens).toEqual({
+    const result = await authorize(endpoints, deps)
+    expect(result.clientId).toBe('issued-1')
+    expect(result.tokens).toEqual({
       accessToken: 'AT',
       refreshToken: 'RT',
       expiresAt: 1_000_000 + 3_600_000,

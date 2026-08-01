@@ -10,3 +10,6 @@ dist/
 
 # Agent worktrees (isolated subagent trees)
 .claude/worktrees/
+
+# Bun compile intermediates
+*.bun-build

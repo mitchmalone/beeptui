@@ -1,7 +1,7 @@
 import { createCliRenderer } from '@opentui/core'
 import { createRoot } from '@opentui/react'
 import { createElement } from 'react'
-import { BeeperAdapter, resolveConfig, resolveToken } from '@/beeper/index.ts'
+import { BeeperAdapter, resolveActiveToken, resolveConfig } from '@/beeper/index.ts'
 import { App } from '@/tui/app.tsx'
 import { createStore } from '@/tui/store.ts'
 import { selectTotalUnread } from '@/state/selectors.ts'
@@ -36,7 +36,14 @@ import { applyKeymapOverrides, KEYMAP } from '@/tui/keymap.ts'
  */
 export async function launch(): Promise<void> {
   const { endpoint, notify, keymap: keymapOverrides, theme } = resolveConfig()
-  const token = resolveToken()
+  // Resolve the token: an explicit env/legacy token wins; otherwise a stored
+  // OAuth session (from `beeper-tui login`), refreshed if expired. Needs the
+  // endpoint's OAuth metadata, so it reads `/v1/info` via a pre-auth adapter.
+  const preAuth = new BeeperAdapter({ endpoint })
+  const token = await resolveActiveToken({
+    getInfo: () => preAuth.getInfo(),
+    http: { fetch, nowMs: Date.now() },
+  })
   // A bad rebind (unknown command / empty keys) is fatal with a clear message —
   // better than silently ignoring the user's config.
   const keymap = keymapOverrides === null ? KEYMAP : applyKeymapOverrides(keymapOverrides)
