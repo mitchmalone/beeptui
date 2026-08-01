@@ -2,6 +2,7 @@
 import {
   BeeperAdapter,
   clearAuth,
+  introspectToken,
   login,
   logout,
   openUrl,
@@ -32,6 +33,7 @@ async function buildContext(): Promise<{
   endpoint: string
   hasToken: boolean
   adapter: BeeperAdapter
+  introspect?: () => Promise<{ active: boolean; scopes: string[] } | null>
 }> {
   const { endpoint } = resolveConfig()
   const preAuth = new BeeperAdapter({ endpoint })
@@ -40,7 +42,20 @@ async function buildContext(): Promise<{
     http: { fetch, nowMs: Date.now() },
   })
   const adapter = new BeeperAdapter({ endpoint, accessToken: token })
-  return { endpoint, hasToken: token !== undefined, adapter }
+  // Token-scope introspection for `doctor`: null when there's no token or the
+  // endpoint doesn't support RFC 7662 (doctor then just skips the check).
+  const introspect =
+    token === undefined
+      ? undefined
+      : async () => {
+          try {
+            const info = await preAuth.getInfo()
+            return await introspectToken(info.oauth, token, { fetch, nowMs: Date.now() })
+          } catch {
+            return null
+          }
+        }
+  return { endpoint, hasToken: token !== undefined, adapter, ...(introspect ? { introspect } : {}) }
 }
 
 async function main(argv: string[]): Promise<void> {

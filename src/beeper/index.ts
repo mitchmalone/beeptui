@@ -20,6 +20,7 @@ export {
 } from '@/beeper/keychain.ts'
 export { detectCapabilities, type Capabilities } from '@/beeper/capabilities.ts'
 export { login, logout, resolveActiveToken } from '@/beeper/auth-session.ts'
+export { introspectToken } from '@/beeper/oauth.ts'
 export { clearAuth } from '@/beeper/token-store.ts'
 export { startLoopback, openUrl } from '@/beeper/oauth-loopback.ts'
 export type {
