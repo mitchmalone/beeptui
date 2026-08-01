@@ -6,6 +6,24 @@
 
 ---
 
+### 2026-08-01 · Token storage — `Bun.secrets` (closes the security review's open item)
+
+**Decision.** OAuth tokens persist via **`Bun.secrets`**, Bun's built-in cross-platform OS
+credential store (macOS Keychain, Linux Secret Service / libsecret, Windows Credential Manager).
+
+**Why.** The prior entry left token _write_ open: the `security` CLI leaks the secret in argv
+(invariant 6), and a plaintext file isn't the platform store (invariant 1) — an apparent
+FFI-vs-encrypted-file fork. `Bun.secrets` (in Bun ≥1.3.14, which we already require) dissolves it:
+it's in-process (argv-free ✓), it _is_ the platform credential store on every OS (invariant 1 ✓),
+and it's zero-dependency (it's the runtime, so no violation of "no dep the stdlib covers"). Verified
+with a live set/get/delete round-trip on the macOS Keychain.
+
+**Consequence.** `token-store.ts` persists `{clientId, tokens}` (the client id is needed for
+refresh/revoke) behind an injectable `SecretStore` so the logic is unit-tested without the real
+keychain. **Headless-Linux caveat:** with no Secret Service daemon, `Bun.secrets` throws — the store
+degrades to "logged out" (falls back to env/legacy token) rather than crashing; a proper
+encrypted-file fallback for that case remains a follow-up. No FFI, no `security` CLI shelling.
+
 ### 2026-08-01 · Slice 13 OAuth security review — passed; token-storage write deferred
 
 **Decision.** The remote-endpoint OAuth 2.0 + PKCE code (`src/beeper/oauth.ts`,

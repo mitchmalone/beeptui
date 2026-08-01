@@ -1,5 +1,14 @@
 #!/usr/bin/env bun
-import { BeeperAdapter, resolveConfig, resolveToken } from '@/beeper/index.ts'
+import {
+  BeeperAdapter,
+  clearAuth,
+  login,
+  logout,
+  openUrl,
+  resolveActiveToken,
+  resolveConfig,
+  startLoopback,
+} from '@/beeper/index.ts'
 import { formatDoctor, runDoctor } from '@/cli/doctor.ts'
 import { runStatus } from '@/cli/status.ts'
 
@@ -9,16 +18,27 @@ Usage:
   beeper-tui              Launch the TUI
   beeper-tui status       Show endpoint, auth state, and connected accounts
   beeper-tui doctor       Run diagnostic checks (non-zero exit on any failure)
+  beeper-tui login        Authenticate a remote endpoint via OAuth (browser)
+  beeper-tui logout       Revoke + forget the stored OAuth session
   beeper-tui --help       Show this help
 
 Flags:
   --json                  Machine-readable output (status, doctor)
 `
 
-/** Build the live context from resolved config + credential store. */
-function buildContext(): { endpoint: string; hasToken: boolean; adapter: BeeperAdapter } {
+/** Build the live context: resolve the endpoint, then the active token (an
+ *  explicit env/legacy token, else a stored OAuth session that may refresh). */
+async function buildContext(): Promise<{
+  endpoint: string
+  hasToken: boolean
+  adapter: BeeperAdapter
+}> {
   const { endpoint } = resolveConfig()
-  const token = resolveToken()
+  const preAuth = new BeeperAdapter({ endpoint })
+  const token = await resolveActiveToken({
+    getInfo: () => preAuth.getInfo(),
+    http: { fetch, nowMs: Date.now() },
+  })
   const adapter = new BeeperAdapter({ endpoint, accessToken: token })
   return { endpoint, hasToken: token !== undefined, adapter }
 }
@@ -35,15 +55,48 @@ async function main(argv: string[]): Promise<void> {
       return
     }
     case 'status': {
-      const { output, code } = await runStatus(buildContext(), { json })
+      const { output, code } = await runStatus(await buildContext(), { json })
       console.log(output)
       process.exit(code)
       break
     }
     case 'doctor': {
-      const result = await runDoctor(buildContext())
+      const result = await runDoctor(await buildContext())
       console.log(json ? JSON.stringify(result, null, 2) : formatDoctor(result))
       process.exit(result.code)
+      break
+    }
+    case 'login': {
+      const { endpoint } = resolveConfig()
+      const adapter = new BeeperAdapter({ endpoint })
+      try {
+        const info = await adapter.getInfo()
+        console.log('Opening your browser to authenticate…')
+        await login(info.oauth, {
+          http: { fetch, nowMs: Date.now() },
+          startLoopback,
+          openBrowser: openUrl,
+        })
+        // Never print the token — only that it was stored (invariant 6).
+        console.log('Logged in. Token stored in the OS credential store.')
+        process.exit(0)
+      } catch (err) {
+        console.error(`Login failed: ${err instanceof Error ? err.message : 'unknown error'}`)
+        process.exit(1)
+      }
+      break
+    }
+    case 'logout': {
+      const { endpoint } = resolveConfig()
+      try {
+        const info = await new BeeperAdapter({ endpoint }).getInfo()
+        await logout(info.oauth, { fetch, nowMs: Date.now() })
+      } catch {
+        // Offline: revoke can't run, but still forget the session locally.
+        await clearAuth()
+      }
+      console.log('Logged out.')
+      process.exit(0)
       break
     }
     case '--help':

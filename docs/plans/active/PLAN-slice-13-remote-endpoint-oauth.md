@@ -60,31 +60,45 @@ The mechanism is **discoverable and standard** — no guessing:
 - [x] Investigate the Server Client API + auth mechanism (see above) — the outline's precondition.
 - [x] Surface the advertised OAuth endpoints in the adapter (`ServerInfo.oauth`, `mapInfo`);
       fixture + live tested.
-- [ ] Auth module: dynamic registration + PKCE authorize/token/refresh/revoke; unit-tested against
-      fixtures (fake authorization server), no live dependency in tests.
-- [ ] Token storage for access + refresh; redaction tests.
-- [ ] Named-endpoint config + selection; `doctor`/`status` local-vs-remote awareness + token
-      introspection/expiry checks.
+- [x] Auth module: dynamic registration + PKCE authorize/token/refresh/revoke + `authorize`
+      orchestrator; unit-tested against a fake authorization server (`oauth.ts`, `oauth.test.ts`).
+- [x] Token storage for access + refresh (`token-store.ts`) — backed by **`Bun.secrets`**, Bun's
+      built-in cross-platform OS credential store (macOS Keychain / Linux Secret Service / Windows
+      Credential Manager). In-process → argv-free (invariant 6) and _is_ the platform credential
+      store (invariant 1); zero dependency. Persists `{clientId, tokens}` (client id needed for
+      refresh/revoke). Injectable backend → unit-tested with an in-memory fake; corrupt/absent-keyring
+      degrades to logged-out, never a crash. **This closes the security review's open item** (no more
+      argv/FFI/encrypted-file fork — `Bun.secrets` is the clean answer).
+- [x] Session lifecycle (`auth-session.ts`): `login` (authorize + persist), `logout` (revoke + clear),
+      `currentAccessToken` (refresh-on-expiry + persist), `resolveActiveToken` (env/legacy → stored
+      OAuth). `beeper-tui login` / `logout` CLI commands; `launch` + `status`/`doctor` resolve the
+      active token through it. Unit-tested end-to-end against fakes.
+- [ ] Named-endpoint config + selection; token introspection/expiry checks in `doctor`.
+      (`doctor`/`status` local-vs-remote awareness landed; the single-endpoint override already points
+      at a remote — multi-named-endpoints + introspection remain.)
 - [x] Security review pass; record + fix findings (`DECISIONS.md`, 2026-08-01). **Passed** — no
       exploitable findings; fixed one non-security IPv6-loopback labelling bug in `classifyEndpoint`.
 
 ## Acceptance criteria
 
-- [ ] Full flow works against a **real Server Client endpoint**: configure → authenticate → inbox →
-      send, tokens only in the credential store. **(Gate: needs a reachable remote endpoint with
-      `remote_access` enabled — not available in this session.)**
-- [ ] `doctor` distinguishes local-desktop vs remote-endpoint failure modes.
+- [~] Full flow works against a **real Server Client endpoint**: configure → authenticate → inbox →
+  send, tokens only in the credential store. **Built + unit-tested end-to-end; the credential-store
+  persistence is live-verified** (`Bun.secrets` set/get/delete round-trip on the macOS Keychain).
+  **Remaining gate:** running `beeper-tui login` against a real remote endpoint (browser flow +
+  `remote_access` enabled) — not available locally (`remote_access:false`).
+- [x] `doctor` distinguishes local-desktop vs remote-endpoint failure modes.
 - [x] Security review completed and its findings recorded in `DECISIONS.md` / fixed
       (2026-08-01) — passed, no exploitable findings.
 
 ## Blocking gates (need Mitch / environment)
 
-1. **A real remote Server Client endpoint** with `remote_access` enabled, to validate the end-to-end
-   flow. Only a local Desktop (`remote_access: false`) is available here.
-2. **Security-review sign-off** — the PRD mandates it before this ships; worth doing with fresh eyes
-   (or `/security-review`) once the auth module exists.
-3. **Decision #2** (Phase 1 = local only?) is effectively answered "no, add remote" by starting
-   this — confirm that's the intent before investing in the full flow.
+1. **A real remote Server Client endpoint** with `remote_access` enabled, to validate `beeper-tui
+login` end-to-end (the browser flow + a live token exchange). Only a local Desktop
+   (`remote_access: false`) is available here. Everything up to that point is built + tested.
+
+**Resolved since the re-plan:** ~~security-review sign-off~~ (passed 2026-08-01), ~~token-storage
+mechanism~~ (**`Bun.secrets`** — cross-platform, argv-free, zero-dep), and decision #2 (adding remote
+is the intent — Mitch confirmed 2026-08-01).
 
 ## Out of scope
 

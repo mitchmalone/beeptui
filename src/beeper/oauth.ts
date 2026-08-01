@@ -271,13 +271,17 @@ export interface AuthorizeDeps {
 }
 
 /**
- * Drive the full Authorization Code + PKCE flow and return the tokens:
- * register the client → generate PKCE + state → open the browser at the
- * authorization URL → receive the loopback callback → verify state → exchange
- * the code. The receiver is always torn down. Secrets (verifier, tokens) never
- * touch a log or the returned error text.
+ * Drive the full Authorization Code + PKCE flow and return the registered
+ * `clientId` plus the tokens: register the client → generate PKCE + state → open
+ * the browser at the authorization URL → receive the loopback callback → verify
+ * state → exchange the code. The `clientId` is returned so the caller can persist
+ * it for later refresh/revoke. The receiver is always torn down; secrets
+ * (verifier, tokens) never touch a log or the returned error text.
  */
-export async function authorize(endpoints: OAuthEndpoints, deps: AuthorizeDeps): Promise<TokenSet> {
+export async function authorize(
+  endpoints: OAuthEndpoints,
+  deps: AuthorizeDeps
+): Promise<{ clientId: string; tokens: TokenSet }> {
   const receiver = await deps.startLoopback()
   try {
     const { clientId } = await registerClient(endpoints, receiver.redirectUri, deps.http)
@@ -294,7 +298,7 @@ export async function authorize(endpoints: OAuthEndpoints, deps: AuthorizeDeps):
     const callbackUrl = await receiver.awaitCallback()
     const parsed = parseCallback(callbackUrl, state)
     if ('error' in parsed) throw new Error(`Authorization failed: ${parsed.error}`)
-    return await exchangeCode(
+    const tokens = await exchangeCode(
       endpoints,
       {
         clientId,
@@ -304,6 +308,7 @@ export async function authorize(endpoints: OAuthEndpoints, deps: AuthorizeDeps):
       },
       deps.http
     )
+    return { clientId, tokens }
   } finally {
     receiver.close()
   }
