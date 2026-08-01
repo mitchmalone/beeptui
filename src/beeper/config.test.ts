@@ -199,4 +199,23 @@ describe('resolveConfig', () => {
       })
     ).toThrow(/networkColors\.WhatsApp.*hex/)
   })
+
+  test('parses theme.density and allows a density-only theme block', () => {
+    const cfg = resolveConfig({
+      env: {},
+      homedir: home,
+      readFile: () => JSON.stringify({ theme: { density: 'compact' } }),
+    })
+    expect(cfg.theme).toEqual({ networkColors: {}, density: 'compact' })
+  })
+
+  test('rejects an invalid theme.density with a clear error', () => {
+    expect(() =>
+      resolveConfig({
+        env: {},
+        homedir: home,
+        readFile: () => JSON.stringify({ theme: { density: 'cozy' } }),
+      })
+    ).toThrow(/theme\.density.*comfortable.*compact/)
+  })
 })

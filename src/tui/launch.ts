@@ -4,6 +4,7 @@ import { createElement } from 'react'
 import { BeeperAdapter, resolveActiveToken, resolveConfig } from '@/beeper/index.ts'
 import { App } from '@/tui/app.tsx'
 import { createStore } from '@/state/store.ts'
+import { initialState } from '@/state/types.ts'
 import { selectTotalUnread } from '@/state/selectors.ts'
 import { createStatusWriter } from '@/tui/terminal-status.ts'
 import { attachPersistence, openUiStore } from '@/store/index.ts'
@@ -48,7 +49,9 @@ export async function launch(): Promise<void> {
   // better than silently ignoring the user's config.
   const keymap = keymapOverrides === null ? KEYMAP : applyKeymapOverrides(keymapOverrides)
   const adapter = new BeeperAdapter({ endpoint, accessToken: token })
-  const store = createStore()
+  const store = createStore(
+    theme?.density !== undefined ? { ...initialState, density: theme.density } : initialState
+  )
 
   // Hydrate persisted UI state (drafts, cached inbox, last-view) before the live
   // bootstrap runs, and write it through as it changes.

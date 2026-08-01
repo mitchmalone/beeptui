@@ -347,6 +347,9 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     case 'filter/unreadToggled':
       return { ...state, filter: { ...state.filter, unreadOnly: !state.filter.unreadOnly } }
 
+    case 'density/toggled':
+      return { ...state, density: state.density === 'comfortable' ? 'compact' : 'comfortable' }
+
     case 'messageSearch/opened':
       return {
         ...state,

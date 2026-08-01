@@ -98,6 +98,11 @@ export interface ChatMessages {
   olderCursor: string | null
 }
 
+/** Layout density: `comfortable` keeps padding between rows/messages;
+ *  `compact` strips it to fit more on screen. Toggled at runtime (`D`) and
+ *  seeded from `config.theme.density`. */
+export type Density = 'comfortable' | 'compact'
+
 export interface AppState {
   connection: ConnectionState
   accounts: Record<string, Account>
@@ -135,6 +140,8 @@ export interface AppState {
   /** Ephemeral one-line notice (e.g. archive result / unsupported action). Shown
    *  in the status bar until the next navigation clears it. */
   notice: string | null
+  /** Layout density (seeded from config; toggled with `D`). */
+  density: Density
 }
 
 export const initialState: AppState = {
@@ -158,6 +165,7 @@ export const initialState: AppState = {
   server: null,
   error: null,
   notice: null,
+  density: 'comfortable',
 }
 
 /**
@@ -194,6 +202,7 @@ export type AppEvent =
   | { type: 'filter/scopeSelected'; scope: FilterScope }
   | { type: 'filter/archivedToggled' }
   | { type: 'filter/unreadToggled' }
+  | { type: 'density/toggled' }
   | { type: 'messageSearch/opened'; scopeChatId: string | null }
   | { type: 'messageSearch/queryChanged'; query: string }
   | { type: 'messageSearch/requested' }
