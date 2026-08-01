@@ -31,10 +31,10 @@ accounts/endpoints that don't exist in the current environment.
 
 ## Open-source flip — history rewrite first (decided 2026-08-01)
 
-- [ ] Run `git filter-repo` to drop the 59 MB `.bun-build` blob (committed in PR #12, untracked
-      2026-08-01) and the private Notion URL from history. Safe while the repo is private; do it
-      **immediately before** flipping public (`DECISIONS.md` 2026-08-01). Force-push rewrites
-      `main` — re-clone afterwards.
+- [x] ~~Run `git filter-repo`~~ — **done 2026-08-01**: dropped the 59 MB `.bun-build` blob and
+      replaced the private Notion URL + personal handle across all history; `main` force-pushed
+      (`dce00bc` → `95fad87`). Re-clone any other checkouts. Note: GitHub may retain pre-rewrite
+      objects via old PR refs until server-side GC — ask GitHub Support to purge if that matters.
 - [ ] Then flip the repo public (closes decision #6).
 
 ## Slice 11 — per-network reply rendering (minor)
