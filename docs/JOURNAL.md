@@ -5,6 +5,28 @@
 
 ---
 
+### 2026-08-01 — Slice 13 token persistence: `Bun.secrets` dissolved the "hard decision"
+
+- **I over-blocked twice, then found the clean answer.** I'd framed token-storage-write as a fraught
+  fork (macOS-keychain FFI vs. an encrypted file that dents invariant 1). First I missed that
+  `security -i` reads the secret from **stdin** (argv-free) — verified it round-trips. Then I found
+  the real answer: **`Bun.secrets`** (built into Bun ≥1.3.14) is a cross-platform OS-credential-store
+  API (`get`/`set`/`delete`) — macOS Keychain, Linux Secret Service, Windows Credential Manager. It's
+  in-process (argv-free, invariant 6 ✓), _is_ the platform store (invariant 1 ✓), and zero-dep. Lesson:
+  when something feels like an unavoidable security-design fork, check the runtime first — Bun had
+  already solved it. Verified with a live set/get/delete round-trip on the Keychain.
+- **Persist `{clientId, tokens}`, not just tokens.** Dynamic client registration issues a _new_
+  `clientId` per login, and refresh + revoke both require the same client — so the client id must be
+  stored alongside the tokens or the session can't be refreshed after restart.
+- **Kept it all testable by injecting the backend + clock + `getInfo`.** `token-store.ts` takes a
+  `SecretStore` (fake in tests); `auth-session.ts`'s `login`/`logout`/`currentAccessToken`/
+  `resolveActiveToken` take an `OAuthHttp` (fetch + injected `nowMs`) and a `getInfo` thunk — so the
+  whole lifecycle (incl. refresh-on-expiry persisting the new token) is unit-tested with no keychain,
+  no sockets, no real clock. Only `beeper-tui login`'s browser step needs a human + a live endpoint.
+- **Token resolution precedence:** env/legacy keychain first (fast, offline-friendly), then the
+  stored OAuth session (which reads `/v1/info` for the OAuth endpoints and refreshes if expired). So
+  a `BEEPER_ACCESS_TOKEN` still short-circuits without any network call.
+
 ### 2026-08-01 — Slice 14 unblocked features: receipts, notification hooks, standalone binary
 
 - **Read receipts were the same map→format pattern as reactions.** `Message.seen` has three shapes

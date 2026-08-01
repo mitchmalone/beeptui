@@ -44,9 +44,13 @@ discovered from `/v1/info` (`ServerInfo.oauth`, all six endpoints live-confirmed
 implements PKCE (S256) + CSRF state + registration + exchange/refresh/revoke + an `authorize`
 orchestrator, unit-tested against a fake auth server; `oauth-loopback.ts` is the real
 127.0.0.1 loopback + browser open. **Independent security review passed** (no exploitable findings;
-`DECISIONS.md` 2026-08-01). `doctor` distinguishes local vs remote. **Gates:** token _persistence
-write_ deferred (invariant-6 argv tension — needs an argv-free keystore mechanism), and end-to-end
-needs a real remote endpoint (`remote_access:false` locally).
+`DECISIONS.md` 2026-08-01). `doctor` distinguishes local vs remote. **Token persistence now built**
+(`token-store.ts` + `auth-session.ts`): backed by **`Bun.secrets`** — Bun's cross-platform OS
+credential store (Keychain / Secret Service / Credential Manager), in-process (argv-free), zero-dep —
+which closes the security review's open item. `beeper-tui login` / `logout` wire the full lifecycle
+(authorize → persist → refresh-on-expiry → revoke); `launch`/`status`/`doctor` resolve the active
+token through it (env/legacy → stored OAuth). Live-verified the Keychain round-trip. **Only gate
+left:** running `login` against a real remote endpoint (`remote_access:false` locally).
 
 **Slice 14 (polish) — unblocked features landed.** Read-only **reactions** (`👍×2 🎉`, aggregated),
 **read receipts** (`✓✓` on own seen messages), **notification hooks** (`config.notify.command` runs a
@@ -78,8 +82,9 @@ no silent failures. Fixed pagination resilience along the way. **199 tests** gre
 
 ## Manual gates (Mitch) — needed to fully close Slices 11–13
 
-- **Slice 13 remote flow:** a real remote Server Client endpoint (`remote_access` on) to validate
-  end-to-end auth, and an argv-free token-storage-write mechanism (the security review's open item).
+- **Slice 13 remote flow:** run `beeper-tui login` against a real remote Server Client endpoint
+  (`remote_access` on) — the browser OAuth flow + live token exchange. Everything else (PKCE core,
+  token persistence via `Bun.secrets`, refresh/revoke, login/logout wiring) is built + tested.
 
 - **Slice 11 live reply send:** send a reply from the TUI on WhatsApp and confirm it lands threaded
   (invariant 5 forbids auto-sending a real message, so this can't be automated). Everything else in

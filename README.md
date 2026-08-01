@@ -104,7 +104,9 @@ bunx beeper-tui doctor
 ```
 
 Commands: `beeper-tui` (TUI), `beeper-tui status`, `beeper-tui doctor` (add
-`--json` for machine-readable output).
+`--json` for machine-readable output), and — for a remote endpoint —
+`beeper-tui login` / `beeper-tui logout` (OAuth 2.0 + PKCE; tokens are stored in
+the OS credential store via `Bun.secrets`, never in a file or on a command line).
 
 ## Configuration
 
