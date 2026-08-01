@@ -116,8 +116,14 @@ platform credential store.
 
 ```jsonc
 {
-  // Point at a non-default endpoint (env BEEPER_TUI_ENDPOINT takes precedence).
-  "endpoint": "http://127.0.0.1:23373",
+  // Point at a non-default endpoint — a URL, or the name of one below.
+  // env BEEPER_TUI_ENDPOINT (a URL or a name) takes precedence.
+  "endpoint": "local",
+  // Named endpoints to switch between (e.g. local Desktop vs a remote box).
+  "endpoints": {
+    "local": "http://127.0.0.1:23373",
+    "remote": "https://beeper.example.com",
+  },
   // Run a command on each new inbound message in a chat you're not reading.
   // The command receives ONE extra argument: "beeper-tui: new message on <Network>".
   // Only the app name + network are ever passed — never a sender, chat, or message body.
