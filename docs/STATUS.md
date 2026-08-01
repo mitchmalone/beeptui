@@ -7,9 +7,10 @@
 
 ## Where we are
 
-**Phase 2 done bar live matrix; Phase 3 (13–14) core landed** on
-`feat/slice-10-filters-message-search` (staying on the branch Mitch is testing; PR #12 retitled for
-Slices 10–13). A `slk`-style **leftmost network rail** scopes the inbox (All + per-network,
+**Slices 10–14 code landed and merged to `main`** (PRs #12–#22). **Slices 11, 12 and 13 are now
+closed** — 11 fully (live reply send done 2026-08-01); 12 and 13 as **code-complete with their live
+tests deferred to `TODO.md`** (accepted-risk call, Mitch 2026-08-01: no Discord/IG/X accounts and no
+remote endpoint available to run them). A `slk`-style **leftmost network rail** scopes the inbox (All + per-network,
 unread dots) with archived (`a`) and unread-only (`U`) toggles. Per Mitch's live-use feedback the
 rail is now a **real focus target**: `Esc`/`h`/`←` walks out (conversation → list → rail), `j`/`k`
 switch networks in the rail, `l`/`→`/`Enter` drill back in — quick-keys still work. **`Shift+A`
@@ -28,17 +29,20 @@ header; capability-gated on `canReply`; adapter carries `replyToMessageID`), and
 attachment** via `assets.download` (OS side-effects injected; no path ever logged). Inbound **edits
 render in place** with `(edited)`. Help overlay rebalanced to two row-balanced columns so the new
 bindings don't overflow. **315 tests** green; typecheck + lint + format clean; 10 smoke scenarios.
+**Live reply send validated 2026-08-01** (Mitch sent real replies from the TUI on a connected
+network — the one invariant-5-gated step): **Slice 11 is fully done.**
 
-**Slice 12 (remaining networks & capability messaging) — code done, live matrix blocked.** The two
+**Slice 12 (remaining networks & capability messaging) — CLOSED; live matrix deferred to `TODO.md`.** The two
 capability-gated actions (reply, archive) now route through one shared `checkCapability` /
 `capabilityUnavailableMessage` (`src/state/capabilities.ts`) — honest, source-naming ("Replies not
 available for Slack via Beeper"), no ad-hoc strings. Added a burst-stability smoke scenario (12 rapid
 inbound while scrolled up keeps reading position). A **redacted live capability probe** on the 3
 connected networks confirms the plumbing (reply reported-supported on WhatsApp + Facebook). The full
-Discord/Instagram/X matrix — and declaring Phase 2 complete — is **blocked** on those networks being
-connected (manual gate, Mitch).
+Discord/Instagram/X matrix — and declaring Phase 2 complete — is **deferred to `TODO.md`** (accepted
+risk, Mitch 2026-08-01): the slice is closed on the code, the live run is a tracked follow-up once
+those networks are connected.
 
-**Slice 13 (remote endpoint & OAuth) — buildable surface COMPLETE; only a live remote login gated.** API
+**Slice 13 (remote endpoint & OAuth) — CLOSED; live remote login deferred to `TODO.md`.** API
 re-investigated: auth is OAuth 2.0 Authorization Code + PKCE with RFC 7591 dynamic registration,
 discovered from `/v1/info` (`ServerInfo.oauth`, all six endpoints live-confirmed). `src/beeper/oauth.ts`
 implements PKCE (S256) + CSRF state + registration + exchange/refresh/revoke + an `authorize`
@@ -53,7 +57,8 @@ token through it (env/legacy → stored OAuth). Live-verified the Keychain round
 fallback** (`secret-file-store.ts`): AES-256-GCM encrypted `0600` file when no keyring is present.
 **`doctor` reports token scope** (RFC 7662 introspection — "read, write; can read and send"), and
 **named endpoints** (`config.endpoints` `{name: url}`) let the `endpoint` selector be a URL or a name.
-**Only gate left:** running `login` against a real remote endpoint (`remote_access:false` locally).
+**Only unrun item** (now deferred to `TODO.md`, accepted risk): running `login` against a real remote
+endpoint (`remote_access:false` locally).
 
 **Slice 14 (polish) — unblocked features landed.** Read-only **reactions** (`👍×2 🎉`, aggregated),
 **read receipts** (`✓✓` on own seen messages), **notification hooks** (`config.notify.command` runs a
@@ -81,21 +86,23 @@ no silent failures. Fixed pagination resilience along the way. **199 tests** gre
   config, and the standalone binary all landed. Remaining candidates: layout densities, perf
   profiling vs the PRD timing criteria, richer media preview (Kitty/iTerm2 image protocols), and
   brew tap / versioned releases (gated on decision #6).
-- Clear the manual gates below to fully close Slices 11–13 and declare Phase 2 complete.
+- **Deferred live validation → see `TODO.md`.** Slices 12 and 13 are closed on the code; their live
+  runs (Discord/IG/X matrix; remote-endpoint `login`) are tracked there, accepted-risk. Declaring
+  **Phase 2 complete** waits on the Slice 12 matrix actually running — the code is done, the
+  production run is not, and the docs won't claim otherwise.
+- **Slice 14 re-plan** (split into 2–4) is the main open code work — see above.
 
-## Manual gates (Mitch) — needed to fully close Slices 11–13
+## Deferred live validation (accepted risk, Mitch 2026-08-01) → `TODO.md`
 
-- **Slice 13 remote flow:** run `beeper-tui login` against a real remote Server Client endpoint
-  (`remote_access` on) — the browser OAuth flow + live token exchange. Everything else (PKCE core,
-  token persistence via `Bun.secrets`, refresh/revoke, login/logout wiring) is built + tested.
+Slices 11–13 closed; these are the **unrun production checks**, not code gaps. Full detail + checklists
+live in `TODO.md`.
 
-- **Slice 11 live reply send:** send a reply from the TUI on WhatsApp and confirm it lands threaded
-  (invariant 5 forbids auto-sending a real message, so this can't be automated). Everything else in
-  Slice 11 is done + green; the reply _adapter param_ and _attachment download_ are live-validated.
-- **Slice 12 live matrix:** connect Discord / Instagram DMs / X DMs in Beeper Desktop, then run the
-  validation matrix (list/read/send/reply/search/attachments) per network. The capability probe on
-  the currently-connected networks passed; the other three can't be exercised until connected. Once
-  done, `docs/STATUS.md` can declare **Phase 2 complete**.
+- ~~**Slice 11 live reply send**~~ — **done 2026-08-01** (real replies sent from the TUI on a
+  connected network; the one invariant-5-gated step). Slice 11 fully closed.
+- **Slice 13 remote login** — run `beeper-tui login` against a real remote endpoint with
+  `remote_access` on (browser OAuth + live token exchange). All code built + unit-tested.
+- **Slice 12 live matrix** — connect Discord / Instagram DMs / X DMs, then run
+  list/read/send/reply/search/attachments per network. Clears the last item before **Phase 2 complete**.
 
 ## Deferred / follow-ups
 

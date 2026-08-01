@@ -2,7 +2,7 @@
 title: Slice 11 — Replies, edits & attachments
 status: done
 created: 2026-07-30
-updated: 2026-07-31
+updated: 2026-08-01
 links:
   - ../../PRD.md § Conversation reading, § Compose and sending (reply)
   - PLAN-slice-5-compose-send.md
@@ -75,6 +75,6 @@ earliest), reactions (Slice 14, read-only).
 
 ## Follow-up (manual, Mitch)
 
-- **Live reply send** on a supporting network (WhatsApp) — the one acceptance item that requires an
-  explicit user send (invariant 5). Confirm the reply lands threaded/quoted, and note the
-  per-network rendering in `LEARNINGS.md`.
+- [x] **Live reply send** — done 2026-08-01. Mitch sent real replies from the TUI on a connected
+      network and confirmed it works. This was the one acceptance item that requires an explicit user
+      send (invariant 5). **Slice 11 is now fully closed.**

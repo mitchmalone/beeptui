@@ -1,8 +1,8 @@
 ---
 title: Slice 13 — Remote Server Client endpoint & OAuth
-status: active
+status: done
 created: 2026-07-30
-updated: 2026-07-31
+updated: 2026-08-01
 links:
   - ../../PRD.md § Configuration, privacy, and diagnostics, § Constraints and risks (OAuth review)
   - PLAN-slice-1-beeper-adapter-doctor.md
@@ -92,7 +92,17 @@ The mechanism is **discoverable and standard** — no guessing:
 - [x] Security review completed and its findings recorded in `DECISIONS.md` / fixed
       (2026-08-01) — passed, no exploitable findings.
 
-## Blocking gates (need Mitch / environment)
+## Closure note (2026-08-01)
+
+Closed as **code-complete, live-validation deferred (accepted risk, Mitch)**. The full OAuth surface
+(PKCE core, dynamic registration, exchange/refresh/revoke, token persistence via `Bun.secrets`,
+headless-Linux encrypted-file fallback, `login`/`logout` wiring, endpoint-aware `doctor`) is built,
+unit-tested, security-reviewed, and merged. The single unrun item — `beeper-tui login` against a
+**real remote endpoint** with `remote_access` on — has no such endpoint available here
+(`remote_access:false` locally), so Mitch chose to close the slice and carry that live run as a
+tracked follow-up in `TODO.md`.
+
+## Blocking gates (need Mitch / environment) — DEFERRED to TODO.md
 
 1. **A real remote Server Client endpoint** with `remote_access` enabled, to validate `beeper-tui
 login` end-to-end (the browser flow + a live token exchange). Only a local Desktop
