@@ -24,14 +24,18 @@ v1 definition of done.
 
 - [x] **Layout densities** — compact/comfortable toggle (`D`) for the inbox + conversation panes,
       seeded from `config.theme.density`. Done on `feat/v1-polish`.
-- [x] **Performance profiling (state)** — `src/state/perf.test.ts` benchmarks reducer event
-      application + selectors at 5000 chats / 2000 live messages; results + methodology in
-      `docs/PERF.md`. The parts we own sit 3–4 orders of magnitude inside the PRD budgets.
+- [x] **Performance profiling** — **state:** `src/state/perf.test.ts` benchmarks reducer + selectors
+      at 5000 chats / 2000 live messages. **Render loop:** `src/tui/profile.ts` harness
+      (`src/tui/frame-profiler.ts` maths is unit-tested) replays a 300-message burst on a 3000-chat
+      inbox and measures inter-frame times — steady ~18 ms/frame (~56 fps). Results + methodology in
+      `docs/PERF.md`. Everything sits well inside the PRD budgets.
 - [~] **Richer media preview** — `src/tui/media-preview.ts` does protocol detection (kitty /
   iTerm2 / WezTerm), image-attachment ID, and escape-sequence building (all unit-tested);
-  `doctor` reports support honestly. **Residual:** in-TUI rendering (coordinating with the
-  OpenTUI native framebuffer) — can't be validated headlessly; attachments degrade visibly to
-  the text placeholder + open/save until then.
+  `doctor` reports support honestly. **Spike (2026-08-02): in-TUI rendering is feasible** — OpenTUI
+  exposes `OptimizedBuffer.drawSuperSampleBuffer` (RGBA → supersampled cells, any terminal) plus
+  `capabilities.kitty_graphics`/`.sixel` for native paths. **Residual:** the pixel path needs an
+  image-**decode** dependency (PNG/JPEG → RGBA; not in Bun/stdlib), or use the native-protocol path
+  (encoded bytes, kitty/iTerm2 only). A dependency + integration call, no longer an unknown.
 - [x] **brew tap / versioned releases — DONE (v0.1.0, 2026-08-02).** `src/packaging/homebrew.ts`
       renders the formula and `release.yml` publishes per-target binaries + `sha256sums.txt` and
       pushes the formula to the tap. Exercised end-to-end by the **first real release**: tag
@@ -41,10 +45,9 @@ v1 definition of done.
 
 ## Residual / still open
 
-- **In-TUI image rendering** — wire `buildImageSequence` into a render path that cooperates with the
-  OpenTUI renderer; validate in a real kitty / iTerm2 session.
-- **Live render-loop profiling** — instrument `createCliRenderer` frame timing under a synthetic
-  burst (needs the live renderer; see `docs/PERF.md`).
+- **In-TUI image rendering** — feasibility confirmed (spike above). Remaining: pick the decode dep
+  (or native-protocol path), wire it into a `FrameBufferRenderable` / `drawSuperSampleBuffer`, and
+  validate in a real kitty / iTerm2 session. A scoped feature, not research.
 - **CI action versions** — the release run warns that `actions/checkout@v4` +
   `actions/upload/download-artifact@v4` target Node 20 (being force-run on Node 24). Bump to the
   Node-24 action majors when convenient; warning only, not failing.
