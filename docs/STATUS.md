@@ -7,6 +7,12 @@
 
 ## Where we are
 
+**First tagged release — `v0.1.0` (2026-08-02).** Pushed tag `v0.1.0`; the release workflow built
+both binaries (darwin-arm64 + linux-x64), published a GitHub Release with `sha256sums.txt`, and
+pushed `Formula/beeper-tui.rb` to `mitchmalone/homebrew-tap` (SHA-256s match). `brew install
+mitchmalone/tap/beeper-tui` resolves. The brew/release polish item is **done** — end-to-end, not
+just structural. (Minor: the run warns on Node-20 GitHub-action majors; bump when convenient.)
+
 **v1 polish pass (`feat/v1-polish`, 2026-08-01).** Knocked out the optional backlog in one branch
 (Mitch: "break the rules, do it all"): **layout density** toggle (`D`, seeded from
 `config.theme.density`; compact strips pane padding); a **state performance benchmark**

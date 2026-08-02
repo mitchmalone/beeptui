@@ -32,11 +32,12 @@ v1 definition of done.
   `doctor` reports support honestly. **Residual:** in-TUI rendering (coordinating with the
   OpenTUI native framebuffer) — can't be validated headlessly; attachments degrade visibly to
   the text placeholder + open/save until then.
-- [~] **brew tap / versioned releases** — `src/packaging/homebrew.ts` renders a validated formula
-  and `release.yml` publishes `sha256sums.txt` + a guarded tap-publish job (both on `main`, PRs #27
-  - #28). **Residual:** create the `homebrew-tap` repo, set `HOMEBREW_TAP_REPO` +
-    `HOMEBREW_TAP_TOKEN`, and cut a real `v*` tag to exercise the workflow end-to-end (only ever run
-    structurally so far).
+- [x] **brew tap / versioned releases — DONE (v0.1.0, 2026-08-02).** `src/packaging/homebrew.ts`
+      renders the formula and `release.yml` publishes per-target binaries + `sha256sums.txt` and
+      pushes the formula to the tap. Exercised end-to-end by the **first real release**: tag
+      `v0.1.0` → both binaries + checksums on the GitHub Release → `Formula/beeper-tui.rb` committed
+      to `mitchmalone/homebrew-tap` with matching SHA-256s. `brew install mitchmalone/tap/beeper-tui`
+      resolves.
 
 ## Residual / still open
 
@@ -44,8 +45,9 @@ v1 definition of done.
   OpenTUI renderer; validate in a real kitty / iTerm2 session.
 - **Live render-loop profiling** — instrument `createCliRenderer` frame timing under a synthetic
   burst (needs the live renderer; see `docs/PERF.md`).
-- **First real release** — configure the tap, push a `v*` tag, confirm binaries + checksums + the
-  formula land and `brew install` works.
+- **CI action versions** — the release run warns that `actions/checkout@v4` +
+  `actions/upload/download-artifact@v4` target Node 20 (being force-run on Node 24). Bump to the
+  Node-24 action majors when convenient; warning only, not failing.
 
 ## Out of scope
 
