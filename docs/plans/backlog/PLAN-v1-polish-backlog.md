@@ -12,8 +12,8 @@ links:
 # v1 polish — optional follow-ups
 
 > Optional, fuzzy-scoped polish carried out of the (now closed) Slice 14. **None of these block
-> v1** — Slices 0–14 are code-complete and green. **Most of this landed on `feat/v1-polish`
-> (2026-08-01)**; the residual items below are what genuinely needs hardware/infra we don't have.
+> v1** — Slices 0–14 are code-complete and green. **Most of this landed on `main` (2026-08-01, PRs
+> #27 + #28)**; the residual items below are what genuinely needs hardware/infra we don't have.
 
 ## Goal
 
@@ -33,11 +33,10 @@ v1 definition of done.
   OpenTUI native framebuffer) — can't be validated headlessly; attachments degrade visibly to
   the text placeholder + open/save until then.
 - [~] **brew tap / versioned releases** — `src/packaging/homebrew.ts` renders a validated formula
-  (landed on `main`); the matching `release.yml` change (publish `sha256sums.txt` + a guarded
-  tap-publish job) is committed on branch `feat/v1-polish` but **not yet on `main`** — pushing a
-  workflow file needs a `workflow`-scoped token the CI session didn't have. **Residual:** push that
-  `release.yml` change; create the `homebrew-tap` repo, set `HOMEBREW_TAP_REPO` +
-  `HOMEBREW_TAP_TOKEN`, and cut a real `v*` tag to exercise the workflow end-to-end.
+  and `release.yml` publishes `sha256sums.txt` + a guarded tap-publish job (both on `main`, PRs #27
+  - #28). **Residual:** create the `homebrew-tap` repo, set `HOMEBREW_TAP_REPO` +
+    `HOMEBREW_TAP_TOKEN`, and cut a real `v*` tag to exercise the workflow end-to-end (only ever run
+    structurally so far).
 
 ## Residual / still open
 
