@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'bun:test'
-import { formatMessage, formatSize, formatTime, messageLine } from '@/state/message-format.ts'
+import {
+  attachmentLabel,
+  formatSize,
+  formatTime,
+  messageStatusMarker,
+} from '@/state/message-format.ts'
 import type { MessageEntity } from '@/state/types.ts'
 
 // Base omits the optional fields (senderName, text, …) so tests add only what
@@ -26,56 +31,6 @@ describe('formatTime', () => {
   })
 })
 
-describe('formatMessage', () => {
-  test('uses sender name, or You for own messages, or the id as fallback', () => {
-    expect(formatMessage(message({ senderName: 'Grace' })).sender).toBe('Grace')
-    expect(formatMessage(message({ isSender: true })).sender).toBe('You')
-    expect(formatMessage(message({})).sender).toBe('them@server')
-  })
-
-  test('folds in reply marker, attachments, and edited marker', () => {
-    const f = formatMessage(
-      message({
-        text: 'see this',
-        replyToId: 'm0',
-        isEdited: true,
-        attachments: [{ kind: 'image', fileName: 'a.png' }],
-      })
-    )
-    expect(f.body).toBe('↩ see this [image: a.png] (edited)')
-  })
-
-  test('attachment-only message shows a placeholder, never blank or undefined', () => {
-    const f = formatMessage(message({ attachments: [{ kind: 'file' }] }))
-    expect(f.body).toBe('[file]')
-    expect(f.body).not.toContain('undefined')
-  })
-
-  test('renders read-only reactions as a trailing summary with counts', () => {
-    const f = formatMessage(
-      message({
-        text: 'ship it',
-        reactions: [
-          { key: '👍', count: 2, isEmoji: true },
-          { key: '🎉', count: 1, isEmoji: true },
-        ],
-      })
-    )
-    expect(f.body).toBe('ship it  👍×2 🎉')
-  })
-
-  test('attachment label includes size when known', () => {
-    const f = formatMessage(
-      message({ attachments: [{ kind: 'image', fileName: 'a.png', fileSize: 20480 }] })
-    )
-    expect(f.body).toBe('[image: a.png · 20 KB]')
-  })
-
-  test('a message with no text and no attachments degrades to (no content)', () => {
-    expect(formatMessage(message({})).body).toBe('(no content)')
-  })
-})
-
 describe('formatSize', () => {
   test('renders bytes, KB, MB with sensible rounding', () => {
     expect(formatSize(512)).toBe('512 B')
@@ -85,33 +40,31 @@ describe('formatSize', () => {
   })
 })
 
-describe('messageLine', () => {
-  test('renders time, sender, body', () => {
-    expect(messageLine(message({ senderName: 'Grace', text: 'hi' }))).toBe('09:05 Grace: hi')
-  })
-
-  test('marks pending and failed sends', () => {
-    expect(
-      messageLine(message({ status: 'pending', isSender: true, senderName: 'You' }))
-    ).toContain('…')
-    expect(messageLine(message({ status: 'failed', isSender: true, senderName: 'You' }))).toContain(
-      '⚠ failed'
+describe('attachmentLabel', () => {
+  test('names the file when known, and includes the size when known', () => {
+    expect(attachmentLabel({ kind: 'file' })).toBe('file')
+    expect(attachmentLabel({ kind: 'image', fileName: 'a.png' })).toBe('image: a.png')
+    expect(attachmentLabel({ kind: 'image', fileName: 'a.png', fileSize: 20480 })).toBe(
+      'image: a.png · 20 KB'
     )
   })
+})
 
-  test('omits the time prefix cleanly when the timestamp is unparseable', () => {
-    expect(messageLine(message({ senderName: 'X', text: 'y', timestamp: '' }))).toBe('X: y')
+describe('messageStatusMarker', () => {
+  test('marks pending and failed sends', () => {
+    expect(messageStatusMarker(message({ status: 'pending' }))).toContain('…')
+    expect(messageStatusMarker(message({ status: 'failed' }))).toContain('⚠ failed')
   })
 
   test('shows a ✓✓ read receipt on our own seen messages, not on inbound or unseen', () => {
-    expect(
-      messageLine(message({ isSender: true, senderName: 'You', text: 'hi', isSeen: true }))
-    ).toContain('✓✓')
+    expect(messageStatusMarker(message({ isSender: true, isSeen: true }))).toContain('✓✓')
     // Not on an inbound message, even if flagged seen.
-    expect(messageLine(message({ isSender: false, text: 'hi', isSeen: true }))).not.toContain('✓✓')
+    expect(messageStatusMarker(message({ isSender: false, isSeen: true }))).not.toContain('✓✓')
     // Not on our own message that isn't seen yet.
-    expect(messageLine(message({ isSender: true, senderName: 'You', text: 'hi' }))).not.toContain(
-      '✓✓'
-    )
+    expect(messageStatusMarker(message({ isSender: true }))).not.toContain('✓✓')
+  })
+
+  test('an ordinary sent message gets no marker', () => {
+    expect(messageStatusMarker(message())).toBe('')
   })
 })

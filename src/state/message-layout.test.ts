@@ -88,6 +88,38 @@ describe('layOutMessage', () => {
     expect(bodyText(layOutMessage(m, 40).rows)).toEqual(['one', 'two'])
   })
 
+  test('composes the body exactly: reply marker, text, attachment, edited', () => {
+    const m = message({
+      senderName: 'Ada',
+      text: 'see this',
+      replyToId: 'm0',
+      isEdited: true,
+      attachments: [{ kind: 'image', fileName: 'a.png' }],
+    })
+    expect(bodyText(layOutMessage(m, 80).rows)).toEqual(['↩ see this [image: a.png] (edited)'])
+  })
+
+  test('an attachment-only message shows a placeholder, never blank or undefined', () => {
+    const rows = layOutMessage(message({ attachments: [{ kind: 'file' }] }), 80).rows
+    expect(bodyText(rows)).toEqual(['[file]'])
+  })
+
+  test('an attachment label carries its size when known', () => {
+    const m = message({ attachments: [{ kind: 'image', fileName: 'a.png', fileSize: 20480 }] })
+    expect(bodyText(layOutMessage(m, 80).rows)).toEqual(['[image: a.png · 20 KB]'])
+  })
+
+  test('renders read-only reactions as a trailing summary with counts', () => {
+    const m = message({
+      text: 'ship it',
+      reactions: [
+        { key: '👍', count: 2, isEmoji: true },
+        { key: '🎉', count: 1, isEmoji: true },
+      ],
+    })
+    expect(bodyText(layOutMessage(m, 80).rows)).toEqual(['ship it  👍×2 🎉'])
+  })
+
   test('marks a reply, and appends attachments, edits, reactions and status', () => {
     const m = message({
       senderName: 'Ada',
@@ -102,6 +134,11 @@ describe('layOutMessage', () => {
     expect(text).toContain('[image: cat.png]')
     expect(text).toContain('(edited)')
     expect(text).toContain('👍×2')
+  })
+
+  test('a reaction-only message still says (no content) before its reactions', () => {
+    const m = message({ reactions: [{ key: '👍', count: 1, isEmoji: true }] })
+    expect(bodyText(layOutMessage(m, 80).rows)).toEqual(['(no content)  👍'])
   })
 
   test('a failed send shows the marker; an empty message says so', () => {

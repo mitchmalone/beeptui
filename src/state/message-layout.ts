@@ -134,41 +134,60 @@ function wrapAtoms(atoms: readonly Atom[], width: number): Atom[][] {
   return lines.length > 0 ? lines : [[]]
 }
 
-/** Plain decorations appended after the body: attachments, edited marker,
- *  reactions, delivery status. Unstyled, matching the old single-line render. */
-function trailingText(message: MessageEntity): string {
-  const parts = (message.attachments ?? []).map((a) => `[${attachmentLabel(a)}]`)
-  let out = parts.join(' ')
+/** Attachment placeholders and the edited marker — the decorations that read as
+ *  part of the body. Reactions and delivery status trail further behind. */
+function bodyDecorations(message: MessageEntity): string {
+  let out = (message.attachments ?? []).map((a) => `[${attachmentLabel(a)}]`).join(' ')
   if (message.isEdited === true) out = out.length > 0 ? `${out} (edited)` : '(edited)'
-  const reactions = (message.reactions ?? [])
-    .map((r) => (r.count > 1 ? `${r.key}×${r.count}` : r.key))
-    .join(' ')
-  if (reactions.length > 0) out = out.length > 0 ? `${out}  ${reactions}` : reactions
-  return `${out}${messageStatusMarker(message)}`
+  return out
 }
 
-/** The message body as styled source lines, before wrapping. */
+/** The read-only reaction summary (`👍×2 🎉`), or ''. */
+function reactionSummary(message: MessageEntity): string {
+  return (message.reactions ?? [])
+    .map((r) => (r.count > 1 ? `${r.key}×${r.count}` : r.key))
+    .join(' ')
+}
+
+/** Append text to the last of a run of styled lines, unstyled. */
+function appendToLast(lines: StyledLine[], text: string): void {
+  if (text.length === 0) return
+  const index = Math.max(0, lines.length - 1)
+  const last = lines[index] ?? { runs: [] }
+  lines[index] = { runs: [...last.runs, { text }] }
+}
+
+function isEmpty(lines: readonly StyledLine[]): boolean {
+  return lines.every((l) => l.runs.every((r) => r.text.length === 0))
+}
+
+/**
+ * The message body as styled source lines, before wrapping. The order matters
+ * and mirrors what the single-line renderer did: reply marker, text,
+ * attachments and edit marker, then the `(no content)` fallback if all of that
+ * came to nothing, and only then the reactions (set off by a double space) and
+ * the delivery marker.
+ */
 function sourceLines(message: MessageEntity): StyledLine[] {
   const text = message.text ?? ''
-  const lines: StyledLine[] = hasHtml(text)
+  let lines: StyledLine[] = hasHtml(text)
     ? htmlToStyledLines(text)
     : [{ runs: text.length > 0 ? [{ text }] : [] }]
 
-  // A reply marker leads the first line; trailing decorations follow the last.
   if (message.replyToId !== undefined) {
     const first = lines[0] ?? { runs: [] }
     lines[0] = { runs: [{ text: '↩ ' }, ...first.runs] }
   }
-  const suffix = trailingText(message)
-  if (suffix.length > 0) {
-    const lastIndex = Math.max(0, lines.length - 1)
-    const last = lines[lastIndex] ?? { runs: [] }
-    const joiner = last.runs.length > 0 ? ' ' : ''
-    lines[lastIndex] = { runs: [...last.runs, { text: `${joiner}${suffix}` }] }
-  }
 
-  const empty = lines.every((l) => l.runs.every((r) => r.text.length === 0))
-  return empty ? [{ runs: [{ text: '(no content)' }] }] : lines
+  const decorations = bodyDecorations(message)
+  appendToLast(lines, isEmpty(lines) ? decorations : ` ${decorations}`.trimEnd())
+  if (isEmpty(lines)) lines = [{ runs: [{ text: '(no content)' }] }]
+
+  const reactions = reactionSummary(message)
+  if (reactions.length > 0) appendToLast(lines, `  ${reactions}`)
+  appendToLast(lines, messageStatusMarker(message))
+
+  return lines
 }
 
 /**
