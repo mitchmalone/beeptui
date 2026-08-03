@@ -79,3 +79,11 @@ export function displayWidth(text: string): number {
   for (const { segment } of GRAPHEMES.segment(text)) width += clusterWidth(segment)
   return width
 }
+
+/** `text` split into grapheme clusters — the smallest unit the wrapper may cut
+ *  between without tearing an emoji sequence or orphaning a combining mark. */
+export function toGraphemes(text: string): string[] {
+  const out: string[] = []
+  for (const { segment } of GRAPHEMES.segment(text)) out.push(segment)
+  return out
+}
