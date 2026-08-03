@@ -122,8 +122,22 @@ jobs:
           mkdir -p tap/Formula
           cp beeptui.rb tap/Formula/beeptui.rb
           cd tap
+          # Retire the pre-rename formula if it's still present (see DECISIONS.md 2026-08-03).
+          git rm --ignore-unmatch Formula/beeper-tui.rb
+          cat > README.md <<'EOF'
+          # homebrew-tap
+
+          Homebrew tap for [beeptui](https://github.com/mitchmalone/beeptui).
+
+          ```sh
+          brew install mitchmalone/tap/beeptui
+          ```
+
+          `Formula/beeptui.rb` is generated automatically on each `v*` release of the
+          main repo — do not edit by hand.
+          EOF
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Formula/beeptui.rb
+          git add -A
           git commit -m "beeptui ${{ github.ref_name }}"
           git push
