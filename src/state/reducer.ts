@@ -11,7 +11,12 @@ import {
   type MessagePage,
 } from '@/state/types.ts'
 import { CONVERSATION_ACTIONS, QUICK_REACTIONS } from '@/state/reactions.ts'
-import { offsetToShowIndex } from '@/state/conversation-scroll.ts'
+import {
+  conversationContentWidth,
+  maxScrollOffset,
+  offsetToShowMessage,
+} from '@/state/conversation-scroll.ts'
+import { layOutMessages, totalRows, type MessageLayout } from '@/state/message-layout.ts'
 
 /** Loaded messages of the active chat, or [] when none is selected. */
 function activeItems(state: AppState): readonly MessageEntity[] {
@@ -20,14 +25,34 @@ function activeItems(state: AppState): readonly MessageEntity[] {
     : (state.messagesByChat[state.selectedChatId]?.items ?? [])
 }
 
+/** The active chat's messages laid out into rows at the measured width. Scroll
+ *  offsets are row counts, so every scroll decision goes through this. */
+function activeLayouts(state: AppState): MessageLayout[] {
+  return layOutMessages(
+    activeItems(state),
+    conversationContentWidth(state.viewportCols, state.density),
+    {
+      separator: state.density !== 'compact',
+    }
+  )
+}
+
+/** True once the view has reported both viewport dimensions. Before that any
+ *  row arithmetic would be built on a guessed wrap width. */
+function measured(state: AppState): boolean {
+  return state.viewportRows > 0 && state.viewportCols > 0
+}
+
 /** The scroll offset that keeps `messageId` visible in the current viewport,
  *  falling back to the existing offset when the id or viewport is unknown. */
 function offsetForSelection(state: AppState, messageId: string | null): number {
-  if (messageId === null || state.viewportRows <= 0) return state.conversationOffset
-  const items = activeItems(state)
-  const index = items.findIndex((m) => m.id === messageId)
-  if (index === -1) return state.conversationOffset
-  return offsetToShowIndex(index, items.length, state.viewportRows, state.conversationOffset)
+  if (messageId === null || !measured(state)) return state.conversationOffset
+  return offsetToShowMessage(
+    activeLayouts(state),
+    messageId,
+    state.viewportRows,
+    state.conversationOffset
+  )
 }
 
 /** Scroll state for a selection move: the viewport-follow offset, plus clearing
@@ -222,10 +247,15 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       if (chatId === state.selectedChatId && added > 0) {
         if (state.conversationOffset > 0) {
           // Scrolled up (the newest is below the fold): keep the reading position
-          // — bump the offset by the number appended — and flag new-below.
+          // — bump the offset by the *rows* the arrivals added, not the message
+          // count, or the view slides by however many rows they wrapped onto —
+          // and flag new-below.
+          const grew = measured(state)
+            ? totalRows(activeLayouts(next)) - totalRows(activeLayouts(state))
+            : added
           return {
             ...next,
-            conversationOffset: state.conversationOffset + added,
+            conversationOffset: state.conversationOffset + Math.max(0, grew),
             newMessagesBelow: true,
           }
         }
@@ -311,11 +341,12 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     }
 
     case 'conversation/scrolled': {
-      const count =
-        state.selectedChatId === null
-          ? 0
-          : (state.messagesByChat[state.selectedChatId]?.items.length ?? 0)
-      const max = Math.max(0, count - 1)
+      // The offset is a row count, so the ceiling is total laid-out rows minus
+      // the viewport — not the message count, which stops far short of the top
+      // once messages wrap onto several rows.
+      const max = measured(state)
+        ? maxScrollOffset(totalRows(activeLayouts(state)), state.viewportRows)
+        : Math.max(0, activeItems(state).length - 1)
       const offset = Math.min(max, Math.max(0, state.conversationOffset + event.delta))
       // Reaching the bottom (offset 0) dismisses the new-messages affordance.
       return {
@@ -390,8 +421,8 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       return { ...state, overlay: 'none', searchQuery: '' }
 
     case 'viewport/measured':
-      if (event.rows === state.viewportRows) return state
-      return { ...state, viewportRows: event.rows }
+      if (event.rows === state.viewportRows && event.cols === state.viewportCols) return state
+      return { ...state, viewportRows: event.rows, viewportCols: event.cols }
 
     case 'actionMenu/moved': {
       const max = CONVERSATION_ACTIONS.length - 1

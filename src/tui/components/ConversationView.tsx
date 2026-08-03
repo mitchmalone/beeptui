@@ -1,12 +1,18 @@
-import { memo } from 'react'
+import { Fragment, memo, type ReactNode } from 'react'
 import { useTerminalDimensions } from '@opentui/react'
 import type { ActiveConversation } from '@/state/selectors.ts'
 import type { Density, MessageEntity } from '@/state/types.ts'
-import { messageLine } from '@/state/message-format.ts'
-import { hasHtml } from '@/state/message-html.ts'
-import { MessageView } from '@/tui/components/MessageView.tsx'
+import type { StyledRun } from '@/state/message-html.ts'
+import { layOutMessages, totalRows, type LayoutRow } from '@/state/message-layout.ts'
 import { networkColor, type NetworkColors } from '@/tui/components/InboxPane.tsx'
-import { CHROME_ROWS, CHROME_ROWS_COMPACT, visibleMessages } from '@/state/conversation-scroll.ts'
+import {
+  CARET_GUTTER,
+  clampOffset,
+  conversationCapacity,
+  conversationContentWidth,
+  maxScrollOffset,
+  visibleRows,
+} from '@/state/conversation-scroll.ts'
 import { ConversationActionMenu } from '@/tui/components/ConversationActionMenu.tsx'
 import { EmojiPicker } from '@/tui/components/EmojiPicker.tsx'
 import { CONVERSATION_ACTIONS } from '@/state/reactions.ts'
@@ -25,9 +31,11 @@ export interface ConversationViewProps {
   menu?: ConversationMenu
   /** Test override for the viewport height in rows. */
   capacityOverride?: number
+  /** Test override for the content width in columns. */
+  widthOverride?: number
   /** Per-network colour overrides from config. */
   networkColors?: NetworkColors | undefined
-  /** Layout density; `compact` strips pane padding (freeing two message rows). */
+  /** Layout density; `compact` strips pane padding and the message separator. */
   density?: Density | undefined
 }
 
@@ -38,32 +46,68 @@ function menuHeight(menu: NonNullable<ConversationMenu>): number {
 }
 
 function rowStyle(
-  message: MessageEntity,
+  message: MessageEntity | undefined,
   selected: boolean,
   theme: Theme
-): { fg?: string; bg?: string } {
+): { fg?: string } {
   // Selection highlight wins visually — it's the active cursor.
-  if (selected) return { fg: theme.selectionFg, bg: theme.selectionBg }
-  if (message.status === 'failed') return { fg: theme.danger }
-  if (message.status === 'pending') return { fg: theme.muted }
+  if (selected) return { fg: theme.selectionFg }
+  if (message?.status === 'failed') return { fg: theme.danger }
+  if (message?.status === 'pending') return { fg: theme.muted }
   return {}
+}
+
+/** Render one styled run as nested bold/italic/underline modifier spans — those
+ *  set the real terminal attributes (a `style` bool on `<span>` does not). */
+function renderRun(run: StyledRun, key: number): ReactNode {
+  let node: ReactNode = run.text
+  if (run.underline) node = <u>{node}</u>
+  if (run.italic) node = <i>{node}</i>
+  if (run.bold) node = <b>{node}</b>
+  return <Fragment key={key}>{node}</Fragment>
+}
+
+/** One laid-out row, drawn inside the content column so that every line —
+ *  header, body, wrapped continuation — starts at the same column. */
+function RowContent({ row, style }: { row: LayoutRow; style: { fg?: string } }) {
+  if (row.kind === 'blank') return <text> </text>
+  if (row.kind === 'body') {
+    return <text style={style}>{row.runs.map((run, i) => renderRun(run, i))}</text>
+  }
+  // Header: sender hard left, timestamp hard right, a flex spacer between them
+  // so the time stays pinned to the pane edge across a resize.
+  return (
+    <box style={{ flexDirection: 'row' }}>
+      <text style={style}>
+        <b>{row.sender}</b>
+      </text>
+      <box style={{ flexGrow: 1 }} />
+      <text style={style}>{row.time}</text>
+    </box>
+  )
 }
 
 /**
  * Center pane: the selected chat's message history as a computed, bottom-pinned
  * window over the loaded messages (`scrollOffset` from state). Scrolling and
  * paging are driven by the reducer; this component only renders.
+ *
+ * The window is measured in rows, not messages — a message is a header row plus
+ * however many rows its body wraps onto, plus a separator. `message-layout.ts`
+ * computes that and the reducer slices with the same functions, so the drawn
+ * window and the reducer's idea of it cannot drift apart.
  */
 export const ConversationView = memo(function ConversationView({
   conversation,
   focused,
   menu = null,
   capacityOverride,
+  widthOverride,
   networkColors,
   density = 'comfortable',
 }: ConversationViewProps) {
   const theme = useTheme()
-  const { height } = useTerminalDimensions()
+  const { height, width } = useTerminalDimensions()
   const { chat, messages, hasMoreOlder, scrollOffset, newMessagesBelow, selectedMessageId } =
     conversation
   const pad = density === 'compact' ? 0 : 1
@@ -82,21 +126,26 @@ export const ConversationView = memo(function ConversationView({
     )
   }
 
-  const chromeRows = density === 'compact' ? CHROME_ROWS_COMPACT : CHROME_ROWS
-  const capacity = capacityOverride ?? Math.max(1, height - chromeRows)
-  const visible = visibleMessages(messages, capacity, scrollOffset)
-  const atOldestLoaded = visible.length === 0 || visible[0]?.id === messages[0]?.id
+  const capacity = capacityOverride ?? conversationCapacity(height, density)
+  const contentWidth = widthOverride ?? conversationContentWidth(width, density)
+  const layouts = layOutMessages(messages, contentWidth, { separator: density !== 'compact' })
+  const total = totalRows(layouts)
+  const visible = visibleRows(layouts, capacity, scrollOffset)
+
+  const atOldestLoaded =
+    clampOffset(scrollOffset, total, capacity) >= maxScrollOffset(total, capacity)
   const topHint = atOldestLoaded
     ? hasMoreOlder
       ? '— press u to load older —'
       : '— start of history —'
     : '— ↑ older —'
 
-  // Anchor the floating menu on the selected message's row within the visible
-  // window: open downward just under it, or upward when it would overflow the
-  // bottom. `top`/`left` are relative to the (position:relative) messages box,
-  // whose row 0 is the first visible message.
-  const menuRow = menu !== null ? visible.findIndex((m) => m.id === selectedMessageId) : -1
+  // Anchor the floating menu on the selected message's *first* row within the
+  // visible window: open downward just under it, or upward when it would
+  // overflow the bottom. `top`/`left` are relative to the (position:relative)
+  // messages box, whose row 0 is the first visible row.
+  const menuRow =
+    menu !== null ? visible.findIndex((r) => r.messageId === selectedMessageId && r.first) : -1
   const showMenu = menu !== null && menuRow >= 0
   const menuTop =
     showMenu && menu !== null
@@ -104,6 +153,8 @@ export const ConversationView = memo(function ConversationView({
         ? menuRow + 1
         : Math.max(0, menuRow - menuHeight(menu))
       : 0
+
+  const byId = new Map(messages.map((m) => [m.id, m]))
 
   return (
     <box
@@ -121,24 +172,37 @@ export const ConversationView = memo(function ConversationView({
         {visible.length === 0 ? (
           <text>No messages yet.</text>
         ) : (
-          visible.map((message) => {
-            const selected = message.id === selectedMessageId
-            const caret = selected ? '›' : ' '
-            // A `›` caret marks the message cursor, mirroring the Net/Chats rails.
-            // Messages carrying HTML get the rich multi-line renderer (bold /
-            // italic / lists / line breaks); ordinary messages keep the cheap
-            // single-line path.
-            return hasHtml(message.text ?? '') ? (
-              <MessageView key={message.id} message={message} selected={selected} caret={caret} />
-            ) : (
-              <text key={message.id} style={rowStyle(message, selected, theme)}>
-                {`${caret} ${messageLine(message)}`}
-              </text>
+          visible.map((vr, i) => {
+            const selected = vr.messageId === selectedMessageId
+            const style = rowStyle(byId.get(vr.messageId), selected, theme)
+            // The separator belongs to the message above it but not to its
+            // block — tinting it would run the highlight a row too far.
+            const tinted = selected && vr.row.kind !== 'blank'
+            // A `›` caret marks the message cursor, mirroring the Net/Chats
+            // rails. It lives in its own column rather than in the text, so
+            // wrapped lines stay aligned under the sender name.
+            return (
+              <box
+                key={`${vr.messageId}-${i}`}
+                style={{
+                  flexDirection: 'row',
+                  height: 1,
+                  flexShrink: 0,
+                  ...(tinted ? { backgroundColor: theme.selectionBg } : {}),
+                }}
+              >
+                <box style={{ width: CARET_GUTTER, flexShrink: 0 }}>
+                  <text style={style}>{selected && vr.first ? '›' : ' '}</text>
+                </box>
+                <box style={{ flexGrow: 1, flexDirection: 'column' }}>
+                  <RowContent row={vr.row} style={style} />
+                </box>
+              </box>
             )
           })
         )}
         {showMenu && menu !== null ? (
-          <box style={{ position: 'absolute', top: menuTop, left: 2, zIndex: 20 }}>
+          <box style={{ position: 'absolute', top: menuTop, left: CARET_GUTTER, zIndex: 20 }}>
             {menu.kind === 'actions' ? (
               <ConversationActionMenu cursor={menu.actionCursor} />
             ) : (
@@ -148,18 +212,23 @@ export const ConversationView = memo(function ConversationView({
         ) : null}
       </box>
       {/* The new-messages affordance takes priority — it's transient and time
-          sensitive — then the selection hint, then the plain scrolled-up hint. */}
+          sensitive — then the selection hint, then the plain scrolled-up hint.
+          The row is always drawn, blank when there is nothing to say: a
+          conditional row would make the chrome height vary, and the viewport
+          capacity is a constant that has to stay true. */}
       {newMessagesBelow ? (
-        <text style={{ flexShrink: 0, fg: theme.accent }}>
+        <text style={{ flexShrink: 0, height: 1, fg: theme.accent }}>
           — ↓ new messages — press G for latest —
         </text>
       ) : selectedMessageId !== null ? (
-        <text style={{ flexShrink: 0, fg: theme.accent }}>
+        <text style={{ flexShrink: 0, height: 1, fg: theme.accent }}>
           — ↑/↓ move · ⏎ actions · r reply · Esc back —
         </text>
       ) : scrollOffset > 0 ? (
-        <text style={{ flexShrink: 0, fg: theme.muted }}>— ↓ j for newer —</text>
-      ) : null}
+        <text style={{ flexShrink: 0, height: 1, fg: theme.muted }}>— ↓ j for newer —</text>
+      ) : (
+        <text style={{ flexShrink: 0, height: 1 }}> </text>
+      )}
     </box>
   )
 })

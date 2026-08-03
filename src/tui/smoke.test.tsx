@@ -3,6 +3,11 @@ import { testRender } from '@opentui/react/test-utils'
 import { App, type AppProps } from '@/tui/app.tsx'
 import { createStore } from '@/state/store.ts'
 import {
+  CHAT_RAIL_WIDTH,
+  NET_RAIL_WIDTH,
+  conversationCapacity,
+} from '@/state/conversation-scroll.ts'
+import {
   applyWatchEvent,
   archiveChat,
   bootstrap,
@@ -468,5 +473,33 @@ describe('golden-path smoke', () => {
     frame = h.captureCharFrame()
     expect(frame).toContain('Saved diagram.png to Downloads')
     expect(frame).not.toContain('/cache/beeper')
+  })
+
+  test('the conversation viewport draws exactly the rows capacity promises', async () => {
+    // CHROME_ROWS is a constant asserting how much of the terminal the chrome
+    // eats. Nothing else checks it against a real render, and message rows are
+    // fixed-height boxes now — an over-count clips the newest message off the
+    // bottom, an under-count wastes history. Pin it here.
+    for (const height of [20, 24, 30]) {
+      const h = await harness(height)
+      await h.mockInput.pressKey('j')
+      await h.mockInput.pressKey('RETURN')
+      await h.settle()
+
+      // The conversation pane occupies the columns right of the two rails.
+      const pane = h
+        .captureCharFrame()
+        .split('\n')
+        .map((line) => line.slice(NET_RAIL_WIDTH + CHAT_RAIL_WIDTH))
+      const topHint = pane.findIndex((l) => l.includes('history') || l.includes('older'))
+      const bottomBorder = pane.findIndex((l, i) => i > topHint && l.startsWith('└'))
+      expect(topHint).toBeGreaterThan(0)
+      expect(bottomBorder).toBeGreaterThan(topHint)
+
+      // Between the top hint and the border sit the message rows, then the
+      // always-drawn bottom hint, then the pane's bottom padding.
+      const messageRows = bottomBorder - topHint - 3
+      expect(messageRows).toBe(conversationCapacity(height, 'comfortable'))
+    }
   })
 })

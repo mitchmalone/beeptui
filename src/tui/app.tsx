@@ -11,7 +11,7 @@ import {
   selectSelectedMessage,
 } from '@/state/selectors.ts'
 import { checkCapability } from '@/state/capabilities.ts'
-import { conversationCapacity } from '@/state/conversation-scroll.ts'
+import { NARROW_WIDTH, conversationCapacity } from '@/state/conversation-scroll.ts'
 import { CONVERSATION_ACTIONS, QUICK_REACTIONS } from '@/state/reactions.ts'
 import { RAIL_ARCHIVED_ID } from '@/state/types.ts'
 import { edgeSelection, moveSelection } from '@/tui/navigation.ts'
@@ -29,9 +29,6 @@ import { HelpOverlay } from '@/tui/components/HelpOverlay.tsx'
 import { ThemeProvider } from '@/tui/theme/context.tsx'
 import { BUILTIN_THEMES, type Theme } from '@/tui/theme/theme.ts'
 import { resolveTheme } from '@/tui/theme/resolve.ts'
-
-/** Below this terminal width we collapse to a single pane. */
-const NARROW_WIDTH = 80
 
 /** Built-ins-only theme registry — the default when launch doesn't supply the
  *  folder-loaded one (e.g. in tests). */
@@ -145,13 +142,15 @@ export function App({
   const selectedChatId = state.selectedChatId
   const chatOpen = selectedChatId !== null && conversation.chat !== null
 
-  // Tell the reducer how many message rows the conversation viewport holds, so it
-  // can keep the selection cursor on screen as ↑/↓ move it. Re-dispatched only
-  // when the derived capacity actually changes (guarded in the reducer too).
+  // Tell the reducer the conversation viewport's size, so it can keep the
+  // selection cursor on screen as ↑/↓ move it. Width matters as much as height:
+  // it decides where messages wrap and therefore how many rows each occupies.
+  // Re-dispatched only when a dimension actually changes (guarded in the
+  // reducer too).
   const viewportRows = conversationCapacity(height, state.density)
   useEffect(() => {
-    store.dispatch({ type: 'viewport/measured', rows: viewportRows })
-  }, [store, viewportRows])
+    store.dispatch({ type: 'viewport/measured', rows: viewportRows, cols: width })
+  }, [store, viewportRows, width])
 
   useKeyboard((key) => {
     // Read live state (the closure's `state` can be stale under fast input).
