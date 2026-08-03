@@ -7,6 +7,16 @@
 
 ## Where we are
 
+**HTML message translation (`feat/conversation-actions-reactions`, 2026-08-03).** Networks that put a
+small HTML subset in message bodies no longer leak tags. `src/state/message-html.ts` (pure) translates
+`<b>/<strong>`→bold, `<i>/<em>`→italic, `<u>`→underline, `<br>/<p>`→line break, `<ul>`→`- `,
+`<ol>`→`1.` (honours `start`), decodes entities, strips the rest. `MessageView` renders styled lines
+via nested `<b>/<i>/<u>` modifier elements (real attribute bits — a `style` bool on `<span>` doesn't
+work); ConversationView gates on `hasHtml()` so ordinary messages keep the byte-identical single-line
+path. Search snippets + reply preview strip via `htmlToPlainText`. Verified with `captureSpans()`
+(bold/italic bits) + the real-world example. **534 tests** green. **Next:** demo mode (last in the
+batch).
+
 **Small-UX slice (`feat/conversation-actions-reactions`, 2026-08-03).** Two separate commits.
 (1) **Ellipsis chat-name clipping** — rows truncate the title to the available width with `…` and pin
 to one line (`height:1` + overflow), so long names never wrap; budget = pane content width minus

@@ -1,6 +1,7 @@
 import type { ChatSummary } from '@/beeper/types.ts'
 import { RAIL_ARCHIVED_ID } from '@/state/types.ts'
 import type { AppState, ConnectionState, MessageEntity } from '@/state/types.ts'
+import { htmlToPlainText } from '@/state/message-html.ts'
 
 /**
  * Derived views over `AppState`. Pure functions — the UI reads these and never
@@ -191,7 +192,9 @@ export function selectReplyContext(state: AppState): ReplyContext | null {
   const target = (state.messagesByChat[id]?.items ?? []).find((m) => m.id === state.replyTo)
   if (target === undefined) return null
   const sender = target.senderName ?? (target.isSender ? 'You' : target.senderId)
-  const text = target.text ?? (target.attachments?.length ? `[${target.attachments[0]?.kind}]` : '')
+  const raw = target.text ?? (target.attachments?.length ? `[${target.attachments[0]?.kind}]` : '')
+  // Strip HTML + flatten to one line so the reply preview shows clean text.
+  const text = htmlToPlainText(raw).replace(/\s+/g, ' ').trim()
   const snippet = text.length > 60 ? `${text.slice(0, 57)}…` : text
   return { messageId: target.id, sender, snippet }
 }

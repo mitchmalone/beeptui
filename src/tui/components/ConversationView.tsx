@@ -3,6 +3,8 @@ import { useTerminalDimensions } from '@opentui/react'
 import type { ActiveConversation } from '@/state/selectors.ts'
 import type { Density, MessageEntity } from '@/state/types.ts'
 import { messageLine } from '@/tui/message-format.ts'
+import { hasHtml } from '@/state/message-html.ts'
+import { MessageView } from '@/tui/components/MessageView.tsx'
 import { networkColor, type NetworkColors } from '@/tui/components/InboxPane.tsx'
 import { CHROME_ROWS, CHROME_ROWS_COMPACT, visibleMessages } from '@/state/conversation-scroll.ts'
 import { ConversationActionMenu } from '@/tui/components/ConversationActionMenu.tsx'
@@ -121,10 +123,16 @@ export const ConversationView = memo(function ConversationView({
         ) : (
           visible.map((message) => {
             const selected = message.id === selectedMessageId
+            const caret = selected ? '›' : ' '
             // A `›` caret marks the message cursor, mirroring the Net/Chats rails.
-            return (
+            // Messages carrying HTML get the rich multi-line renderer (bold /
+            // italic / lists / line breaks); ordinary messages keep the cheap
+            // single-line path.
+            return hasHtml(message.text ?? '') ? (
+              <MessageView key={message.id} message={message} selected={selected} caret={caret} />
+            ) : (
               <text key={message.id} style={rowStyle(message, selected, theme)}>
-                {`${selected ? '›' : ' '} ${messageLine(message)}`}
+                {`${caret} ${messageLine(message)}`}
               </text>
             )
           })

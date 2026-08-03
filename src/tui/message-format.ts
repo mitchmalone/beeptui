@@ -30,9 +30,18 @@ export function formatSize(bytes: number): string {
   return `${rounded} ${units[unit]}`
 }
 
-function attachmentLabel(attachment: AttachmentSummary): string {
+export function attachmentLabel(attachment: AttachmentSummary): string {
   const name = attachment.fileName ? `${attachment.kind}: ${attachment.fileName}` : attachment.kind
   return attachment.fileSize !== undefined ? `${name} · ${formatSize(attachment.fileSize)}` : name
+}
+
+/** The trailing status glyph for a message (`⚠ failed`, `…`, `✓✓`), or ''. Shared
+ *  by the single-line `messageLine` and the rich multi-line renderer. */
+export function messageStatusMarker(message: MessageEntity): string {
+  if (message.status === 'failed') return ' ⚠ failed'
+  if (message.status === 'pending') return ' …'
+  if (message.isSender && message.isSeen === true) return ' ✓✓'
+  return ''
 }
 
 /**
@@ -69,14 +78,6 @@ export function formatMessage(message: MessageEntity): FormattedMessage {
  *  shows on our own delivered messages the recipient has seen. */
 export function messageLine(message: MessageEntity): string {
   const f = formatMessage(message)
-  const marker =
-    f.status === 'failed'
-      ? ' ⚠ failed'
-      : f.status === 'pending'
-        ? ' …'
-        : message.isSender && message.isSeen === true
-          ? ' ✓✓'
-          : ''
   const time = f.time.length > 0 ? `${f.time} ` : ''
-  return `${time}${f.sender}: ${f.body}${marker}`
+  return `${time}${f.sender}: ${f.body}${messageStatusMarker(message)}`
 }

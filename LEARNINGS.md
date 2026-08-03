@@ -112,6 +112,20 @@ chatIDs:[]}`; then send **`{type:'subscriptions.set', requestID, chatIDs:['*']}`
   defines only the tokens that differ (like Dracula's distributed themes); each is validated as hex,
   and a file may override a built-in of the same name. Unknown/absent selection → default (no crash).
 
+## Message HTML
+
+- **It's a translator, not a renderer.** Some networks embed a small HTML subset in message bodies.
+  Don't build an HTML layout engine — strip the tags and map a handful to terminal formatting
+  (`<b>`→bold, `<i>`→italic, `<u>`→underline, `<br>`→line break, `<ul>`→`- `, `<ol>`→`1.`), decode
+  entities, drop the rest. `src/state/message-html.ts` is the pure parser (`htmlToStyledLines` /
+  `htmlToPlainText` / `hasHtml`); it's in `src/state/` because a selector (reply preview) needs it and
+  tui must not be imported by state.
+- **Bold/italic/underline need the `<b>/<i>/<u>` elements, not `style`.** A `style={{ bold: true }}`
+  on `<text>`/`<span>` is ignored (verified via `captureSpans().attributes` = 0). The dedicated
+  modifier elements set the real attribute bits (bold=1, italic=4, underline=8); nest them for
+  combinations. `fg`/`bg` on the parent `<text>` cascades into the modifier spans, which only add
+  attributes — so set the selection/status colour on the line and let runs inherit it.
+
 ## Testing
 
 - **Headless render tests work via `@opentui/react/test-utils`.** `testRender(<App />, { width,
