@@ -7,78 +7,27 @@
 
 ## Where we are
 
-**Demo mode (`feat/conversation-actions-reactions`, 2026-08-03) — last item in the UX batch.**
-`beeper-tui --demo` boots the real TUI against a synthetic `Gateway` (`src/tui/demo.ts`) — no Beeper,
-no auth, no network — with fictitious multi-network chats (WhatsApp/Slack/Telegram/Signal), unread
-badges, a muted chat, an archived chat, reactions, and an HTML-formatted message that shows off the
-translator. Demo skips persistence + the tmux status writer (never touches the user's real
-store/title) and auto-opens a chat on first paint. **Verified live in tmux** (this session's only
-end-to-end visual check): inbox, auto-opened conversation, the Archived rail toggle revealing the
-hidden chat, and HTML lists/bold all render correctly. Self-driving choreography deferred (can't be
-validated here). **539 tests** green. **The whole UX batch is now done** (theming + reactions + nav +
-small-UX + HTML + demo), each on its own commit.
+**TUI UX pass shipped — merged to `main` as `v0.2.0`** (2026-08-03, PR #33, squash-merged; no
+release/tag cut). A batch of interaction/visual work, built and committed feature-by-feature:
 
-**HTML message translation (`feat/conversation-actions-reactions`, 2026-08-03).** Networks that put a
-small HTML subset in message bodies no longer leak tags. `src/state/message-html.ts` (pure) translates
-`<b>/<strong>`→bold, `<i>/<em>`→italic, `<u>`→underline, `<br>/<p>`→line break, `<ul>`→`- `,
-`<ol>`→`1.` (honours `start`), decodes entities, strips the rest. `MessageView` renders styled lines
-via nested `<b>/<i>/<u>` modifier elements (real attribute bits — a `style` bool on `<span>` doesn't
-work); ConversationView gates on `hasHtml()` so ordinary messages keep the byte-identical single-line
-path. Search snippets + reply preview strip via `htmlToPlainText`. Verified with `captureSpans()`
-(bold/italic bits) + the real-world example. **534 tests** green. **Next:** demo mode (last in the
-batch).
+- **Theming** — semantic token system behind `ThemeProvider`/`useTheme()`; built-in **default /
+  dracula / system** (system adapts to the terminal's light/dark via `waitForThemeMode`) + user themes
+  in `~/.config/beeptui/themes/*.json`; `t` cycles live. Tokenizing the chrome unified the
+  active-highlight across columns and added focused-column borders.
+- **Conversation nav + reactions** — focus auto-selects the newest message, ↑/↓ move a `›` cursor
+  (viewport-follow); **⏎ opens a floating action menu** anchored under the cursor; **React** → limited
+  emoji picker → adapter `reactions.add` (capability-gated `canReact`, honest notice).
+- **Focus indicators** (`●`) in every column title; **context-aware status-bar hints**.
+- **Ellipsis** chat-name clipping (no wrap); a dedicated **Archived** toggle in the Net rail (new
+  `railCursor` decoupled from scope — works at All + per-network).
+- **HTML → terminal formatting** — translate `<b>/<i>/<u>`, `<br>`, `<ul>`/`<ol>`, entities; strip the
+  rest (a translator, not a renderer). Applied in the conversation, search snippets, reply preview.
+- **Demo mode** — `beeper-tui --demo` runs the real TUI on a synthetic gateway (no Beeper/auth/net),
+  fictitious multi-network data. **Verified live in tmux.**
 
-**Small-UX slice (`feat/conversation-actions-reactions`, 2026-08-03).** Two separate commits.
-(1) **Ellipsis chat-name clipping** — rows truncate the title to the available width with `…` and pin
-to one line (`height:1` + overflow), so long names never wrap; budget = pane content width minus
-marker/gap/unread/mute. (2) **Dedicated Archived rail entry** — the Net rail now has an "Archived"
-toggle at the bottom; a new `railCursor` (state) decouples the rail cursor from the active scope, so
-j/k walks scopes + Archived, `⏎` toggles Archived (scope untouched) or drills in. Archived stays a
-per-scope toggle (works at All + each network — `matchesFilter` already gated on scope AND archived);
-`a` still works. The `arc` footer is gone (now the entry's ●/○). **514 tests** green. **Next:** HTML
-message rendering → demo mode.
-
-**`system` theme detection (`feat/conversation-actions-reactions`, 2026-08-03).** The `system` theme
-now adapts to the terminal's **light/dark** mode via OpenTUI's `renderer.waitForThemeMode()` — a
-curated `SYSTEM_LIGHT`/`SYSTEM_DARK` picked by `systemThemeForMode(mode)`, resolved once at launch
-(before first paint) and overriding the registry's `system` entry, so both initial selection and `t`
-cycling reflect it. Chosen over hand-rolled raw OSC 10/11 stdin parsing (fragile, unvalidatable here,
-risks corrupting renderer input). Extracting the terminal's _exact_ fg/bg/accent colours is a noted
-follow-up. Timeout/failure → dark (safe). **503 tests** green. **Next:** small UX (ellipsis clip +
-archived-in-Net-filter) → HTML message rendering → demo mode.
-
-**Theme foundation (`feat/conversation-actions-reactions`, 2026-08-03, in review).** First slice of a
-larger UX batch. Introduced a semantic **theme token** system (`src/tui/theme/`): a `Theme` of
-tokens (`fg`, `muted`, `selectionBg/Fg`, `border`, `borderFocused`, `accent`, `warning`, `danger`,
-`success`, `menuBg`), built-ins **default / dracula / system** (system is a default-palette
-placeholder until terminal detection lands), and user themes dropped in
-`~/.config/beeptui/themes/*.json` (partial files merge onto default). Selected via `config.theme.name`;
-flows through a React `ThemeProvider`/`useTheme()` so every component reads tokens (no prop-drilling,
-existing tests unaffected). All hardcoded chrome hex replaced with tokens — which delivered three UX
-asks at once: **active-highlight is now unified** across Net/Chats/Conversation, the **focused
-column's border** is tinted (`borderFocused`), and accents are theme-driven. Verified colours reach
-real paint via `captureSpans()` (Dracula purple selection). **Runtime theme cycling is in** — `t`
-cycles the registry (system → default → dracula → custom → wrap) live with a `Theme: <name>` notice;
-`themeName` lives in reducer state (seeded from config, ephemeral — reset to config on restart). **499
-tests** green. **Next slices** (from Mitch's batch, sequenced): `system` terminal-colour detection →
-small UX (ellipsis clip, archived-in-Net-filter) → HTML message rendering → demo mode. Network
-**brand** marker colours kept as-is (recognizable, still config-overridable).
-
-**UX pass — conversation navigation + reactions (`feat/conversation-actions-reactions`,
-2026-08-03, in review).** Two changes on one branch: (1) the focus indicator (`●`) now shows in
-every column title — Net, Chats, Conversation, Compose — so you always know where focus is. (2) The
-Conversation column is now cursor-navigable like the Net/Chats rails: focusing it highlights the
-newest message, ↑/↓ move a `›` cursor (auto-scrolling to stay on screen; the cursor follows live
-messages at the bottom and holds position when scrolled up), and **⏎ opens an action menu** on the
-selected message. The one action today is **React**, which opens a limited emoji picker
-(👍 ❤️ 😂 😮 😢 🙏) and writes through the adapter's new `reactions.add` path — capability-gated
-(`canReact`), honest success/failure notice, no fake success. The menu + picker render as a **floating
-dropdown anchored under the cursor** (`position:absolute` + `zIndex` over the messages) — panes stay
-mounted, no full-screen redraw. The **status-bar key hints are now context-aware** — compose shows
-`⏎ send · Esc back`, overlays show `Esc close`, otherwise the global `net · arch · quit` — so it never
-advertises a key that won't fire. **486 tests** green; typecheck + lint clean. **Not yet merged;
-awaiting Mitch's manual live-Beeper smoke** (react to a real message). Delete/reply-from-menu/etc. are
-deliberately out of scope — the menu + write path is the foundation.
+Version bumped `0.0.0 → 0.2.0` (was stale; `--version` correct now). **539 tests** green; typecheck +
+lint clean. Per-slice detail in `JOURNAL.md` + `plans/done/`. **Deferred:** exact-colour `system`
+extraction, line-aware HTML menu anchoring, self-driving demo choreography.
 
 **First tagged release — `v0.1.0` (2026-08-02).** Pushed tag `v0.1.0`; the release workflow built
 both binaries (darwin-arm64 + linux-x64), published a GitHub Release with `sha256sums.txt`, and
