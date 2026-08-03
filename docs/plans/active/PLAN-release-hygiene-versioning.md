@@ -1,6 +1,6 @@
 ---
 title: release hygiene — version stamping + CI action bump
-status: planned
+status: active
 created: 2026-08-03
 updated: 2026-08-03
 links:
@@ -38,14 +38,15 @@ the `v`) into `package.json` before `bun build --compile`. Keep `package.json` a
 
 ## Steps
 
-- [ ] Bump `package.json` version `0.0.0` → `0.1.1`.
-- [ ] In `release.yml`, before compile: set the version from `${{ github.ref_name }}` (strip `v`)
-      into `package.json` (e.g. a small `jq`/`bun` step) so the binary embeds the tag's version.
-- [ ] Bump the GitHub Actions to the Node-24 majors (`actions/checkout@v5`,
-      `actions/upload-artifact@v5`, `actions/download-artifact@v5` — verify current majors) to clear
-      the deprecation warning.
-- [ ] Cut `v0.1.1`; confirm `beeptui --version` prints `0.1.1` from the released binary and the
-      tap updates.
+- [x] ~~Bump `package.json` `0.0.0` → `0.1.1`~~ — **stale premise:** `package.json` was already
+      bumped to `0.2.0` (STATUS 2026-08-03), so local `--version` is truthful. Left at `0.2.0`; the
+      release now stamps the tag over it so it can't drift regardless.
+- [x] In `release.yml`, before compile: stamp the version from `${{ github.ref_name }}` (strip `v`)
+      into `package.json` via a small `bun` step so the binary embeds the tag's version.
+- [x] Bump the GitHub Actions to the Node-24 majors (`actions/checkout@v5`,
+      `actions/upload-artifact@v5`, `actions/download-artifact@v5`) to clear the deprecation warning.
+- [ ] Cut the next release (folded in with the `beeptui` rename); confirm `beeptui --version` prints
+      the tag version from the released binary and the tap updates.
 
 ## Acceptance criteria
 

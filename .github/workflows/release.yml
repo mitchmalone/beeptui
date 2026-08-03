@@ -26,7 +26,7 @@ jobs:
             target: linux-x64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
@@ -42,11 +42,21 @@ jobs:
           bun run typecheck
           bun test
 
+      # Stamp the release version from the tag so the binary can't drift from
+      # package.json (single source of truth = the tag). See DECISIONS/plan.
+      - name: Stamp version from tag
+        env:
+          REF: ${{ github.ref_name }}
+        run: |
+          v="${REF#v}"
+          V="$v" bun -e 'const p=await Bun.file("package.json").json(); p.version=process.env.V; await Bun.write("package.json", JSON.stringify(p,null,2)+"\n")'
+          echo "Stamped package.json version -> $v"
+
       - name: Compile standalone binary
         run: bun build src/cli/index.ts --compile --outfile dist/beeptui-${{ matrix.target }}
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: beeptui-${{ matrix.target }}
           path: dist/beeptui-${{ matrix.target }}
@@ -58,7 +68,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download all binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: artifacts
           merge-multiple: true
@@ -90,7 +100,7 @@ jobs:
     if: ${{ vars.HOMEBREW_TAP_REPO != '' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4 # this repo, for the formula renderer
+      - uses: actions/checkout@v5 # this repo, for the formula renderer
 
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
@@ -98,7 +108,7 @@ jobs:
           bun-version: ${{ env.BUN_VERSION }}
 
       - name: Download binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: artifacts
           merge-multiple: true
