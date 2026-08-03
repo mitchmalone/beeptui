@@ -1,5 +1,11 @@
 # beeptui
 
+[![CI](https://github.com/mitchmalone/beeptui/actions/workflows/ci.yml/badge.svg)](https://github.com/mitchmalone/beeptui/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/mitchmalone/beeptui?logo=github)](https://github.com/mitchmalone/beeptui/releases/latest)
+[![Homebrew](https://img.shields.io/badge/homebrew-mitchmalone%2Ftap%2Fbeeptui-2e2a24?logo=homebrew&logoColor=fbb040)](https://github.com/mitchmalone/homebrew-tap)
+[![Bun](https://img.shields.io/badge/runtime-Bun%20%E2%89%A5%201.3.14-14151a?logo=bun)](https://bun.sh)
+[![License: MIT](https://img.shields.io/github/license/mitchmalone/beeptui)](LICENSE)
+
 A fast, keyboard-first terminal chat client for [Beeper](https://www.beeper.com)'s unified inbox.
 Browse conversations across networks, read history, receive live updates, and reply — all from the
 terminal, over Beeper's Desktop/Server Client API. Beeper stays the account, sync, and encryption
