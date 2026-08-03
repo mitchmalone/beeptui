@@ -4,6 +4,14 @@
 > Concise, grouped by topic, pruned when obsolete. Never duplicate global AGENTS.md rules here.
 > The narrative "why" behind events lives in `docs/JOURNAL.md`; this file is the quick-reference.
 
+## GitHub / tooling
+
+- **Pushing `.github/workflows/*` changes needs the `workflow` OAuth scope.** The `gh` CLI's
+  default token doesn't have it, so any push touching a workflow file is rejected ("refusing to
+  allow an OAuth App to create or update workflow … without `workflow` scope" — and on `main` it
+  can surface as an opaque GH013 rules error). Fix once: `gh auth refresh -h github.com -s workflow`.
+  Pushing over SSH avoids the issue entirely.
+
 ## Dependencies
 
 - **Toolchain is pinned to the TypeScript 6 line, not TS 7.** TypeScript 7.0 is the native (Go)

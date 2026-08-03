@@ -3,7 +3,7 @@
 > The cursor: where we are right now. Keep this **terse** — a snapshot, not a history.
 > History lives in git, `plans/done/`, and `JOURNAL.md`.
 >
-> Last updated: 2026-08-03
+> Last updated: 2026-08-04
 
 ## Where we are
 
@@ -166,6 +166,15 @@ Slice 13 remote-endpoint `login` need external accounts/endpoints not available 
 Declaring **Phase 2 fully validated in production** waits on the Slice 12 matrix actually running.
 
 > Mitch is running a UX pass next, then working these slices.
+
+**Committed but unpushed — website version stamping** (2026-08-04, commit `681211e` on local
+`main`): `release.yml` gains a `website` job that pushes `src/data/release.json` to the web repo on
+each `v*` tag (same gated pattern as the tap job), so beeptui.com renders the real version. The
+push is blocked because the local `gh` OAuth token lacks the `workflow` scope (see `LEARNINGS.md`).
+To land it: `gh auth refresh -h github.com -s workflow`, push `main`, then set repo variable
+`WEB_REPO=mitchmalone/beeptui-web` and secret `WEB_REPO_TOKEN` (fine-grained PAT, contents:write on
+`beeptui-web`). The web side is already live (`beeptui-web` renders the hero version from
+`src/data/release.json`, seeded 0.2.0).
 
 ## Deferred live validation (accepted risk, Mitch 2026-08-01) → `TODO.md`
 

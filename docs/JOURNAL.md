@@ -5,6 +5,18 @@
 
 ---
 
+### 2026-08-04 — Version display made release-driven; README now installs-first
+
+- **The website's version string is now stamped by the release workflow**, not hand-edited: a new
+  gated `website` job in `release.yml` pushes `src/data/release.json` to the web repo on each `v*`
+  tag (mirroring the tap job). Motivation: the site still said "v0.x" at `v0.2.0` — any value a
+  human must remember to update will drift. Blocked on push at time of writing (`gh` token lacks
+  the `workflow` scope — see `LEARNINGS.md`); setup steps in `STATUS.md`.
+- **README restructured installs-first** (Homebrew default → binary → source) after it was caught
+  walking new users through the contributor `bun install` flow; OSS badges added. Both pushed.
+
+---
+
 ### 2026-08-03 — Release version stamped from the tag; `v0.2.0` was doc-only
 
 - **The binary version now comes from the git tag, not `package.json`.** `release.yml` writes
