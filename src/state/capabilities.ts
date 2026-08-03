@@ -9,18 +9,20 @@ import type { ChatSummary } from '@/beeper/types.ts'
  */
 
 /** Per-chat actions whose availability Beeper reports as a capability. */
-export type ChatCapability = 'reply' | 'archive'
+export type ChatCapability = 'reply' | 'archive' | 'react'
 
 /** Human label for each capability, as it reads in the notice. */
 const CAPABILITY_LABEL: Record<ChatCapability, string> = {
   reply: 'Replies',
   archive: 'Archiving',
+  react: 'Reactions',
 }
 
 /** The `ChatSummary` flag that carries each capability's support state. */
-const CAPABILITY_FIELD: Record<ChatCapability, 'canReply' | 'canArchive'> = {
+const CAPABILITY_FIELD: Record<ChatCapability, 'canReply' | 'canArchive' | 'canReact'> = {
   reply: 'canReply',
   archive: 'canArchive',
+  react: 'canReact',
 }
 
 /**

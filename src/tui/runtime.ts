@@ -34,6 +34,7 @@ export interface Gateway {
   getChat(chatId: string): Promise<ChatSummary>
   searchMessages(query: string, options?: MessageSearchOptions): Promise<MessageSearchPage>
   setArchived(chatId: string, archived: boolean): Promise<void>
+  addReaction(chatId: string, messageId: string, reactionKey: string): Promise<void>
   downloadAttachment(id: string): Promise<{ localPath: string }>
 }
 
@@ -288,6 +289,38 @@ export async function archiveChat(
       type: 'notice/shown',
       message: `Couldn't ${archived ? 'archive' : 'unarchive'} — ${error.message}`,
     })
+  }
+}
+
+/**
+ * Add a reaction to a message — only ever from an explicit user pick in the
+ * emoji picker (invariant 5). Capability-gated: a network that reports no
+ * reaction support gets a named notice instead of a dead menu (invariant 8).
+ * There's no optimistic display — the reaction count is read-only and reconciled
+ * by the live update / next fetch — so success is claimed only after the call
+ * resolves; a failure says why.
+ */
+export async function sendReaction(
+  gateway: Gateway,
+  dispatch: Dispatch,
+  getState: () => AppState,
+  chatId: string,
+  messageId: string,
+  reactionKey: string
+): Promise<void> {
+  const chat = getState().chats[chatId]
+  if (chat === undefined) return
+  const capability = checkCapability(chat, 'react')
+  if (!capability.allowed) {
+    dispatch({ type: 'notice/shown', message: capability.notice })
+    return
+  }
+  try {
+    await gateway.addReaction(chatId, messageId, reactionKey)
+    dispatch({ type: 'notice/shown', message: `Reacted ${reactionKey}` })
+  } catch (err) {
+    const error = normalizeError(err)
+    dispatch({ type: 'notice/shown', message: `Couldn't react — ${error.message}` })
   }
 }
 

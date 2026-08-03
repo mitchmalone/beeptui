@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import type { NetworkRailEntry } from '@/state/selectors.ts'
 import { networkColor, networkMarker, type NetworkColors } from '@/tui/components/InboxPane.tsx'
+import { useTheme } from '@/tui/theme/context.tsx'
 
 export interface NetworkRailProps {
   entries: NetworkRailEntry[]
@@ -27,10 +28,12 @@ export const NetworkRail = memo(function NetworkRail({
   focused = false,
   networkColors,
 }: NetworkRailProps) {
+  const theme = useTheme()
   return (
     <box
       title={focused ? 'Net●' : 'Net'}
       border
+      borderColor={focused ? theme.borderFocused : theme.border}
       style={{ width: 8, flexShrink: 0, flexDirection: 'column' }}
     >
       <box style={{ flexGrow: 1, flexDirection: 'column' }}>
@@ -38,21 +41,24 @@ export const NetworkRail = memo(function NetworkRail({
           const marker = entry.network === null ? 'All' : networkMarker(entry.network)
           const caret = entry.isSelected ? '›' : ' '
           const dot = entry.unreadCount > 0 ? '•' : ''
-          // Tint each entry by its network; 'All' and the selected row stay neutral.
+          // Tint each entry by its network; 'All' stays neutral, the selected row
+          // takes the shared active-highlight.
           const color =
-            entry.network === null ? '#e2e8f0' : networkColor(entry.network, networkColors)
+            entry.network === null ? theme.fg : networkColor(entry.network, networkColors)
           return (
             <text
               key={entry.id}
-              style={entry.isSelected ? { bg: '#334155', fg: '#ffffff' } : { fg: color }}
+              style={
+                entry.isSelected ? { bg: theme.selectionBg, fg: theme.selectionFg } : { fg: color }
+              }
             >
               {`${caret}${marker}${dot}`}
             </text>
           )
         })}
       </box>
-      {archived ? <text style={{ flexShrink: 0, fg: '#f59e0b' }}>arc</text> : null}
-      {unreadOnly ? <text style={{ flexShrink: 0, fg: '#f59e0b' }}>unr</text> : null}
+      {archived ? <text style={{ flexShrink: 0, fg: theme.warning }}>arc</text> : null}
+      {unreadOnly ? <text style={{ flexShrink: 0, fg: theme.warning }}>unr</text> : null}
     </box>
   )
 })

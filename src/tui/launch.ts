@@ -1,8 +1,11 @@
+import { readdirSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { createCliRenderer } from '@opentui/core'
 import { createRoot } from '@opentui/react'
 import { createElement } from 'react'
 import { BeeperAdapter, resolveActiveToken, resolveConfig } from '@/beeper/index.ts'
 import { App } from '@/tui/app.tsx'
+import { buildThemeRegistry } from '@/tui/theme/resolve.ts'
 import { createStore } from '@/state/store.ts'
 import { initialState } from '@/state/types.ts'
 import { selectTotalUnread } from '@/state/selectors.ts'
@@ -14,6 +17,7 @@ import {
   bootstrap,
   loadOlderMessages,
   archiveChat,
+  sendReaction,
   openAttachment,
   openChat,
   refreshChats,
@@ -36,7 +40,27 @@ import { applyKeymapOverrides, KEYMAP } from '@/tui/keymap.ts'
  * `status`/`doctor` CLI never pulls in the native renderer.
  */
 export async function launch(): Promise<void> {
-  const { endpoint, notify, keymap: keymapOverrides, theme } = resolveConfig()
+  const { endpoint, notify, keymap: keymapOverrides, theme, configPath } = resolveConfig()
+  // Resolve the active theme: built-ins plus any user themes in the config dir's
+  // `themes/` folder. A missing folder is fine (built-ins only); a malformed
+  // theme file throws with a clear message rather than being silently ignored.
+  const themesDir = join(dirname(configPath), 'themes')
+  const themeRegistry = buildThemeRegistry({
+    listThemeFiles: () => {
+      try {
+        return readdirSync(themesDir)
+      } catch {
+        return []
+      }
+    },
+    readThemeFile: (file) => {
+      try {
+        return readFileSync(join(themesDir, file), 'utf8')
+      } catch {
+        return undefined
+      }
+    },
+  })
   // Resolve the token: an explicit env/legacy token wins; otherwise a stored
   // OAuth session (from `beeper-tui login`), refreshed if expired. Needs the
   // endpoint's OAuth metadata, so it reads `/v1/info` via a pre-auth adapter.
@@ -50,7 +74,13 @@ export async function launch(): Promise<void> {
   const keymap = keymapOverrides === null ? KEYMAP : applyKeymapOverrides(keymapOverrides)
   const adapter = new BeeperAdapter({ endpoint, accessToken: token })
   const store = createStore(
-    theme?.density !== undefined ? { ...initialState, density: theme.density } : initialState
+    theme === null
+      ? initialState
+      : {
+          ...initialState,
+          ...(theme.density !== undefined ? { density: theme.density } : {}),
+          ...(theme.name !== undefined ? { themeName: theme.name } : {}),
+        }
   )
 
   // Hydrate persisted UI state (drafts, cached inbox, last-view) before the live
@@ -111,6 +141,9 @@ export async function launch(): Promise<void> {
   const onSaveAttachment = () => {
     void saveAttachment(adapter, store.dispatch, store.getState, saveToDownloads)
   }
+  const onReact = (chatId: string, messageId: string, reactionKey: string) => {
+    void sendReaction(adapter, store.dispatch, store.getState, chatId, messageId, reactionKey)
+  }
 
   createRoot(renderer).render(
     createElement(App, {
@@ -125,7 +158,9 @@ export async function launch(): Promise<void> {
       onArchiveChat,
       onOpenAttachment,
       onSaveAttachment,
+      onReact,
       keymap,
+      themeRegistry,
       ...(theme !== null ? { networkColors: theme.networkColors } : {}),
     })
   )

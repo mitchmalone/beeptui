@@ -11,8 +11,11 @@ export interface NotifyConfig {
   command: string[]
 }
 
-/** Visual theme overrides: per-network accent colours and layout density. */
+/** Visual theme overrides: selected theme, per-network accent colours, density. */
 export interface ThemeConfig {
+  /** Selected theme name — a built-in (`system` | `default` | `dracula`) or a file
+   *  in `~/.config/beeptui/themes/`. Absent → `system`. */
+  name?: string
   /** Network name → hex colour (e.g. `{ "WhatsApp": "#25d366" }`). */
   networkColors: Record<string, string>
   /** Initial layout density; `D` still toggles it at runtime. Absent → comfortable. */
@@ -178,6 +181,15 @@ function parseTheme(parsed: unknown, configPath: string): ThemeConfig | null {
   }
 
   const result: ThemeConfig = { networkColors: out }
+  if ('name' in theme) {
+    const name = (theme as { name: unknown }).name
+    if (typeof name !== 'string' || name.length === 0) {
+      throw new Error(
+        `Invalid Beeper config file ("theme.name" must be a non-empty string): ${configPath}`
+      )
+    }
+    result.name = name
+  }
   if ('density' in theme) {
     const density = (theme as { density: unknown }).density
     if (density !== 'comfortable' && density !== 'compact') {

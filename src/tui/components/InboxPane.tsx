@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import type { InboxRow } from '@/state/selectors.ts'
 import type { Density } from '@/state/types.ts'
+import { useTheme } from '@/tui/theme/context.tsx'
 
 /** Two-letter network marker for the rail (e.g. WhatsApp → WA). */
 export function networkMarker(network: string): string {
@@ -50,6 +51,8 @@ export interface InboxPaneProps {
   rows: InboxRow[]
   /** Grow to fill width (narrow single-pane fallback) instead of a fixed rail. */
   grow?: boolean
+  /** Whether this pane has keyboard focus (shows a focus indicator in the title). */
+  focused?: boolean
   /** Per-network colour overrides from config. */
   networkColors?: NetworkColors | undefined
   /** Layout density; `compact` strips the pane padding. Defaults to comfortable. */
@@ -61,14 +64,17 @@ export interface InboxPaneProps {
 export const InboxPane = memo(function InboxPane({
   rows,
   grow = false,
+  focused = false,
   networkColors,
   density = 'comfortable',
 }: InboxPaneProps) {
+  const theme = useTheme()
   const pad = density === 'compact' ? 0 : 1
   return (
     <box
-      title="Chats"
+      title={focused ? 'Chats ●' : 'Chats'}
       border
+      borderColor={focused ? theme.borderFocused : theme.border}
       style={
         grow
           ? { flexGrow: 1, flexDirection: 'column', padding: pad }
@@ -91,18 +97,23 @@ function InboxRowView({
   row: InboxRow
   networkColors?: NetworkColors | undefined
 }) {
+  const theme = useTheme()
   const prefix = row.isSelected ? '›' : ' '
   const unread = row.hasUnread ? ` (${row.unreadCount})` : ''
   const muted = row.isMuted ? ' 🔇' : ''
   const selected = row.isSelected
-  // The network marker is tinted by network; the title stays readable (white on
-  // the selection highlight). Row-level bg spans the line via the container.
+  // The network marker is tinted by network; the title stays readable on the
+  // selection highlight. Row-level bg spans the line via the container.
   return (
-    <box style={{ flexDirection: 'row', ...(selected ? { backgroundColor: '#334155' } : {}) }}>
+    <box
+      style={{ flexDirection: 'row', ...(selected ? { backgroundColor: theme.selectionBg } : {}) }}
+    >
       <text
         style={{ fg: networkColor(row.network, networkColors) }}
       >{`${prefix} ${networkMarker(row.network)}`}</text>
-      <text style={selected ? { fg: '#ffffff' } : {}}>{`  ${row.title}${unread}${muted}`}</text>
+      <text
+        style={selected ? { fg: theme.selectionFg } : {}}
+      >{`  ${row.title}${unread}${muted}`}</text>
     </box>
   )
 }

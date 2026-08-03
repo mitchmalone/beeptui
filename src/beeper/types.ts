@@ -60,6 +60,9 @@ export interface ChatSummary {
   /** Whether the platform supports replying to a message (capability `reply` >= 1:
    *  partially/fully supported). Absent when the API didn't report it. */
   canReply?: boolean
+  /** Whether the platform supports adding reactions (capability `reaction` >= 1).
+   *  Absent when the API didn't report it (treated as "attempt, then degrade"). */
+  canReact?: boolean
   lastActivity?: string
 }
 
@@ -162,6 +165,10 @@ export function mapChat(chat: BeeperDesktop.Chat): ChatSummary {
     // reply capability is a -2..2 scale (-2 rejected … 2 fully supported); treat
     // >= 1 (partially/fully) as supported. Omit when the platform didn't report it.
     ...(chat.capabilities?.reply !== undefined ? { canReply: chat.capabilities.reply >= 1 } : {}),
+    // reaction capability shares the -2..2 scale; >= 1 means we can add reactions.
+    ...(chat.capabilities?.reaction !== undefined
+      ? { canReact: chat.capabilities.reaction >= 1 }
+      : {}),
     ...(chat.lastActivity !== undefined ? { lastActivity: chat.lastActivity } : {}),
   }
 }

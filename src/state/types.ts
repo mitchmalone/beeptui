@@ -23,7 +23,15 @@ export type MessageDeliveryStatus = 'sent' | 'pending' | 'failed'
 export type FocusTarget = 'rail' | 'inbox' | 'conversation' | 'compose'
 
 /** Modal overlay on top of the panes, if any. */
-export type Overlay = 'none' | 'search' | 'help' | 'messageSearch'
+export type Overlay =
+  | 'none'
+  | 'search'
+  | 'help'
+  | 'messageSearch'
+  /** The ENTER action menu on the selected message ("dropdown"). */
+  | 'conversationActions'
+  /** The limited emoji picker reached from the action menu's React option. */
+  | 'emojiPicker'
 
 /** One message-search hit, enriched with the chat context the palette renders. */
 export interface MessageSearchHit {
@@ -123,6 +131,13 @@ export interface AppState {
   focus: FocusTarget
   /** Rows the active conversation is scrolled up from the newest message. */
   conversationOffset: number
+  /** Last measured message-viewport height (rows), so the reducer can keep the
+   *  selection cursor on screen. 0 until the view first measures it. */
+  viewportRows: number
+  /** Cursor into the conversation action menu (while that overlay is open). */
+  actionCursor: number
+  /** Cursor into the emoji picker (while that overlay is open). */
+  emojiCursor: number
   /** True when messages arrived in the active chat while scrolled up. */
   newMessagesBelow: boolean
   /** The open modal overlay (search palette / help), or 'none'. */
@@ -142,6 +157,9 @@ export interface AppState {
   notice: string | null
   /** Layout density (seeded from config; toggled with `D`). */
   density: Density
+  /** Selected theme name (seeded from config; cycled with `t`). Resolved to a
+   *  `Theme` by the App via the launch-built registry. */
+  themeName: string
 }
 
 export const initialState: AppState = {
@@ -156,6 +174,9 @@ export const initialState: AppState = {
   replyTo: null,
   focus: 'inbox',
   conversationOffset: 0,
+  viewportRows: 0,
+  actionCursor: 0,
+  emojiCursor: 0,
   newMessagesBelow: false,
   overlay: 'none',
   searchQuery: '',
@@ -166,6 +187,7 @@ export const initialState: AppState = {
   error: null,
   notice: null,
   density: 'comfortable',
+  themeName: 'system',
 }
 
 /**
@@ -189,7 +211,7 @@ export type AppEvent =
   | { type: 'message/received'; message: MessageSummary }
   | { type: 'chat/selected'; chatId: string | null }
   | { type: 'messageSelection/started' }
-  | { type: 'messageSelection/moved'; delta: 1 | -1 }
+  | { type: 'messageSelection/moved'; delta: number }
   | { type: 'messageSelection/cleared' }
   | { type: 'reply/started'; messageId: string }
   | { type: 'reply/cancelled' }
@@ -197,12 +219,19 @@ export type AppEvent =
   | { type: 'conversation/scrolled'; delta: number }
   | { type: 'overlay/opened'; overlay: Exclude<Overlay, 'none'> }
   | { type: 'overlay/closed' }
+  /** The conversation viewport measured `rows` message lines (from the view). */
+  | { type: 'viewport/measured'; rows: number }
+  /** Move the action-menu cursor (the ENTER dropdown). */
+  | { type: 'actionMenu/moved'; delta: number }
+  /** Move the emoji-picker cursor. */
+  | { type: 'emojiPicker/moved'; delta: number }
   | { type: 'search/queryChanged'; query: string }
   | { type: 'filter/scopeCycled'; direction: 1 | -1 }
   | { type: 'filter/scopeSelected'; scope: FilterScope }
   | { type: 'filter/archivedToggled' }
   | { type: 'filter/unreadToggled' }
   | { type: 'density/toggled' }
+  | { type: 'theme/selected'; name: string }
   | { type: 'messageSearch/opened'; scopeChatId: string | null }
   | { type: 'messageSearch/queryChanged'; query: string }
   | { type: 'messageSearch/requested' }

@@ -7,6 +7,39 @@
 
 ## Where we are
 
+**Theme foundation (`feat/conversation-actions-reactions`, 2026-08-03, in review).** First slice of a
+larger UX batch. Introduced a semantic **theme token** system (`src/tui/theme/`): a `Theme` of
+tokens (`fg`, `muted`, `selectionBg/Fg`, `border`, `borderFocused`, `accent`, `warning`, `danger`,
+`success`, `menuBg`), built-ins **default / dracula / system** (system is a default-palette
+placeholder until terminal detection lands), and user themes dropped in
+`~/.config/beeptui/themes/*.json` (partial files merge onto default). Selected via `config.theme.name`;
+flows through a React `ThemeProvider`/`useTheme()` so every component reads tokens (no prop-drilling,
+existing tests unaffected). All hardcoded chrome hex replaced with tokens — which delivered three UX
+asks at once: **active-highlight is now unified** across Net/Chats/Conversation, the **focused
+column's border** is tinted (`borderFocused`), and accents are theme-driven. Verified colours reach
+real paint via `captureSpans()` (Dracula purple selection). **Runtime theme cycling is in** — `t`
+cycles the registry (system → default → dracula → custom → wrap) live with a `Theme: <name>` notice;
+`themeName` lives in reducer state (seeded from config, ephemeral — reset to config on restart). **499
+tests** green. **Next slices** (from Mitch's batch, sequenced): `system` terminal-colour detection →
+small UX (ellipsis clip, archived-in-Net-filter) → HTML message rendering → demo mode. Network
+**brand** marker colours kept as-is (recognizable, still config-overridable).
+
+**UX pass — conversation navigation + reactions (`feat/conversation-actions-reactions`,
+2026-08-03, in review).** Two changes on one branch: (1) the focus indicator (`●`) now shows in
+every column title — Net, Chats, Conversation, Compose — so you always know where focus is. (2) The
+Conversation column is now cursor-navigable like the Net/Chats rails: focusing it highlights the
+newest message, ↑/↓ move a `›` cursor (auto-scrolling to stay on screen; the cursor follows live
+messages at the bottom and holds position when scrolled up), and **⏎ opens an action menu** on the
+selected message. The one action today is **React**, which opens a limited emoji picker
+(👍 ❤️ 😂 😮 😢 🙏) and writes through the adapter's new `reactions.add` path — capability-gated
+(`canReact`), honest success/failure notice, no fake success. The menu + picker render as a **floating
+dropdown anchored under the cursor** (`position:absolute` + `zIndex` over the messages) — panes stay
+mounted, no full-screen redraw. The **status-bar key hints are now context-aware** — compose shows
+`⏎ send · Esc back`, overlays show `Esc close`, otherwise the global `net · arch · quit` — so it never
+advertises a key that won't fire. **486 tests** green; typecheck + lint clean. **Not yet merged;
+awaiting Mitch's manual live-Beeper smoke** (react to a real message). Delete/reply-from-menu/etc. are
+deliberately out of scope — the menu + write path is the foundation.
+
 **First tagged release — `v0.1.0` (2026-08-02).** Pushed tag `v0.1.0`; the release workflow built
 both binaries (darwin-arm64 + linux-x64), published a GitHub Release with `sha256sums.txt`, and
 pushed `Formula/beeper-tui.rb` to `mitchmalone/homebrew-tap` (SHA-256s match). `brew install

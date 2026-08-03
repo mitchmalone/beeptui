@@ -55,4 +55,9 @@ describe('NetworkRail', () => {
     expect(plain).not.toContain('arc')
     expect(plain).not.toContain('unr')
   })
+
+  test('shows the focus indicator in the title only when focused', async () => {
+    expect(await frameOf({ focused: true })).toContain('Net●')
+    expect(await frameOf({ focused: false })).not.toContain('●')
+  })
 })

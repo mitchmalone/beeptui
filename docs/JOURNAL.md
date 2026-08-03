@@ -5,6 +5,54 @@
 
 ---
 
+### 2026-08-03 — Theme foundation: semantic tokens + built-ins + custom theme files
+
+- **Theming via a token context, not prop-drilling.** A `Theme` of ~11 semantic tokens lives behind a
+  React `ThemeProvider`/`useTheme()`. Context (default = `DEFAULT_THEME`) means components read tokens
+  with zero prop threading **and** every existing isolated component test keeps passing unchanged (it
+  gets the default). Only `launch.ts` wraps the tree in a provider. Replacing hardcoded hex with tokens
+  also unified the active-highlight across all columns for free (they'd drifted: bright cyan in the
+  conversation, muted slate elsewhere).
+- **OpenTUI supports `borderColor`/`focusedBorderColor` per box** — so the focused column's border is
+  just `borderColor={focused ? theme.borderFocused : theme.border}` on each pane. No global focus
+  machinery needed.
+- **`captureSpans()` is how you test colour.** `captureCharFrame()` is plain text (no styling), so it
+  can't verify a theme. `captureSpans()` returns per-span `fg`/`bg` (RGBA) + `attributes`; with
+  `rgbToHex()` you can assert the selected row actually paints the theme's `selectionBg`. This is also
+  the tool for the upcoming HTML slice (verify bold/italic/underline via `attributes`).
+- **Theme files are partial-merge onto the default** (like Dracula's distributed themes — define only
+  what differs), validated per-token as hex with a clear message; a custom file may override a built-in
+  of the same name. Built-ins + `~/.config/beeptui/themes/*.json` build one name→Theme registry;
+  unknown/absent selection degrades to default, never crashes. Network **brand** colours stay
+  theme-independent (recognizable markers, still `theme.networkColors`-overridable).
+
+### 2026-08-03 — Conversation cursor navigation + an ENTER action menu + reactions
+
+- **The Conversation is now cursor-driven, not scroll-driven.** Focusing it auto-selects the newest
+  message (reducer `focus/changed → conversation`); ↑/↓ move a `›` cursor via `messageSelection/moved`
+  (delta widened to `number` so g/G jump to the edges). This replaced arrows-scroll + `v`-to-select,
+  per Mitch's UX call — the goal was parity with the Net/Chats rails.
+- **Keeping the cursor on screen needs the viewport height, which lives in the view, not the pure
+  reducer.** Solved by a `viewport/measured` event: the App measures `conversationCapacity(height,
+density)` in a `useEffect` and dispatches it; the reducer then uses the pure `offsetToShowIndex`
+  helper to follow the selection. This keeps all scroll math in the reducer (invariant 4) and fully
+  unit-testable without a terminal.
+- **Live-message behaviour split cleanly by "am I following the bottom?"**: if the cursor is on the
+  newest message (pinned), a new message moves the cursor to the new newest (stays pinned); if
+  scrolled up (`offset > 0`), it holds position and flags new-below. An earlier attempt keyed the
+  "hold" on "cursor not newest" — that mis-fired on short conversations that fit on screen (nothing is
+  actually below the fold), so `offset > 0` remains the honest signal. The smoke scenarios that used
+  to force a scroll by pressing `k` once (old scroll clamped to `count-1`, not the viewport) now
+  render at a short height so a few messages genuinely overflow.
+- **Reactions are now writable.** Beeper's SDK exposes `chats.messages.reactions.add(messageID,
+{ chatID, reactionKey })` (POST `/v1/chats/{chat}/messages/{msg}/reactions`) and a per-chat
+  `reaction` capability on the same −2..2 scale as `reply`. Mapped to `ChatSummary.canReact`; the
+  ENTER action menu → limited emoji picker writes via a `sendReaction` runtime helper with an honest
+  notice (no optimistic fake — reaction counts are read-only and reconcile on the next update).
+- **`conversation-scroll.ts` moved `src/tui/ → src/state/`.** It's pure viewport math and the reducer
+  now needs it; importing tui-layer code into the state layer was the only such edge, so relocating
+  keeps the dependency direction clean (state never imports tui).
+
 ### 2026-08-03 — `login` opens a dead page on a local endpoint; session tidy-up
 
 - **`beeper-tui login` against a local Desktop opens a dead localhost page.** Root cause: `login`

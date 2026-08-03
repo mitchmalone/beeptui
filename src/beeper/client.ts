@@ -203,6 +203,15 @@ export class BeeperAdapter {
     })
   }
 
+  /** Add a reaction to a message (only on an explicit user action — invariant 5).
+   *  Capability is gated by the caller; Beeper owns the final say and a rejection
+   *  surfaces as a normalized error the caller shows honestly (invariant 8). */
+  async addReaction(chatID: string, messageID: string, reactionKey: string): Promise<void> {
+    return this.#guard(async () => {
+      await this.#client.chats.messages.reactions.add(messageID, { chatID, reactionKey })
+    })
+  }
+
   /** Run an SDK call, normalizing any thrown value into a `BeeperError`. */
   async #guard<T>(fn: () => Promise<T>): Promise<T> {
     try {

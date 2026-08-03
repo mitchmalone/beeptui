@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { reduce } from '@/state/reducer.ts'
 import { initialState, MAX_MESSAGES_PER_CHAT, type AppEvent, type AppState } from '@/state/types.ts'
+import { CONVERSATION_ACTIONS, QUICK_REACTIONS } from '@/state/reactions.ts'
+import { visibleMessages } from '@/state/conversation-scroll.ts'
 import type { ChatSummary, MessageSummary } from '@/beeper/types.ts'
 
 function chat(id: string, over: Partial<ChatSummary> = {}): ChatSummary {
@@ -551,6 +553,15 @@ describe('density', () => {
   })
 })
 
+describe('theme', () => {
+  test('defaults to system and theme/selected records the name', () => {
+    expect(initialState.themeName).toBe('system')
+    expect(reduce(initialState, { type: 'theme/selected', name: 'dracula' }).themeName).toBe(
+      'dracula'
+    )
+  })
+})
+
 describe('message search overlay', () => {
   const hit = (id: string) => ({
     messageId: id,
@@ -712,6 +723,13 @@ describe('message selection + reply', () => {
     expect(reduce(s, { type: 'messageSelection/cleared' }).selectedMessageId).toBeNull()
   })
 
+  test('moved jumps to an edge with a large delta (top/bottom)', () => {
+    const top = reduce(seeded(), { type: 'messageSelection/moved', delta: -100 })
+    expect(top.selectedMessageId).toBe('m1') // oldest
+    const bottom = reduce(top, { type: 'messageSelection/moved', delta: 100 })
+    expect(bottom.selectedMessageId).toBe('m3') // newest
+  })
+
   test('reply/started records the target and exits selection mode', () => {
     const s = reduce(seeded(), { type: 'messageSelection/started' })
     const replying = reduce(s, { type: 'reply/started', messageId: 'm2' })
@@ -762,5 +780,121 @@ describe('message selection + reply', () => {
     expect(sent.replyTo).toBeNull()
     const pending = sent.messagesByChat['c1']?.items.find((m) => m.clientId === 'cid-1')
     expect(pending?.replyToId).toBe('m2')
+  })
+})
+
+describe('conversation navigation cursor + viewport follow', () => {
+  /** A chat with ten loaded messages m0..m9 (oldest → newest). */
+  function seededTen(): AppState {
+    return run([
+      { type: 'chats/loaded', chats: [chat('c1')] },
+      { type: 'chat/selected', chatId: 'c1' },
+      {
+        type: 'messages/loaded',
+        chatId: 'c1',
+        messages: Array.from({ length: 10 }, (_, i) => msg(`m${i}`, String(i))),
+        page: 'initial',
+      },
+    ])
+  }
+
+  test('focusing the conversation auto-selects the newest message', () => {
+    const s = reduce(seededTen(), { type: 'focus/changed', focus: 'conversation' })
+    expect(s.focus).toBe('conversation')
+    expect(s.selectedMessageId).toBe('m9')
+  })
+
+  test('focusing the conversation keeps an existing selection', () => {
+    const withSel = run(
+      [
+        { type: 'focus/changed', focus: 'conversation' },
+        { type: 'messageSelection/moved', delta: -3 },
+      ],
+      seededTen()
+    )
+    const back = run(
+      [
+        { type: 'focus/changed', focus: 'inbox' },
+        { type: 'focus/changed', focus: 'conversation' },
+      ],
+      withSel
+    )
+    expect(back.selectedMessageId).toBe(withSel.selectedMessageId)
+  })
+
+  test('focusing another pane does not auto-select', () => {
+    const s = reduce(seededTen(), { type: 'focus/changed', focus: 'rail' })
+    expect(s.selectedMessageId).toBeNull()
+  })
+
+  test('viewport/measured records the row count', () => {
+    expect(reduce(initialState, { type: 'viewport/measured', rows: 12 }).viewportRows).toBe(12)
+  })
+
+  test('a live message pins the cursor to the new newest when following at the bottom', () => {
+    const start = reduce(seededTen(), { type: 'focus/changed', focus: 'conversation' })
+    expect(start.selectedMessageId).toBe('m9') // newest
+    const after = reduce(start, { type: 'message/received', message: msg('m10', 'x') })
+    expect(after.selectedMessageId).toBe('m10') // followed to the newest
+    expect(after.conversationOffset).toBe(0)
+    expect(after.newMessagesBelow).toBe(false)
+  })
+
+  test('a live message leaves the cursor when parked on an older on-screen message', () => {
+    const parked = run(
+      [
+        { type: 'viewport/measured', rows: 20 }, // everything fits
+        { type: 'focus/changed', focus: 'conversation' },
+        { type: 'messageSelection/moved', delta: -3 },
+      ],
+      seededTen()
+    )
+    const anchor = parked.selectedMessageId
+    const after = reduce(parked, { type: 'message/received', message: msg('m10', 'x') })
+    expect(after.selectedMessageId).toBe(anchor) // cursor left where it was
+    expect(after.newMessagesBelow).toBe(false) // still on screen, no affordance
+  })
+
+  test('moving the cursor scrolls so the selection stays on screen', () => {
+    // Capacity 3; enter at newest (m9, offset 0 → shows m7,m8,m9).
+    const start = run(
+      [
+        { type: 'viewport/measured', rows: 3 },
+        { type: 'focus/changed', focus: 'conversation' },
+      ],
+      seededTen()
+    )
+    expect(start.conversationOffset).toBe(0)
+    // Walk up to m5 (index 5) — it sits above the initial window, so the view
+    // must have scrolled to keep it visible.
+    const moved = run(Array(4).fill({ type: 'messageSelection/moved', delta: -1 }), start)
+    expect(moved.selectedMessageId).toBe('m5')
+    const items = moved.messagesByChat['c1']?.items ?? []
+    const visible = visibleMessages(items, 3, moved.conversationOffset)
+    expect(visible.some((m) => m.id === 'm5')).toBe(true)
+  })
+})
+
+describe('action menu + emoji picker overlays', () => {
+  test('opening an overlay resets both cursors', () => {
+    const dirty: AppState = { ...initialState, actionCursor: 3, emojiCursor: 4 }
+    const s = reduce(dirty, { type: 'overlay/opened', overlay: 'conversationActions' })
+    expect(s.overlay).toBe('conversationActions')
+    expect(s.actionCursor).toBe(0)
+    expect(s.emojiCursor).toBe(0)
+  })
+
+  test('emojiPicker/moved clamps within the quick-reaction set', () => {
+    let s = reduce(initialState, { type: 'emojiPicker/moved', delta: 1 })
+    expect(s.emojiCursor).toBe(1)
+    s = reduce(s, { type: 'emojiPicker/moved', delta: -5 })
+    expect(s.emojiCursor).toBe(0) // clamped at the start
+    s = reduce(s, { type: 'emojiPicker/moved', delta: 99 })
+    expect(s.emojiCursor).toBe(QUICK_REACTIONS.length - 1) // clamped at the end
+  })
+
+  test('actionMenu/moved clamps within the action list', () => {
+    const s = reduce(initialState, { type: 'actionMenu/moved', delta: 99 })
+    expect(s.actionCursor).toBe(CONVERSATION_ACTIONS.length - 1)
   })
 })

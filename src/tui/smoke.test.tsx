@@ -10,6 +10,7 @@ import {
   openChat,
   runMessageSearch,
   saveAttachment,
+  sendReaction,
   submitSend,
   type Gateway,
 } from '@/tui/runtime.ts'
@@ -132,12 +133,15 @@ function fakeGateway(): Gateway {
       if (archived) archivedIds.add(id)
       else archivedIds.delete(id)
     },
+    addReaction: async () => {},
     downloadAttachment: async () => ({ localPath: '/cache/beeper/att.png' }),
   }
 }
 
-/** Wire the App to the fake gateway exactly as `launch.ts` wires the real one. */
-async function harness() {
+/** Wire the App to the fake gateway exactly as `launch.ts` wires the real one.
+ *  `height` shrinks the viewport so a handful of messages overflow it — the
+ *  scrolled-up scenarios need the newest message to fall below the fold. */
+async function harness(height = 24) {
   const store = createStore()
   const gateway = fakeGateway()
   const opened: string[] = []
@@ -169,8 +173,10 @@ async function harness() {
         saved.push(name)
         return { savedName: name }
       }),
+    onReact: (chatId, messageId, reactionKey) =>
+      void sendReaction(gateway, store.dispatch, store.getState, chatId, messageId, reactionKey),
   }
-  const r = await testRender(<App {...props} />, { width: 100, height: 24 })
+  const r = await testRender(<App {...props} />, { width: 100, height })
   const settle = async () => {
     await Promise.resolve()
     await Promise.resolve()
@@ -213,12 +219,13 @@ describe('golden-path smoke', () => {
   })
 
   test('scenario 3: a live inbound message renders; scrolled-up shows the affordance', async () => {
-    const h = await harness()
+    // Short viewport so a few messages overflow it and scrolling is real.
+    const h = await harness(12)
     await h.mockInput.pressKey('j')
     await h.mockInput.pressKey('RETURN')
     await h.settle()
 
-    // Inbound while at the bottom → appears.
+    // Inbound while pinned at the bottom → appears, and the cursor follows it down.
     await applyWatchEvent(h.gateway, h.store.dispatch, {
       kind: 'messages',
       chatId: 'c-wa',
@@ -228,9 +235,7 @@ describe('golden-path smoke', () => {
     await h.settle()
     expect(h.captureCharFrame()).toContain('Live hello')
 
-    // Scroll up, then another inbound → new-messages affordance, not a snap.
-    await h.mockInput.pressKey('k')
-    await h.settle()
+    // Push the newest below the fold, then jump to the top to scroll up.
     await applyWatchEvent(h.gateway, h.store.dispatch, {
       kind: 'messages',
       chatId: 'c-wa',
@@ -238,38 +243,64 @@ describe('golden-path smoke', () => {
       messages: [msg('m4', 'Another one')],
     })
     await h.settle()
+    await h.mockInput.pressKey('g') // top → oldest selected, scrolled up
+    await h.settle()
+    expect(h.store.getState().conversationOffset).toBeGreaterThan(0)
+
+    // A new inbound while scrolled up → new-messages affordance, not a snap.
+    await applyWatchEvent(h.gateway, h.store.dispatch, {
+      kind: 'messages',
+      chatId: 'c-wa',
+      seq: 3,
+      messages: [msg('m5', 'And another')],
+    })
+    await h.settle()
     expect(h.store.getState().newMessagesBelow).toBe(true)
     expect(h.captureCharFrame()).toContain('new messages')
   })
 
   test('scenario 3b: a burst of live inbound messages while scrolled up keeps reading position', async () => {
-    const h = await harness()
+    const h = await harness(12)
     await h.mockInput.pressKey('j')
     await h.mockInput.pressKey('RETURN')
     await h.settle()
 
-    // Scroll up off the bottom, then take a burst on a busy channel.
-    await h.mockInput.pressKey('k')
+    // Overflow the viewport, then scroll to the top (off the bottom).
+    await applyWatchEvent(h.gateway, h.store.dispatch, {
+      kind: 'messages',
+      chatId: 'c-wa',
+      seq: 1,
+      messages: [msg('m3', 'three')],
+    })
+    await applyWatchEvent(h.gateway, h.store.dispatch, {
+      kind: 'messages',
+      chatId: 'c-wa',
+      seq: 2,
+      messages: [msg('m4', 'four')],
+    })
+    await h.settle()
+    await h.mockInput.pressKey('g') // scroll up to the oldest
     await h.settle()
     const offsetBefore = h.store.getState().conversationOffset
     expect(offsetBefore).toBeGreaterThan(0)
-    const anchorId = h.store.getState().selectedChatId // unchanged marker
+    const anchorMessage = h.store.getState().selectedMessageId // cursor marker
 
+    // A burst on a busy channel. Ids sort after m4 so they land newest (below).
     for (let i = 0; i < 12; i++) {
       await applyWatchEvent(h.gateway, h.store.dispatch, {
         kind: 'messages',
         chatId: 'c-wa',
         seq: 10 + i,
-        messages: [msg(`burst-${i}`, `burst ${i}`)],
+        messages: [msg(`z${String(i).padStart(2, '0')}`, `burst ${i}`)],
       })
     }
     await h.settle()
 
     // Reading position holds: still scrolled up (offset grew with the burst, not
-    // reset to the bottom), the affordance is showing, and no snap to latest.
+    // reset to the bottom), the cursor stayed put, and the affordance is showing.
     expect(h.store.getState().conversationOffset).toBeGreaterThanOrEqual(offsetBefore)
     expect(h.store.getState().newMessagesBelow).toBe(true)
-    expect(h.store.getState().selectedChatId).toBe(anchorId)
+    expect(h.store.getState().selectedMessageId).toBe(anchorMessage)
     expect(h.captureCharFrame()).toContain('new messages')
   })
 

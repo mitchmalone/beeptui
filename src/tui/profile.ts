@@ -108,6 +108,7 @@ async function main(): Promise<void> {
       onArchiveChat: noop,
       onOpenAttachment: noop,
       onSaveAttachment: noop,
+      onReact: noop,
     })
   )
 

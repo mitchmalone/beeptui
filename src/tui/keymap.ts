@@ -24,6 +24,7 @@ export type Command =
   | 'toggle-archived'
   | 'toggle-unread'
   | 'toggle-density'
+  | 'cycle-theme'
   | 'quit'
 
 /** Grouping used by the help overlay. */
@@ -101,7 +102,7 @@ export const KEYMAP: readonly Binding[] = [
     keys: ['v'],
     display: 'v',
     command: 'select-message',
-    description: 'Select messages (reply / open attachment)',
+    description: 'Re-anchor the cursor at the newest message',
     context: 'conversation',
   },
   {
@@ -161,6 +162,13 @@ export const KEYMAP: readonly Binding[] = [
     description: 'Toggle compact/comfortable layout',
     context: 'global',
   },
+  {
+    keys: ['t'],
+    display: 't',
+    command: 'cycle-theme',
+    description: 'Cycle theme',
+    context: 'global',
+  },
   { keys: ['r'], display: 'r', command: 'refresh', description: 'Refresh', context: 'global' },
   { keys: ['q'], display: 'q', command: 'quit', description: 'Quit', context: 'global' },
 ]
@@ -180,14 +188,16 @@ export const RAIL_HELP: ReadonlyArray<{ display: string; description: string }> 
   { display: '⏎ / l / →', description: 'Back into the chat list' },
 ]
 
-/** Message-selection keys (active after `v`); handled by raw match in the app so
- *  they don't shadow the global `r`/`s`, and listed here for the help overlay. */
+/** Message-cursor keys (the conversation always has a cursor; ↑/↓ move it).
+ *  r/o/s are raw-matched in the app so they don't shadow the global `r`/`s`;
+ *  listed here for the help overlay. */
 export const MESSAGE_SELECT_HELP: ReadonlyArray<{ display: string; description: string }> = [
-  { display: 'j / k', description: 'Move selection newer / older' },
+  { display: 'j / k · ↓ / ↑', description: 'Move the message cursor newer / older' },
+  { display: '⏎', description: 'Open the action menu (React…) on the cursor' },
   { display: 'r', description: 'Reply to the selected message' },
   { display: 'o', description: 'Open its attachment' },
   { display: 's', description: 'Save its attachment to Downloads' },
-  { display: 'Esc', description: 'Exit selection' },
+  { display: '← / → · ⏎', description: 'In the emoji picker: move · react' },
 ]
 
 const CONTEXT_TITLES: Record<KeyContext, string> = {
