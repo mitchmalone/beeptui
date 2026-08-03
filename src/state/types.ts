@@ -17,6 +17,9 @@ export type ConnectionState =
 
 export type MessageDeliveryStatus = 'sent' | 'pending' | 'failed'
 
+/** The rail cursor id for the Archived toggle entry (not a real scope). */
+export const RAIL_ARCHIVED_ID = 'archived'
+
 /** Which pane has keyboard focus. Ordered outer→inner: the network rail (filter),
  *  the chat list (inbox), the conversation, and the compose box within it. `Esc`
  *  walks this back out toward the rail. */
@@ -146,6 +149,10 @@ export interface AppState {
   searchQuery: string
   /** Inbox filter driven by the network rail (scope / archived / unread). */
   filter: InboxFilter
+  /** Which rail entry the cursor is on: `'all'`, an accountId, or `'archived'`
+   *  (the toggle entry). Tracks `filter.scope` for scope entries; decouples only
+   *  while resting on `'archived'`. */
+  railCursor: string
   /** Message-search overlay state (adapter-backed; see `initialMessageSearch`). */
   messageSearch: MessageSearchState
   /** Per-chat draft text (persisted across restarts by `src/store`). */
@@ -181,6 +188,7 @@ export const initialState: AppState = {
   overlay: 'none',
   searchQuery: '',
   filter: { scope: 'all', archived: false, unreadOnly: false },
+  railCursor: 'all',
   messageSearch: initialMessageSearch,
   drafts: {},
   server: null,
@@ -228,6 +236,8 @@ export type AppEvent =
   | { type: 'search/queryChanged'; query: string }
   | { type: 'filter/scopeCycled'; direction: 1 | -1 }
   | { type: 'filter/scopeSelected'; scope: FilterScope }
+  /** Move the rail cursor over ['all', ...accounts, 'archived']. */
+  | { type: 'rail/cursorMoved'; direction: 1 | -1 }
   | { type: 'filter/archivedToggled' }
   | { type: 'filter/unreadToggled' }
   | { type: 'density/toggled' }

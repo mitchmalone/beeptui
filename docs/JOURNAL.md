@@ -5,6 +5,22 @@
 
 ---
 
+### 2026-08-03 — Archived as a rail entry needs a cursor decoupled from scope
+
+- **The archived-per-scope capability already existed** — `matchesFilter` gates on `scope` AND
+  `archived`, and `a` is a global toggle, so archived worked at All and per-network before this. The
+  ticket was really discoverability. Verified before building (don't rebuild working code).
+- **A "toggle" entry in the rail forces a cursor separate from the active scope.** The rail cursor was
+  implicitly `filter.scope` (j/k changed scope live). To let the cursor _rest on_ Archived without
+  changing scope, added `railCursor` state: `rail/cursorMoved` walks `['all', ...accounts,
+'archived']`, live-selects scope entries but leaves scope when on Archived; `scopeSelected`/
+  `scopeCycled`/`focus→rail` keep `railCursor` synced to scope so it never starts stale on Archived.
+- **Help-overlay overflow bites again (third time — see prior entries).** Longer `RAIL_HELP`
+  descriptions wrapped in the ~48-col help column, adding a row that tipped a group past the 24-row
+  test terminal, where OpenTUI _overlaps_ sibling boxes rather than clipping — silently garbling the
+  `Search chats` row. Keep help descriptions short enough not to wrap (≤~35 chars after the padded
+  key display). A wrapped help line reads as "data loss" but is a render collision.
+
 ### 2026-08-03 — `system` theme = terminal light/dark via OpenTUI, not raw OSC
 
 - **OpenTUI already OSC-queries the terminal fg/bg for a light/dark `themeMode`** and exposes

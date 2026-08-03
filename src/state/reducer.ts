@@ -3,6 +3,7 @@ import {
   initialMessageSearch,
   MAX_MESSAGES_PER_CHAT,
   PENDING_SORT_PREFIX,
+  RAIL_ARCHIVED_ID,
   type AppEvent,
   type AppState,
   type ChatMessages,
@@ -301,6 +302,11 @@ export function reduce(state: AppState, event: AppEvent): AppState {
           }
         }
       }
+      // Entering the rail puts the cursor on the active scope (never left stale
+      // on the Archived toggle).
+      if (event.focus === 'rail') {
+        return { ...state, focus: event.focus, railCursor: state.filter.scope }
+      }
       return { ...state, focus: event.focus }
     }
 
@@ -407,12 +413,26 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       const order = ['all', ...state.accountOrder]
       const current = order.indexOf(state.filter.scope)
       const from = current === -1 ? 0 : current
-      const next = (from + event.direction + order.length) % order.length
-      return { ...state, filter: { ...state.filter, scope: order[next] ?? 'all' } }
+      const scope = order[(from + event.direction + order.length) % order.length] ?? 'all'
+      return { ...state, filter: { ...state.filter, scope }, railCursor: scope }
     }
 
     case 'filter/scopeSelected':
-      return { ...state, filter: { ...state.filter, scope: event.scope } }
+      return { ...state, filter: { ...state.filter, scope: event.scope }, railCursor: event.scope }
+
+    case 'rail/cursorMoved': {
+      // The rail cursor walks scopes plus the Archived toggle. Landing on a scope
+      // live-selects it (current behaviour); landing on Archived leaves the scope.
+      const order = ['all', ...state.accountOrder, RAIL_ARCHIVED_ID]
+      const current = order.indexOf(state.railCursor)
+      const from = current === -1 ? 0 : current
+      const next = order[(from + event.direction + order.length) % order.length] ?? 'all'
+      return {
+        ...state,
+        railCursor: next,
+        filter: next === RAIL_ARCHIVED_ID ? state.filter : { ...state.filter, scope: next },
+      }
+    }
 
     case 'filter/archivedToggled':
       return { ...state, filter: { ...state.filter, archived: !state.filter.archived } }

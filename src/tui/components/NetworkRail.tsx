@@ -5,8 +5,6 @@ import { useTheme } from '@/tui/theme/context.tsx'
 
 export interface NetworkRailProps {
   entries: NetworkRailEntry[]
-  /** Whether the archived view is active (footer indicator). */
-  archived: boolean
   /** Whether the unread-only filter is active (footer indicator). */
   unreadOnly: boolean
   /** Whether the rail has keyboard focus (shows a focus title + border tint). */
@@ -16,14 +14,14 @@ export interface NetworkRailProps {
 }
 
 /**
- * The leftmost `slk`-style rail: switch network scope (an `All` entry plus one
- * per connected network), with per-network unread dots and a footer that names
- * the active view filters. Presentational — the App owns the keys that cycle it
- * (`[` / `]`, `a`, `U`); this only renders `selectNetworkRail` output.
+ * The leftmost `slk`-style rail: an `All` entry, one per connected network, and
+ * an `Archived` toggle at the bottom. The `›` caret marks the rail cursor; the
+ * active scope keeps the shared highlight; Archived shows its on/off state.
+ * Presentational — the App owns the keys (`j`/`k` cursor, `⏎` toggle/drill,
+ * `[`/`]`, `U`); this only renders `selectNetworkRail` output.
  */
 export const NetworkRail = memo(function NetworkRail({
   entries,
-  archived,
   unreadOnly,
   focused = false,
   networkColors,
@@ -38,11 +36,20 @@ export const NetworkRail = memo(function NetworkRail({
     >
       <box style={{ flexGrow: 1, flexDirection: 'column' }}>
         {entries.map((entry) => {
+          const caret = entry.isCursor ? '›' : ' '
+          // The Archived toggle: a compact `Arc` marker with an on/off glyph,
+          // tinted (warning) when the archived view is active.
+          if (entry.kind === 'archived') {
+            return (
+              <text key={entry.id} style={{ fg: entry.active ? theme.warning : theme.muted }}>
+                {`${caret}Arc${entry.active ? '●' : '○'}`}
+              </text>
+            )
+          }
           const marker = entry.network === null ? 'All' : networkMarker(entry.network)
-          const caret = entry.isSelected ? '›' : ' '
           const dot = entry.unreadCount > 0 ? '•' : ''
-          // Tint each entry by its network; 'All' stays neutral, the selected row
-          // takes the shared active-highlight.
+          // Tint each entry by its network; 'All' stays neutral, the active scope
+          // takes the shared highlight.
           const color =
             entry.network === null ? theme.fg : networkColor(entry.network, networkColors)
           return (
@@ -57,7 +64,6 @@ export const NetworkRail = memo(function NetworkRail({
           )
         })}
       </box>
-      {archived ? <text style={{ flexShrink: 0, fg: theme.warning }}>arc</text> : null}
       {unreadOnly ? <text style={{ flexShrink: 0, fg: theme.warning }}>unr</text> : null}
     </box>
   )

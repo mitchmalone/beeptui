@@ -7,6 +7,16 @@
 
 ## Where we are
 
+**Small-UX slice (`feat/conversation-actions-reactions`, 2026-08-03).** Two separate commits.
+(1) **Ellipsis chat-name clipping** — rows truncate the title to the available width with `…` and pin
+to one line (`height:1` + overflow), so long names never wrap; budget = pane content width minus
+marker/gap/unread/mute. (2) **Dedicated Archived rail entry** — the Net rail now has an "Archived"
+toggle at the bottom; a new `railCursor` (state) decouples the rail cursor from the active scope, so
+j/k walks scopes + Archived, `⏎` toggles Archived (scope untouched) or drills in. Archived stays a
+per-scope toggle (works at All + each network — `matchesFilter` already gated on scope AND archived);
+`a` still works. The `arc` footer is gone (now the entry's ●/○). **514 tests** green. **Next:** HTML
+message rendering → demo mode.
+
 **`system` theme detection (`feat/conversation-actions-reactions`, 2026-08-03).** The `system` theme
 now adapts to the terminal's **light/dark** mode via OpenTUI's `renderer.waitForThemeMode()` — a
 curated `SYSTEM_LIGHT`/`SYSTEM_DARK` picked by `systemThemeForMode(mode)`, resolved once at launch

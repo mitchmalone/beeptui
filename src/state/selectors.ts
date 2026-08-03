@@ -1,4 +1,5 @@
 import type { ChatSummary } from '@/beeper/types.ts'
+import { RAIL_ARCHIVED_ID } from '@/state/types.ts'
 import type { AppState, ConnectionState, MessageEntity } from '@/state/types.ts'
 
 /**
@@ -47,15 +48,22 @@ export function selectInboxRows(state: AppState): InboxRow[] {
 
 /** One entry in the leftmost network rail. */
 export interface NetworkRailEntry {
-  /** 'all' or an account id. */
+  /** 'all', an account id, or 'archived' (the toggle entry). */
   id: string
-  /** Display label: 'All' or the network name. */
+  /** Display label: 'All', the network name, or 'Archived'. */
   label: string
-  /** Network name for the marker, or null for the 'all' entry. */
+  /** Network name for the marker, or null for the 'all'/'archived' entries. */
   network: string | null
   /** Unread total within the current archived view (ignores the unread-only toggle). */
   unreadCount: number
+  /** True when this is the active scope (scope entries only). */
   isSelected: boolean
+  /** True when the rail cursor rests on this entry. */
+  isCursor: boolean
+  /** A scope entry, or the Archived toggle. */
+  kind: 'scope' | 'archived'
+  /** For the Archived entry: whether the archived view is currently on. */
+  active?: boolean
 }
 
 /**
@@ -82,6 +90,8 @@ export function selectNetworkRail(state: AppState): NetworkRailEntry[] {
       network: null,
       unreadCount: unreadAll,
       isSelected: state.filter.scope === 'all',
+      isCursor: state.railCursor === 'all',
+      kind: 'scope',
     },
   ]
   for (const accountId of state.accountOrder) {
@@ -93,8 +103,22 @@ export function selectNetworkRail(state: AppState): NetworkRailEntry[] {
       network: account.network,
       unreadCount: unreadByAccount[accountId] ?? 0,
       isSelected: state.filter.scope === accountId,
+      isCursor: state.railCursor === accountId,
+      kind: 'scope',
     })
   }
+  // The Archived toggle lives at the bottom of the rail — a per-scope toggle, not
+  // a scope, so it's never `isSelected`.
+  entries.push({
+    id: RAIL_ARCHIVED_ID,
+    label: 'Archived',
+    network: null,
+    unreadCount: 0,
+    isSelected: false,
+    isCursor: state.railCursor === RAIL_ARCHIVED_ID,
+    kind: 'archived',
+    active: state.filter.archived,
+  })
   return entries
 }
 

@@ -541,6 +541,52 @@ describe('inbox filter (network rail)', () => {
     const s = reduce(initialState, { type: 'filter/scopeCycled', direction: 1 })
     expect(s.filter.scope).toBe('all')
   })
+
+  test('scopeSelected/scopeCycled keep the rail cursor in sync', () => {
+    expect(reduce(withAccounts, { type: 'filter/scopeSelected', scope: 'fb' }).railCursor).toBe(
+      'fb'
+    )
+    expect(reduce(withAccounts, { type: 'filter/scopeCycled', direction: 1 }).railCursor).toBe('wa')
+  })
+
+  test('rail/cursorMoved walks scopes then the Archived toggle, wrapping', () => {
+    let s = reduce(withAccounts, { type: 'rail/cursorMoved', direction: 1 })
+    expect(s.railCursor).toBe('wa')
+    expect(s.filter.scope).toBe('wa') // landing on a scope live-selects it
+    s = reduce(s, { type: 'rail/cursorMoved', direction: 1 })
+    expect(s.railCursor).toBe('fb')
+    s = reduce(s, { type: 'rail/cursorMoved', direction: 1 })
+    expect(s.railCursor).toBe('archived') // after the last account
+    s = reduce(s, { type: 'rail/cursorMoved', direction: 1 })
+    expect(s.railCursor).toBe('all') // wraps
+  })
+
+  test('resting the cursor on Archived leaves the active scope untouched', () => {
+    // Select fb, then move up onto Archived (fb → archived is one step back).
+    const onFb = reduce(withAccounts, { type: 'filter/scopeSelected', scope: 'fb' })
+    const onArchived = reduce(onFb, { type: 'rail/cursorMoved', direction: 1 })
+    expect(onArchived.railCursor).toBe('archived')
+    expect(onArchived.filter.scope).toBe('fb') // scope preserved — Archived is a toggle, not a scope
+  })
+
+  test('focusing the rail syncs the cursor to the active scope', () => {
+    // Park the cursor on Archived, switch away, then re-focus the rail.
+    const parked = run(
+      [
+        { type: 'filter/scopeSelected', scope: 'wa' },
+        { type: 'rail/cursorMoved', direction: -1 }, // wa → all? walk to archived instead
+      ],
+      withAccounts
+    )
+    const refocused = reduce(
+      { ...parked, railCursor: 'archived' },
+      {
+        type: 'focus/changed',
+        focus: 'rail',
+      }
+    )
+    expect(refocused.railCursor).toBe(refocused.filter.scope)
+  })
 })
 
 describe('density', () => {

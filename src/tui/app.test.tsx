@@ -126,6 +126,21 @@ describe('App shell', () => {
     expect(store.getState().themeName).toBe('dracula')
   })
 
+  test('rail: navigate to Archived and Enter toggles it, leaving the scope', async () => {
+    const store = seededStore()
+    store.dispatch({ type: 'focus/changed', focus: 'rail' })
+    const { renderOnce, mockInput } = await renderApp(store)
+    await renderOnce()
+    expect(store.getState().railCursor).toBe('all')
+    await mockInput.pressKey('k') // up from 'all' wraps to the Archived entry (last)
+    expect(store.getState().railCursor).toBe('archived')
+    expect(store.getState().filter.scope).toBe('all') // scope untouched by resting on Archived
+    await mockInput.pressKey('RETURN') // Enter toggles the archived view
+    expect(store.getState().filter.archived).toBe(true)
+    expect(store.getState().focus).toBe('rail') // stayed in the rail (didn't drill in)
+    expect(store.getState().filter.scope).toBe('all')
+  })
+
   test('a config keymap override rebinds a command end-to-end', async () => {
     const store = seededStore()
     let quit = 0

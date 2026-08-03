@@ -184,8 +184,8 @@ export const COMPOSE_HELP: ReadonlyArray<{ display: string; description: string 
 /** Network-rail keys (while the rail has focus); j/k reuse the move bindings and
  *  drill-in mirrors `open`, so these are listed for the help overlay only. */
 export const RAIL_HELP: ReadonlyArray<{ display: string; description: string }> = [
-  { display: 'j / k', description: 'Switch network' },
-  { display: '⏎ / l / →', description: 'Back into the chat list' },
+  { display: 'j / k', description: 'Move cursor (incl. Archived)' },
+  { display: '⏎ / l / →', description: 'Drill in, or toggle Archived' },
 ]
 
 /** Message-cursor keys (the conversation always has a cursor; ↑/↓ move it).

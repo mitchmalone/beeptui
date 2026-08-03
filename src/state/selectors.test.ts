@@ -110,10 +110,13 @@ describe('selectNetworkRail', () => {
     },
   ])
 
-  test('All first, then accounts in order, with labels', () => {
+  test('All first, then accounts in order, then the Archived toggle', () => {
     const rail = selectNetworkRail(base)
-    expect(rail.map((e) => e.id)).toEqual(['all', 'wa', 'fb'])
-    expect(rail.map((e) => e.label)).toEqual(['All', 'WhatsApp', 'Facebook'])
+    expect(rail.map((e) => e.id)).toEqual(['all', 'wa', 'fb', 'archived'])
+    expect(rail.map((e) => e.label)).toEqual(['All', 'WhatsApp', 'Facebook', 'Archived'])
+    const archived = rail.find((e) => e.id === 'archived')
+    expect(archived?.kind).toBe('archived')
+    expect(archived?.isSelected).toBe(false) // a toggle, never the active scope
   })
 
   test('per-scope unread counts honor the active view', () => {

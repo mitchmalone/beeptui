@@ -13,6 +13,7 @@ import {
 import { checkCapability } from '@/state/capabilities.ts'
 import { conversationCapacity } from '@/state/conversation-scroll.ts'
 import { CONVERSATION_ACTIONS, QUICK_REACTIONS } from '@/state/reactions.ts'
+import { RAIL_ARCHIVED_ID } from '@/state/types.ts'
 import { edgeSelection, moveSelection } from '@/tui/navigation.ts'
 import { helpGroups, KEYMAP, resolveCommand, resolveKey, type Binding } from '@/tui/keymap.ts'
 import { searchChats } from '@/tui/fuzzy.ts'
@@ -313,33 +314,33 @@ export function App({
     const conv = selectActiveConversation(s)
     const failed = selectLastFailedSend(s)
 
-    // Rail focus: the leftmost, outermost pane. j/k switch networks; Enter / l /
-    // → drill back into the chat list. Esc / h / ← is a no-op (nothing further
-    // out). The global [ ] / a / U shortcuts above still apply here too.
+    // Rail focus: the leftmost, outermost pane. j/k move the cursor over the
+    // scopes plus the Archived toggle; Enter / l / → toggles Archived when the
+    // cursor is on it, otherwise drills into the chat list. g/G jump to the first
+    // and last *scope*. The global [ ] / a / U shortcuts above still apply.
     if (s.focus === 'rail') {
-      const railEntries = selectNetworkRail(s)
-      if (key.name === 'right' || key.sequence === 'l') {
-        store.dispatch({ type: 'focus/changed', focus: 'inbox' })
+      const scopes = selectNetworkRail(s).filter((e) => e.kind === 'scope')
+      const onArchived = s.railCursor === RAIL_ARCHIVED_ID
+      if (command === 'open' || key.name === 'right' || key.sequence === 'l') {
+        if (onArchived) store.dispatch({ type: 'filter/archivedToggled' })
+        else store.dispatch({ type: 'focus/changed', focus: 'inbox' })
         return
       }
       switch (command) {
         case 'move-down':
-          store.dispatch({ type: 'filter/scopeCycled', direction: 1 })
+          store.dispatch({ type: 'rail/cursorMoved', direction: 1 })
           break
         case 'move-up':
-          store.dispatch({ type: 'filter/scopeCycled', direction: -1 })
+          store.dispatch({ type: 'rail/cursorMoved', direction: -1 })
           break
         case 'top':
-          store.dispatch({ type: 'filter/scopeSelected', scope: railEntries[0]?.id ?? 'all' })
+          store.dispatch({ type: 'filter/scopeSelected', scope: scopes[0]?.id ?? 'all' })
           break
         case 'bottom':
           store.dispatch({
             type: 'filter/scopeSelected',
-            scope: railEntries[railEntries.length - 1]?.id ?? 'all',
+            scope: scopes[scopes.length - 1]?.id ?? 'all',
           })
-          break
-        case 'open':
-          store.dispatch({ type: 'focus/changed', focus: 'inbox' })
           break
         default:
           break
@@ -532,7 +533,6 @@ export function App({
             <box style={{ flexDirection: 'row', flexGrow: 1 }}>
               <NetworkRail
                 entries={rail}
-                archived={state.filter.archived}
                 unreadOnly={state.filter.unreadOnly}
                 focused={focus === 'rail'}
                 networkColors={networkColors}
