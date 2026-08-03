@@ -1,6 +1,6 @@
 ---
 title: Conversation message layout — header row, gutter column, row-exact scrolling
-status: active
+status: done
 created: 2026-08-04
 updated: 2026-08-04
 links:
@@ -95,41 +95,41 @@ false today — and it would leave the menu-anchoring bug in place.
 
 ## Steps
 
-- [ ] `src/state/text-width.ts` — pure `displayWidth(text)`; tests cover ASCII, CJK, combining
+- [x] `src/state/text-width.ts` — pure `displayWidth(text)`; tests cover ASCII, CJK, combining
       marks, emoji, and the err-narrow bias.
-- [ ] `src/state/message-layout.ts` — `layOutMessage(message, width, opts)` → `{ rows }` with
+- [x] `src/state/message-layout.ts` — `layOutMessage(message, width, opts)` → `{ rows }` with
       styled runs preserved across wrap boundaries; header row (sender + time), body rows,
       trailing blank separator. Test-first, no terminal.
-- [ ] Fold the HTML and plain-text paths together: `hasHtml` messages go through
+- [x] Fold the HTML and plain-text paths together: `hasHtml` messages go through
       `htmlToStyledLines` first, plain messages become a single styled run. One layout path, not
       two render paths.
-- [ ] Rewrite `src/state/conversation-scroll.ts` to be row-based (`visibleRows`, row-based
+- [x] Rewrite `src/state/conversation-scroll.ts` to be row-based (`visibleRows`, row-based
       `offsetToShowIndex`/`clampOffset`/`maxScrollOffset`). Rewrite
       `conversation-scroll.test.ts` (87 lines) against the new contract.
-- [ ] Extend `viewport/measured` with `cols`; thread it through `types.ts`, `reducer.ts`
+- [x] Extend `viewport/measured` with `cols`; thread it through `types.ts`, `reducer.ts`
       (`offsetForSelection`), and `app.tsx:151-154`. Reducer tests first.
-- [ ] Rebuild `ConversationView` rendering on the layout: caret column, content column, flex header
+- [x] Rebuild `ConversationView` rendering on the layout: caret column, content column, flex header
       row, pre-wrapped body rows with `wrapMode: 'word'` retained as a net.
-- [ ] Retire/absorb `MessageView` into the layout-driven renderer; update
+- [x] Retire/absorb `MessageView` into the layout-driven renderer; update
       `MessageView.test.tsx` + `ConversationView.test.tsx`.
-- [ ] Re-anchor the floating action menu on layout row offsets instead of visible-index
+- [x] Re-anchor the floating action menu on layout row offsets instead of visible-index
       (`ConversationView.tsx:99-106`).
-- [ ] Verify live in tmux via `beeptui --demo` at a couple of terminal widths, including a resize.
-- [ ] Close out: `STATUS.md`, `JOURNAL.md`, `LEARNINGS.md` (width/wrap gotchas), move this plan to
+- [x] Verify live in tmux via `beeptui --demo` at a couple of terminal widths, including a resize.
+- [x] Close out: `STATUS.md`, `JOURNAL.md`, `LEARNINGS.md` (width/wrap gotchas), move this plan to
       `done/`, `DECISIONS.md` entry for the pre-wrap-in-state decision.
 
 ## Acceptance criteria
 
-- [ ] Each message renders as: line 1 `Name` left / `HH:MM` right; lines 2+ the body; one blank
+- [x] Each message renders as: line 1 `Name` left / `HH:MM` right; lines 2+ the body; one blank
       line between messages.
-- [ ] Every body line — including wrapped ones — starts at the same column as the name. No
+- [x] Every body line — including wrapped ones — starts at the same column as the name. No
       2-character drift at any terminal width.
-- [ ] The bottom-pinned viewport shows whole messages that fit the pane: nothing renders past the
+- [x] The bottom-pinned viewport shows whole messages that fit the pane: nothing renders past the
       bottom border, at any mix of short and multi-line messages.
-- [ ] ↑/↓ viewport-follow keeps the cursor on screen when messages have unequal heights.
-- [ ] The floating action menu anchors to the selected message's actual row.
-- [ ] `bun test` green (539+ tests), `bun run typecheck` and `bun run lint` clean.
-- [ ] Verified live in `--demo` under tmux, including a terminal resize.
+- [x] ↑/↓ viewport-follow keeps the cursor on screen when messages have unequal heights.
+- [x] The floating action menu anchors to the selected message's actual row.
+- [x] `bun test` green (539+ tests), `bun run typecheck` and `bun run lint` clean.
+- [x] Verified live in `--demo` under tmux, including a terminal resize.
 
 ## Out of scope
 
@@ -138,6 +138,26 @@ false today — and it would leave the menu-anchoring bug in place.
 - Avatars, colour-per-sender, or any other new visual affordance.
 - The inbox pane's preview line — `messageLine` stays as-is for that path if it is ever reused.
 - In-TUI image rendering (tracked in `PLAN-inline-image-rendering.md`).
+
+## Outcome
+
+Delivered as planned, plus three things the plan did not anticipate:
+
+- **`CHROME_ROWS` was wrong by two** (9 → 11). With one `<text>` per message an over-count clipped
+  invisibly; with fixed-height row boxes it made rows paint on top of each other. Fixed, and pinned
+  against a real render in `smoke.test.tsx`.
+- **The bottom hint row had to become unconditional** (blank when idle). A conditional chrome row
+  means no capacity constant can be true.
+- **The perf benchmark was measuring nothing** — it never dispatched `viewport/measured`, so the
+  reducer skipped the layout path. Now covered: ~2.5ms per scrolled-up arrival, ~1.5ms per cursor
+  move at a near-full window.
+
+Found and **not** fixed (pre-existing, orthogonal): at a full message window an arrival evicts the
+oldest, so `added` is 0 and the `message/received` branch that holds reading position and raises the
+new-messages affordance never runs.
+
+Density was checked live in `--demo` before shipping: three rows per message reads well at normal
+terminal sizes, so the grouping fallback was not needed.
 
 ## Risks / open questions
 

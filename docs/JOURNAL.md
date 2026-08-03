@@ -5,6 +5,36 @@
 
 ---
 
+### 2026-08-04 — Conversation block layout; the viewport now counts rows, not messages
+
+- **The 2-column drift was structural, not a padding bug.** The caret lived _inside_ the message
+  string (`` `${caret} ${line}` ``), so it only existed on the first line — every wrapped or
+  `<br>`-broken line after it started at column 0 of the text element. opentui's `<text>` exposes
+  `wrapMode` but no hanging indent (`TextBufferRenderable._firstLineOffset` is protected, not a
+  prop), so the fix had to be a real layout column: a 2-wide caret box beside a `flexGrow` content
+  box. Everything in the content box now starts and wraps at the same column.
+- **Variable-height messages break a message-counting viewport, and it was already broken.**
+  `visibleMessages` sliced by message count while `capacity` was `height - CHROME_ROWS` in rows;
+  the two only agreed because messages were assumed to be one row. Multi-line HTML already
+  violated that. Fixed by laying messages out into rows in pure state and slicing rows on both
+  sides — see `DECISIONS.md`.
+- **`CHROME_ROWS` was wrong by two (9 → 11) and nothing caught it.** With one `<text>` per message
+  an over-count clipped invisibly; with fixed-height row boxes it made rows render _on top of each
+  other_ (the sender name and body drew into the same terminal row, interleaving as
+  `Liveehello`). Two fixes: rows are `height: 1, flexShrink: 0` so an over-tight pane clips instead
+  of collapsing, and the bottom hint row is drawn unconditionally (blank when idle) so the chrome
+  height is a constant that stays true. `smoke.test.tsx` now pins the constant against a real
+  render at three terminal heights.
+- **The perf benchmark was measuring nothing relevant.** It never dispatched `viewport/measured`,
+  so `measured()` was false and the reducer skipped the layout path entirely. With the viewport set,
+  a scrolled-up arrival costs ~2.5ms and a cursor move ~1.5ms at a near-full window.
+- **Found while benchmarking, not fixed here:** at a full message window
+  (`MAX_MESSAGES_PER_CHAT`), a live arrival evicts the oldest message, so `added` is 0 and the
+  `message/received` branch that preserves reading position and raises the new-messages affordance
+  never runs. Pre-existing (the guard is unchanged), and orthogonal to this slice.
+
+---
+
 ### 2026-08-04 — Version display made release-driven; README now installs-first
 
 - **The website's version string is now stamped by the release workflow**, not hand-edited: a new
