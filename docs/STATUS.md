@@ -7,8 +7,17 @@
 
 ## Where we are
 
-**TUI UX pass shipped — merged to `main` as `v0.2.0`** (2026-08-03, PR #33, squash-merged; no
-release/tag cut). A batch of interaction/visual work, built and committed feature-by-feature:
+**Renamed to `beeptui` + released `v0.2.0`** (2026-08-03, PR #35). The app is `beeptui` everywhere
+— package/bin, config `~/.config/beeptui/`, state `~/.local/state/beeptui/`, keychain service,
+`BEEPTUI_ENDPOINT`, and the Homebrew formula (`beeptui.rb`, `class Beeptui`) — reversing the
+2026-07-30 `beeper-tui` lock (`DECISIONS.md`). Breaking, no compat shim (pre-1.0): existing installs
+re-run `login`/`doctor`. Same PR fixed **release version stamping** — the binary now embeds the git
+tag (v0.1.0 had shipped `0.0.0`) — bumped the release actions off Node-20, and made the tap
+self-retire the old formula + refresh its README on release. `v0.2.0` folds in the earlier UX pass,
+which had a doc version but was never tagged/released.
+
+**TUI UX pass** — merged to `main` (2026-08-03, PR #33, squash-merged; released as part of `v0.2.0`
+above). A batch of interaction/visual work, built and committed feature-by-feature:
 
 - **Theming** — semantic token system behind `ThemeProvider`/`useTheme()`; built-in **default /
   dracula / system** (system adapts to the terminal's light/dark via `waitForThemeMode`) + user themes
@@ -33,7 +42,7 @@ extraction, line-aware HTML menu anchoring, self-driving demo choreography.
 both binaries (darwin-arm64 + linux-x64), published a GitHub Release with `sha256sums.txt`, and
 pushed `Formula/beeptui.rb` to `mitchmalone/homebrew-tap` (SHA-256s match). `brew install
 mitchmalone/tap/beeptui` resolves. The brew/release polish item is **done** — end-to-end, not
-just structural. (Minor: the run warns on Node-20 GitHub-action majors; bump when convenient.)
+just structural. (The Node-20 action-major warning was cleared in `v0.2.0`.)
 
 **v1 polish pass (`feat/v1-polish`, 2026-08-01).** Knocked out the optional backlog in one branch
 (Mitch: "break the rules, do it all"): **layout density** toggle (`D`, seeded from
@@ -149,8 +158,6 @@ is tidy (only `main` locally + remote). Two tracks remain:
 
 - **`PLAN-login-guard-local-endpoint.md`** — `login` refuses on a local / remote-access-off endpoint
   instead of opening a dead browser tab (found 2026-08-03). Small, no hardware needed.
-- **`PLAN-release-hygiene-versioning.md`** — fix `--version` (`0.0.0` → tag), stamp version from the
-  tag in CI, bump Node-20 actions; cut `v0.1.1`.
 - **`PLAN-inline-image-rendering.md`** — inline image attachments (native protocol first; feasibility
   confirmed, `docs/PERF.md`). `PLAN-v1-polish-backlog.md` indexes these.
 

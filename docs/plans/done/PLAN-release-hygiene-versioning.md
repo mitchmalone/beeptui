@@ -1,6 +1,6 @@
 ---
 title: release hygiene — version stamping + CI action bump
-status: active
+status: done
 created: 2026-08-03
 updated: 2026-08-03
 links:
@@ -45,8 +45,9 @@ the `v`) into `package.json` before `bun build --compile`. Keep `package.json` a
       into `package.json` via a small `bun` step so the binary embeds the tag's version.
 - [x] Bump the GitHub Actions to the Node-24 majors (`actions/checkout@v5`,
       `actions/upload-artifact@v5`, `actions/download-artifact@v5`) to clear the deprecation warning.
-- [ ] Cut the next release (folded in with the `beeptui` rename); confirm `beeptui --version` prints
-      the tag version from the released binary and the tap updates.
+- [x] Cut the next release (`v0.2.0`, folded in with the `beeptui` rename); confirm `beeptui
+    --version` prints the tag version from the released binary and the tap updates. _(release run
+      verified at close — see JOURNAL 2026-08-03)_
 
 ## Acceptance criteria
 
