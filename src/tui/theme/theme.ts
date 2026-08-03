@@ -64,9 +64,37 @@ export const DRACULA_THEME: Theme = {
   menuBg: '#44475a',
 }
 
-/** Placeholder for the terminal-detected theme; real OSC detection lands in the
- *  next slice. Until then it resolves to the default palette. */
-export const SYSTEM_THEME: Theme = { ...DEFAULT_THEME, name: 'system' }
+/** The `system` theme's dark variant (≈ the default look). Used when the
+ *  terminal reports a dark background, or when detection is unavailable. */
+export const SYSTEM_DARK: Theme = { ...DEFAULT_THEME, name: 'system' }
+
+/** The `system` theme's light variant — tuned for readability on a light
+ *  terminal background (dark text, saturated accents that hold contrast). */
+export const SYSTEM_LIGHT: Theme = {
+  name: 'system',
+  fg: '#1f2328',
+  muted: '#57606a',
+  selectionBg: '#0969da',
+  selectionFg: '#ffffff',
+  border: '#d0d7de',
+  borderFocused: '#0969da',
+  accent: '#0969da',
+  warning: '#9a6700',
+  danger: '#cf222e',
+  success: '#1a7f37',
+  menuBg: '#eaeef2',
+}
+
+/** The `system` theme resolved for a detected terminal mode. `null` (detection
+ *  unavailable / timed out) falls back to the dark variant. */
+export function systemThemeForMode(mode: 'dark' | 'light' | null): Theme {
+  return mode === 'light' ? SYSTEM_LIGHT : SYSTEM_DARK
+}
+
+/** Placeholder `system` theme used before detection runs (and in tests / when
+ *  there's no renderer). Launch overrides the registry entry once the terminal
+ *  mode is known. */
+export const SYSTEM_THEME: Theme = SYSTEM_DARK
 
 /** Built-in themes, keyed by name. */
 export const BUILTIN_THEMES: Readonly<Record<string, Theme>> = {

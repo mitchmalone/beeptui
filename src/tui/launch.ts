@@ -6,6 +6,7 @@ import { createElement } from 'react'
 import { BeeperAdapter, resolveActiveToken, resolveConfig } from '@/beeper/index.ts'
 import { App } from '@/tui/app.tsx'
 import { buildThemeRegistry } from '@/tui/theme/resolve.ts'
+import { systemThemeForMode } from '@/tui/theme/theme.ts'
 import { createStore } from '@/state/store.ts'
 import { initialState } from '@/state/types.ts'
 import { selectTotalUnread } from '@/state/selectors.ts'
@@ -95,6 +96,16 @@ export async function launch(): Promise<void> {
   statusWriter.update(selectTotalUnread(store.getState()))
 
   const renderer = await createCliRenderer()
+  // Resolve the `system` theme against the terminal's light/dark mode (OpenTUI
+  // owns the OSC query). Done before the first render so the initial paint is
+  // already correct; a timeout/failure keeps the dark fallback. Runtime cycling
+  // to `system` then uses the detected variant too (same registry Map).
+  try {
+    const mode = await renderer.waitForThemeMode(200)
+    themeRegistry.set('system', systemThemeForMode(mode))
+  } catch {
+    themeRegistry.set('system', systemThemeForMode(null))
+  }
   let watch: WatchHandle | null = null
   const onQuit = () => {
     persistence.flush() // save the last debounce window before exiting

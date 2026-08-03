@@ -5,6 +5,22 @@
 
 ---
 
+### 2026-08-03 — `system` theme = terminal light/dark via OpenTUI, not raw OSC
+
+- **OpenTUI already OSC-queries the terminal fg/bg for a light/dark `themeMode`** and exposes
+  `renderer.themeMode` + `await renderer.waitForThemeMode(timeoutMs)` (`"dark" | "light" | null`). It
+  does **not** expose the exact fg/bg RGB (private). So `system` detection uses the light/dark signal
+  and picks a curated `SYSTEM_LIGHT`/`SYSTEM_DARK`, rather than cloning the exact palette.
+- **Chose OpenTUI's path over hand-rolled raw OSC 10/11 stdin parsing.** Raw parsing would need
+  raw-mode stdin reads before `createCliRenderer`, is terminal-specific, can't be validated live in
+  this environment, and — worst — a botched teardown could corrupt input for the renderer. Leaning on
+  the library's tested detection is the responsible call; exact-colour extraction is a future,
+  live-tested experiment.
+- **Resolve once, before first paint.** `await renderer.waitForThemeMode(200)` then
+  `registry.set('system', systemThemeForMode(mode))` between `createCliRenderer` and the first render,
+  mutating the same registry Map the App holds — so initial selection and `t`-cycling both see the
+  detected variant with no flash. Wrapped in try/catch → dark fallback; the 200ms is the only cost.
+
 ### 2026-08-03 — Theme foundation: semantic tokens + built-ins + custom theme files
 
 - **Theming via a token context, not prop-drilling.** A `Theme` of ~11 semantic tokens lives behind a

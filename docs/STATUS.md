@@ -7,6 +7,15 @@
 
 ## Where we are
 
+**`system` theme detection (`feat/conversation-actions-reactions`, 2026-08-03).** The `system` theme
+now adapts to the terminal's **light/dark** mode via OpenTUI's `renderer.waitForThemeMode()` — a
+curated `SYSTEM_LIGHT`/`SYSTEM_DARK` picked by `systemThemeForMode(mode)`, resolved once at launch
+(before first paint) and overriding the registry's `system` entry, so both initial selection and `t`
+cycling reflect it. Chosen over hand-rolled raw OSC 10/11 stdin parsing (fragile, unvalidatable here,
+risks corrupting renderer input). Extracting the terminal's _exact_ fg/bg/accent colours is a noted
+follow-up. Timeout/failure → dark (safe). **503 tests** green. **Next:** small UX (ellipsis clip +
+archived-in-Net-filter) → HTML message rendering → demo mode.
+
 **Theme foundation (`feat/conversation-actions-reactions`, 2026-08-03, in review).** First slice of a
 larger UX batch. Introduced a semantic **theme token** system (`src/tui/theme/`): a `Theme` of
 tokens (`fg`, `muted`, `selectionBg/Fg`, `border`, `borderFocused`, `accent`, `warning`, `danger`,
