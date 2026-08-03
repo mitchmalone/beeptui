@@ -151,3 +151,32 @@ jobs:
           git add -A
           git commit -m "beeptui ${{ github.ref_name }}"
           git push
+
+  # Stamp the released version into the website repo so beeptui.com renders the
+  # real version instead of a hand-maintained string. Same shape as the tap job:
+  # runs only when configured (repo variable WEB_REPO + secret WEB_REPO_TOKEN),
+  # otherwise an honest no-op — never a failed release.
+  website:
+    name: update website version
+    needs: release
+    if: ${{ vars.WEB_REPO != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Commit release.json to the website repo
+        env:
+          GH_TOKEN: ${{ secrets.WEB_REPO_TOKEN }}
+          REF: ${{ github.ref_name }}
+        run: |
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${{ vars.WEB_REPO }}.git" web
+          mkdir -p web/src/data
+          printf '{\n  "version": "%s",\n  "date": "%s"\n}\n' "${REF#v}" "$(date -u +%F)" > web/src/data/release.json
+          cd web
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/data/release.json
+          if git diff --cached --quiet; then
+            echo "version unchanged — nothing to push"
+            exit 0
+          fi
+          git commit -m "chore: stamp release ${REF} from the app release workflow"
+          git push
