@@ -5,6 +5,23 @@
 
 ---
 
+### 2026-08-03 — Demo mode = real TUI + a synthetic Gateway
+
+- **`--demo` swaps the `Gateway`, nothing else.** The runtime already talks to an abstract `Gateway`
+  (the smoke tests fake it), so `beeper-tui --demo` just injects `createDemoGateway()` and the whole
+  real app runs on fictitious data — no auth, no network. Reads return fixtures; writes resolve as
+  no-ops so the optimistic UI behaves.
+- **Must skip persistence + the status writer in demo.** Otherwise the synthetic inbox/drafts would
+  overwrite the user's real cached UI store, and fake unread counts would rewrite their tmux title.
+  Guarded both behind `demo`.
+- **Module-load order bit me:** a `let sortSeq = 0` referenced by the message fixtures was declared
+  below them → TDZ crash at import. Hoist counters/consts above the data literals that use them
+  (function declarations hoist; `let`/`const` don't).
+- **Verified live via tmux** (`capture-pane`) — the session's only real end-to-end visual check.
+  Confirmed the demo inbox, auto-opened conversation, the Archived rail toggle revealing the hidden
+  chat, and the HTML translator's bold/`- `/`1.`/line-breaks all render. `bun run dev --demo` in a
+  120x32 tmux window is the repeatable recipe.
+
 ### 2026-08-03 — Archived as a rail entry needs a cursor decoupled from scope
 
 - **The archived-per-scope capability already existed** — `matchesFilter` gates on `scope` AND

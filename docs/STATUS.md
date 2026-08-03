@@ -7,6 +7,17 @@
 
 ## Where we are
 
+**Demo mode (`feat/conversation-actions-reactions`, 2026-08-03) — last item in the UX batch.**
+`beeper-tui --demo` boots the real TUI against a synthetic `Gateway` (`src/tui/demo.ts`) — no Beeper,
+no auth, no network — with fictitious multi-network chats (WhatsApp/Slack/Telegram/Signal), unread
+badges, a muted chat, an archived chat, reactions, and an HTML-formatted message that shows off the
+translator. Demo skips persistence + the tmux status writer (never touches the user's real
+store/title) and auto-opens a chat on first paint. **Verified live in tmux** (this session's only
+end-to-end visual check): inbox, auto-opened conversation, the Archived rail toggle revealing the
+hidden chat, and HTML lists/bold all render correctly. Self-driving choreography deferred (can't be
+validated here). **539 tests** green. **The whole UX batch is now done** (theming + reactions + nav +
+small-UX + HTML + demo), each on its own commit.
+
 **HTML message translation (`feat/conversation-actions-reactions`, 2026-08-03).** Networks that put a
 small HTML subset in message bodies no longer leak tags. `src/state/message-html.ts` (pure) translates
 `<b>/<strong>`→bold, `<i>/<em>`→italic, `<u>`→underline, `<br>/<p>`→line break, `<ul>`→`- `,
