@@ -1,16 +1,18 @@
 import type { HelpGroup } from '@/tui/keymap.ts'
+import { useTheme } from '@/tui/theme/context.tsx'
 
 export interface HelpOverlayProps {
   groups: HelpGroup[]
 }
 
 function GroupBlock({ group }: { group: HelpGroup }) {
-  // No trailing blank line: the cyan title is separation enough, and on a short
+  // No trailing blank line: the accent title is separation enough, and on a short
   // (24-row) terminal an extra row per group can tip a column past the box
   // height, where sibling group-boxes overlap instead of clipping (JOURNAL).
+  const theme = useTheme()
   return (
     <box style={{ flexDirection: 'column' }}>
-      <text style={{ fg: '#38bdf8' }}>{group.title}</text>
+      <text style={{ fg: theme.accent }}>{group.title}</text>
       {group.bindings.map((binding, index) => (
         <text key={index}>{`  ${binding.display.padEnd(10)} ${binding.description}`}</text>
       ))}

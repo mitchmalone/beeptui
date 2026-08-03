@@ -90,6 +90,15 @@ describe('mapChat', () => {
     expect(rejected.canReply).toBe(false)
     expect(dropped.canReply).toBe(false)
   })
+
+  test('surfaces the reaction capability (>= 1 supported), omits it when absent', () => {
+    const supported = mapChat({ ...chatsFixture[1]!, capabilities: { reaction: 2 } })
+    const rejected = mapChat({ ...chatsFixture[1]!, capabilities: { reaction: 0 } })
+    const [wa] = chatsFixture.map(mapChat)
+    expect(supported.canReact).toBe(true)
+    expect(rejected.canReact).toBe(false)
+    expect(wa && 'canReact' in wa).toBe(false) // no capabilities → key omitted
+  })
 })
 
 describe('mapMessage', () => {

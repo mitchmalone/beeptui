@@ -5,6 +5,103 @@
 
 ---
 
+### 2026-08-03 — Demo mode = real TUI + a synthetic Gateway
+
+- **`--demo` swaps the `Gateway`, nothing else.** The runtime already talks to an abstract `Gateway`
+  (the smoke tests fake it), so `beeper-tui --demo` just injects `createDemoGateway()` and the whole
+  real app runs on fictitious data — no auth, no network. Reads return fixtures; writes resolve as
+  no-ops so the optimistic UI behaves.
+- **Must skip persistence + the status writer in demo.** Otherwise the synthetic inbox/drafts would
+  overwrite the user's real cached UI store, and fake unread counts would rewrite their tmux title.
+  Guarded both behind `demo`.
+- **Module-load order bit me:** a `let sortSeq = 0` referenced by the message fixtures was declared
+  below them → TDZ crash at import. Hoist counters/consts above the data literals that use them
+  (function declarations hoist; `let`/`const` don't).
+- **Verified live via tmux** (`capture-pane`) — the session's only real end-to-end visual check.
+  Confirmed the demo inbox, auto-opened conversation, the Archived rail toggle revealing the hidden
+  chat, and the HTML translator's bold/`- `/`1.`/line-breaks all render. `bun run dev --demo` in a
+  120x32 tmux window is the repeatable recipe.
+
+### 2026-08-03 — Archived as a rail entry needs a cursor decoupled from scope
+
+- **The archived-per-scope capability already existed** — `matchesFilter` gates on `scope` AND
+  `archived`, and `a` is a global toggle, so archived worked at All and per-network before this. The
+  ticket was really discoverability. Verified before building (don't rebuild working code).
+- **A "toggle" entry in the rail forces a cursor separate from the active scope.** The rail cursor was
+  implicitly `filter.scope` (j/k changed scope live). To let the cursor _rest on_ Archived without
+  changing scope, added `railCursor` state: `rail/cursorMoved` walks `['all', ...accounts,
+'archived']`, live-selects scope entries but leaves scope when on Archived; `scopeSelected`/
+  `scopeCycled`/`focus→rail` keep `railCursor` synced to scope so it never starts stale on Archived.
+- **Help-overlay overflow bites again (third time — see prior entries).** Longer `RAIL_HELP`
+  descriptions wrapped in the ~48-col help column, adding a row that tipped a group past the 24-row
+  test terminal, where OpenTUI _overlaps_ sibling boxes rather than clipping — silently garbling the
+  `Search chats` row. Keep help descriptions short enough not to wrap (≤~35 chars after the padded
+  key display). A wrapped help line reads as "data loss" but is a render collision.
+
+### 2026-08-03 — `system` theme = terminal light/dark via OpenTUI, not raw OSC
+
+- **OpenTUI already OSC-queries the terminal fg/bg for a light/dark `themeMode`** and exposes
+  `renderer.themeMode` + `await renderer.waitForThemeMode(timeoutMs)` (`"dark" | "light" | null`). It
+  does **not** expose the exact fg/bg RGB (private). So `system` detection uses the light/dark signal
+  and picks a curated `SYSTEM_LIGHT`/`SYSTEM_DARK`, rather than cloning the exact palette.
+- **Chose OpenTUI's path over hand-rolled raw OSC 10/11 stdin parsing.** Raw parsing would need
+  raw-mode stdin reads before `createCliRenderer`, is terminal-specific, can't be validated live in
+  this environment, and — worst — a botched teardown could corrupt input for the renderer. Leaning on
+  the library's tested detection is the responsible call; exact-colour extraction is a future,
+  live-tested experiment.
+- **Resolve once, before first paint.** `await renderer.waitForThemeMode(200)` then
+  `registry.set('system', systemThemeForMode(mode))` between `createCliRenderer` and the first render,
+  mutating the same registry Map the App holds — so initial selection and `t`-cycling both see the
+  detected variant with no flash. Wrapped in try/catch → dark fallback; the 200ms is the only cost.
+
+### 2026-08-03 — Theme foundation: semantic tokens + built-ins + custom theme files
+
+- **Theming via a token context, not prop-drilling.** A `Theme` of ~11 semantic tokens lives behind a
+  React `ThemeProvider`/`useTheme()`. Context (default = `DEFAULT_THEME`) means components read tokens
+  with zero prop threading **and** every existing isolated component test keeps passing unchanged (it
+  gets the default). Only `launch.ts` wraps the tree in a provider. Replacing hardcoded hex with tokens
+  also unified the active-highlight across all columns for free (they'd drifted: bright cyan in the
+  conversation, muted slate elsewhere).
+- **OpenTUI supports `borderColor`/`focusedBorderColor` per box** — so the focused column's border is
+  just `borderColor={focused ? theme.borderFocused : theme.border}` on each pane. No global focus
+  machinery needed.
+- **`captureSpans()` is how you test colour.** `captureCharFrame()` is plain text (no styling), so it
+  can't verify a theme. `captureSpans()` returns per-span `fg`/`bg` (RGBA) + `attributes`; with
+  `rgbToHex()` you can assert the selected row actually paints the theme's `selectionBg`. This is also
+  the tool for the upcoming HTML slice (verify bold/italic/underline via `attributes`).
+- **Theme files are partial-merge onto the default** (like Dracula's distributed themes — define only
+  what differs), validated per-token as hex with a clear message; a custom file may override a built-in
+  of the same name. Built-ins + `~/.config/beeptui/themes/*.json` build one name→Theme registry;
+  unknown/absent selection degrades to default, never crashes. Network **brand** colours stay
+  theme-independent (recognizable markers, still `theme.networkColors`-overridable).
+
+### 2026-08-03 — Conversation cursor navigation + an ENTER action menu + reactions
+
+- **The Conversation is now cursor-driven, not scroll-driven.** Focusing it auto-selects the newest
+  message (reducer `focus/changed → conversation`); ↑/↓ move a `›` cursor via `messageSelection/moved`
+  (delta widened to `number` so g/G jump to the edges). This replaced arrows-scroll + `v`-to-select,
+  per Mitch's UX call — the goal was parity with the Net/Chats rails.
+- **Keeping the cursor on screen needs the viewport height, which lives in the view, not the pure
+  reducer.** Solved by a `viewport/measured` event: the App measures `conversationCapacity(height,
+density)` in a `useEffect` and dispatches it; the reducer then uses the pure `offsetToShowIndex`
+  helper to follow the selection. This keeps all scroll math in the reducer (invariant 4) and fully
+  unit-testable without a terminal.
+- **Live-message behaviour split cleanly by "am I following the bottom?"**: if the cursor is on the
+  newest message (pinned), a new message moves the cursor to the new newest (stays pinned); if
+  scrolled up (`offset > 0`), it holds position and flags new-below. An earlier attempt keyed the
+  "hold" on "cursor not newest" — that mis-fired on short conversations that fit on screen (nothing is
+  actually below the fold), so `offset > 0` remains the honest signal. The smoke scenarios that used
+  to force a scroll by pressing `k` once (old scroll clamped to `count-1`, not the viewport) now
+  render at a short height so a few messages genuinely overflow.
+- **Reactions are now writable.** Beeper's SDK exposes `chats.messages.reactions.add(messageID,
+{ chatID, reactionKey })` (POST `/v1/chats/{chat}/messages/{msg}/reactions`) and a per-chat
+  `reaction` capability on the same −2..2 scale as `reply`. Mapped to `ChatSummary.canReact`; the
+  ENTER action menu → limited emoji picker writes via a `sendReaction` runtime helper with an honest
+  notice (no optimistic fake — reaction counts are read-only and reconcile on the next update).
+- **`conversation-scroll.ts` moved `src/tui/ → src/state/`.** It's pure viewport math and the reducer
+  now needs it; importing tui-layer code into the state layer was the only such edge, so relocating
+  keeps the dependency direction clean (state never imports tui).
+
 ### 2026-08-03 — `login` opens a dead page on a local endpoint; session tidy-up
 
 - **`beeper-tui login` against a local Desktop opens a dead localhost page.** Root cause: `login`

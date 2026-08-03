@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useKeyboard } from '@opentui/react'
 import { applyComposeKey } from '@/tui/compose-editor.ts'
+import { useTheme } from '@/tui/theme/context.tsx'
 
 export interface ComposeProps {
   /** Initial text (the chat's persisted draft). Remount per chat via a `key`. */
@@ -40,6 +41,7 @@ export function Compose({
   onBlur,
   onCancelReply,
 }: ComposeProps) {
+  const theme = useTheme()
   const [editor, setEditor] = useState<EditorState>(() => ({ text: draft, cursor: draft.length }))
   const ref = useRef(editor)
   ref.current = editor
@@ -90,6 +92,7 @@ export function Compose({
     <box
       title={focused ? 'Compose ●' : 'Compose'}
       border
+      borderColor={focused ? theme.borderFocused : theme.border}
       style={{
         flexShrink: 0,
         minHeight: 3,
@@ -99,17 +102,17 @@ export function Compose({
       }}
     >
       {replyContext ? (
-        <text style={{ fg: '#38bdf8' }}>
+        <text style={{ fg: theme.accent }}>
           {`↩ Replying to ${replyContext.sender}: ${replyContext.snippet}  (Esc to cancel)`}
         </text>
       ) : null}
       {showPlaceholder ? (
-        <text style={{ fg: '#94a3b8' }}>Press Tab to write a message…</text>
+        <text style={{ fg: theme.muted }}>Press Tab to write a message…</text>
       ) : (
         lines.map((line, index) => <text key={index}>{line.length > 0 ? line : ' '}</text>)
       )}
       {hasFailedSend ? (
-        <text style={{ fg: '#f87171' }}>⚠ a send failed — Esc, then R to retry</text>
+        <text style={{ fg: theme.danger }}>⚠ a send failed — Esc, then R to retry</text>
       ) : null}
     </box>
   )

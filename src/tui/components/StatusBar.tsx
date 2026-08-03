@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import type { ConnectionBanner } from '@/state/selectors.ts'
+import { useTheme } from '@/tui/theme/context.tsx'
 
 export interface StatusBarProps {
   banner: ConnectionBanner | null
@@ -28,6 +29,7 @@ export const StatusBar = memo(function StatusBar({
   notice,
   keyHint,
 }: StatusBarProps) {
+  const theme = useTheme()
   const status =
     notice ??
     (banner
@@ -39,7 +41,7 @@ export const StatusBar = memo(function StatusBar({
   return (
     <box style={{ height: 1, flexDirection: 'row', paddingLeft: 1, paddingRight: 1 }}>
       <text style={{ flexGrow: 1 }}>{status}</text>
-      <text style={{ fg: '#94a3b8' }}>{`${filters}  `}</text>
+      <text style={{ fg: theme.muted }}>{`${filters}  `}</text>
       <text>{keyHint}</text>
     </box>
   )

@@ -218,4 +218,20 @@ describe('resolveConfig', () => {
       })
     ).toThrow(/theme\.density.*comfortable.*compact/)
   })
+
+  test('parses theme.name and rejects an empty one', () => {
+    const cfg = resolveConfig({
+      env: {},
+      homedir: home,
+      readFile: () => JSON.stringify({ theme: { name: 'dracula' } }),
+    })
+    expect(cfg.theme).toEqual({ networkColors: {}, name: 'dracula' })
+    expect(() =>
+      resolveConfig({
+        env: {},
+        homedir: home,
+        readFile: () => JSON.stringify({ theme: { name: '' } }),
+      })
+    ).toThrow(/theme\.name.*non-empty string/)
+  })
 })

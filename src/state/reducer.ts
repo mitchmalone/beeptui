@@ -3,12 +3,45 @@ import {
   initialMessageSearch,
   MAX_MESSAGES_PER_CHAT,
   PENDING_SORT_PREFIX,
+  RAIL_ARCHIVED_ID,
   type AppEvent,
   type AppState,
   type ChatMessages,
   type MessageEntity,
   type MessagePage,
 } from '@/state/types.ts'
+import { CONVERSATION_ACTIONS, QUICK_REACTIONS } from '@/state/reactions.ts'
+import { offsetToShowIndex } from '@/state/conversation-scroll.ts'
+
+/** Loaded messages of the active chat, or [] when none is selected. */
+function activeItems(state: AppState): readonly MessageEntity[] {
+  return state.selectedChatId === null
+    ? []
+    : (state.messagesByChat[state.selectedChatId]?.items ?? [])
+}
+
+/** The scroll offset that keeps `messageId` visible in the current viewport,
+ *  falling back to the existing offset when the id or viewport is unknown. */
+function offsetForSelection(state: AppState, messageId: string | null): number {
+  if (messageId === null || state.viewportRows <= 0) return state.conversationOffset
+  const items = activeItems(state)
+  const index = items.findIndex((m) => m.id === messageId)
+  if (index === -1) return state.conversationOffset
+  return offsetToShowIndex(index, items.length, state.viewportRows, state.conversationOffset)
+}
+
+/** Scroll state for a selection move: the viewport-follow offset, plus clearing
+ *  the new-messages affordance once the cursor is pinned back to the newest. */
+function scrollForSelection(
+  state: AppState,
+  messageId: string | null
+): { conversationOffset: number; newMessagesBelow: boolean } {
+  const conversationOffset = offsetForSelection(state, messageId)
+  return {
+    conversationOffset,
+    newMessagesBelow: conversationOffset === 0 ? false : state.newMessagesBelow,
+  }
+}
 
 function assertNever(value: never): never {
   throw new Error(`Unhandled AppEvent: ${JSON.stringify(value)}`)
@@ -179,18 +212,30 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       if (state.messagesByChat[chatId] === undefined && chatId !== state.selectedChatId) {
         return state
       }
-      const before = state.messagesByChat[chatId]?.items.length ?? 0
+      const existing = state.messagesByChat[chatId]?.items ?? []
+      const before = existing.length
+      const newestBeforeId = existing[before - 1]?.id ?? null
       const next = withChatMessages(state, chatId, (window) =>
         mergeMessages(window, [toEntity(event.message)], 'newer')
       )
       const added = (next.messagesByChat[chatId]?.items.length ?? 0) - before
-      // If the user is scrolled up in this chat, keep their reading position
-      // (bump the offset by the number appended) and flag new-below.
-      if (chatId === state.selectedChatId && state.conversationOffset > 0 && added > 0) {
-        return {
-          ...next,
-          conversationOffset: state.conversationOffset + added,
-          newMessagesBelow: true,
+      if (chatId === state.selectedChatId && added > 0) {
+        if (state.conversationOffset > 0) {
+          // Scrolled up (the newest is below the fold): keep the reading position
+          // — bump the offset by the number appended — and flag new-below.
+          return {
+            ...next,
+            conversationOffset: state.conversationOffset + added,
+            newMessagesBelow: true,
+          }
+        }
+        // Pinned at the bottom with the cursor on the newest: follow to the new
+        // newest so the indicator stays put as live messages arrive. A cursor
+        // parked on an older (but still on-screen) message is left alone.
+        if (state.selectedMessageId !== null && state.selectedMessageId === newestBeforeId) {
+          const items = next.messagesByChat[chatId]?.items ?? []
+          const newest = items[items.length - 1]
+          if (newest !== undefined) return { ...next, selectedMessageId: newest.id }
         }
       }
       return next
@@ -212,26 +257,22 @@ export function reduce(state: AppState, event: AppEvent): AppState {
 
     case 'messageSelection/started': {
       // Enter selection at the newest loaded message of the active chat.
-      const items =
-        state.selectedChatId === null
-          ? []
-          : (state.messagesByChat[state.selectedChatId]?.items ?? [])
+      const items = activeItems(state)
       const newest = items[items.length - 1]
       if (newest === undefined) return state
-      return { ...state, selectedMessageId: newest.id }
+      return { ...state, selectedMessageId: newest.id, ...scrollForSelection(state, newest.id) }
     }
 
     case 'messageSelection/moved': {
-      const items =
-        state.selectedChatId === null
-          ? []
-          : (state.messagesByChat[state.selectedChatId]?.items ?? [])
+      const items = activeItems(state)
       if (items.length === 0) return state
       const current = items.findIndex((m) => m.id === state.selectedMessageId)
-      // From no selection, a move starts at the newest message.
+      // From no selection, a move starts at the newest message. A large delta
+      // (top/bottom) clamps to an edge.
       const from = current === -1 ? items.length - 1 : current
       const next = Math.min(items.length - 1, Math.max(0, from + event.delta))
-      return { ...state, selectedMessageId: items[next]?.id ?? state.selectedMessageId }
+      const nextId = items[next]?.id ?? state.selectedMessageId
+      return { ...state, selectedMessageId: nextId, ...scrollForSelection(state, nextId) }
     }
 
     case 'messageSelection/cleared':
@@ -245,8 +286,29 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     case 'reply/cancelled':
       return { ...state, replyTo: null }
 
-    case 'focus/changed':
+    case 'focus/changed': {
+      // Entering the conversation auto-selects the newest message so arrow keys
+      // drive a visible cursor immediately (like the Net/Chats rails). An
+      // existing selection is preserved.
+      if (event.focus === 'conversation' && state.selectedMessageId === null) {
+        const items = activeItems(state)
+        const newest = items[items.length - 1]
+        if (newest !== undefined) {
+          return {
+            ...state,
+            focus: event.focus,
+            selectedMessageId: newest.id,
+            ...scrollForSelection(state, newest.id),
+          }
+        }
+      }
+      // Entering the rail puts the cursor on the active scope (never left stale
+      // on the Archived toggle).
+      if (event.focus === 'rail') {
+        return { ...state, focus: event.focus, railCursor: state.filter.scope }
+      }
       return { ...state, focus: event.focus }
+    }
 
     case 'conversation/scrolled': {
       const count =
@@ -320,11 +382,28 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       )
 
     case 'overlay/opened':
-      // Opening search starts from an empty query.
-      return { ...state, overlay: event.overlay, searchQuery: '' }
+      // Opening search starts from an empty query; the action menu and emoji
+      // picker start from their first item.
+      return { ...state, overlay: event.overlay, searchQuery: '', actionCursor: 0, emojiCursor: 0 }
 
     case 'overlay/closed':
       return { ...state, overlay: 'none', searchQuery: '' }
+
+    case 'viewport/measured':
+      if (event.rows === state.viewportRows) return state
+      return { ...state, viewportRows: event.rows }
+
+    case 'actionMenu/moved': {
+      const max = CONVERSATION_ACTIONS.length - 1
+      const next = Math.min(max, Math.max(0, state.actionCursor + event.delta))
+      return { ...state, actionCursor: next }
+    }
+
+    case 'emojiPicker/moved': {
+      const max = QUICK_REACTIONS.length - 1
+      const next = Math.min(max, Math.max(0, state.emojiCursor + event.delta))
+      return { ...state, emojiCursor: next }
+    }
 
     case 'search/queryChanged':
       return { ...state, searchQuery: event.query }
@@ -334,12 +413,26 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       const order = ['all', ...state.accountOrder]
       const current = order.indexOf(state.filter.scope)
       const from = current === -1 ? 0 : current
-      const next = (from + event.direction + order.length) % order.length
-      return { ...state, filter: { ...state.filter, scope: order[next] ?? 'all' } }
+      const scope = order[(from + event.direction + order.length) % order.length] ?? 'all'
+      return { ...state, filter: { ...state.filter, scope }, railCursor: scope }
     }
 
     case 'filter/scopeSelected':
-      return { ...state, filter: { ...state.filter, scope: event.scope } }
+      return { ...state, filter: { ...state.filter, scope: event.scope }, railCursor: event.scope }
+
+    case 'rail/cursorMoved': {
+      // The rail cursor walks scopes plus the Archived toggle. Landing on a scope
+      // live-selects it (current behaviour); landing on Archived leaves the scope.
+      const order = ['all', ...state.accountOrder, RAIL_ARCHIVED_ID]
+      const current = order.indexOf(state.railCursor)
+      const from = current === -1 ? 0 : current
+      const next = order[(from + event.direction + order.length) % order.length] ?? 'all'
+      return {
+        ...state,
+        railCursor: next,
+        filter: next === RAIL_ARCHIVED_ID ? state.filter : { ...state.filter, scope: next },
+      }
+    }
 
     case 'filter/archivedToggled':
       return { ...state, filter: { ...state.filter, archived: !state.filter.archived } }
@@ -349,6 +442,11 @@ export function reduce(state: AppState, event: AppEvent): AppState {
 
     case 'density/toggled':
       return { ...state, density: state.density === 'comfortable' ? 'compact' : 'comfortable' }
+
+    case 'theme/selected':
+      // The App owns the theme registry and picks the name; the reducer just
+      // records the selection (resolution to a Theme happens in the view).
+      return { ...state, themeName: event.name }
 
     case 'messageSearch/opened':
       return {

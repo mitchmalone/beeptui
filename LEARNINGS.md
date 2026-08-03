@@ -63,6 +63,68 @@ chatIDs:[]}`; then send **`{type:'subscriptions.set', requestID, chatIDs:['*']}`
   `Cannot find module 'react/jsx-dev-runtime'` — Bun resolves `@opentui/react` from its global
   cache, where React (a peer dep) isn't reachable. Keep scripts that import the app inside the
   project so React resolves from local `node_modules`.
+- **`●` (U+25CF) renders as a _wide_ 2-cell glyph.** The focus-indicator title `Net ●` overflows
+  the width-8 Net rail (inner width 6) and OpenTUI silently drops the whole title. Use `Net●` (no
+  space) on the narrow rail; the wider panes (`Chats ●`, `Conversation ●`, `Compose ●`) have room.
+  When a box title vanishes, suspect glyph width before logic.
+- **Viewport-dependent scroll math needs the height _in state_, not just the view.** Keeping the
+  message cursor on screen (`offsetToShowIndex`) requires the viewport capacity, which only the view
+  knows (`useTerminalDimensions`). The reducer must own scroll (invariant 4), so the App measures
+  `conversationCapacity(height, density)` in a `useEffect` and dispatches `viewport/measured`; the
+  reducer reads `state.viewportRows`. Guard the dispatch on a real change (and no-op in the reducer)
+  so it doesn't loop. `conversation-scroll.ts` therefore lives in `src/state/`, not `src/tui/` — it's
+  pure math the reducer imports, and state must never import the tui layer.
+- **"Am I scrolled up?" is `conversationOffset > 0`, not "cursor ≠ newest".** With a message cursor,
+  it's tempting to hold reading position whenever the cursor is on an older message — but on a
+  conversation that fits on screen nothing is below the fold, so that mis-fires the new-messages
+  affordance. Key the hold/affordance on the offset; on a live message, follow the cursor to the new
+  newest only when pinned at the bottom (offset 0 _and_ cursor was on the previous newest).
+- **Floating overlays (dropdowns/popups) work via `position:'absolute'` + `top`/`left` + `zIndex`.**
+  OpenTUI honours all three (verified). An absolute child anchors to the nearest ancestor with
+  `position:'relative'`, its `top`/`left` are that box's content coords (row 0 = first child), a
+  `backgroundColor` makes it paint solid over siblings, and a higher `zIndex` wins the paint order —
+  all without disturbing sibling flex layout. This is how the action-menu / emoji-picker "dropdown"
+  floats over the messages instead of replacing the panes. The old full-screen feel came from
+  rendering the overlay _instead of_ the pane tree (`overlayPane ?? panes`) with a `flexGrow:1` box:
+  that unmounts everything and repaints. Keep the panes mounted and layer a small content-sized box
+  over them. Content past the narrow box's right edge still shows — that's correct dropdown behaviour.
+- **Status-bar key hints must be context-aware, or they lie.** Compose returns early from the input
+  handler (every key types into the draft) and open overlays capture input for themselves, so the
+  global `[ ] / a / q` shortcuts don't fire in either — advertising them there is a dead control
+  (invariant 8). Gate the hint on `focus`/`overlay`: compose → `⏎ send · Esc back`, overlay →
+  `Esc close`, else the global trio.
+
+## Theming
+
+- **Colours flow through a `useTheme()` context, not props.** `src/tui/theme/` defines a `Theme` of
+  semantic tokens; a `ThemeProvider` (default = `DEFAULT_THEME`) means components read tokens with no
+  prop threading, and isolated component tests keep passing without a provider (they get the default).
+  Only `launch.ts` wraps the tree. Use tokens, never hardcoded hex — except network **brand** marker
+  colours (`DEFAULT_NETWORK_COLORS`), which stay theme-independent and config-overridable.
+- **`captureCharFrame()` can't test colour — use `captureSpans()`.** The char frame is plain text.
+  `captureSpans()` returns per-span `fg`/`bg` (RGBA) and `attributes` (bold/italic/underline bitfield);
+  `rgbToHex()` from `@opentui/core` converts back to compare. Assert a themed element paints the right
+  token (e.g. selected row bg === `theme.selectionBg`). This is also how to test styled/HTML text.
+- **Per-box `borderColor` + `focusedBorderColor` exist** — the focused-column border is just
+  `borderColor={focused ? theme.borderFocused : theme.border}` on each pane box (a direct box
+  attribute, like `border`/`title`, not a `style` field).
+- **Custom theme files partial-merge onto the default.** A user file in `~/.config/beeptui/themes/`
+  defines only the tokens that differ (like Dracula's distributed themes); each is validated as hex,
+  and a file may override a built-in of the same name. Unknown/absent selection → default (no crash).
+
+## Message HTML
+
+- **It's a translator, not a renderer.** Some networks embed a small HTML subset in message bodies.
+  Don't build an HTML layout engine — strip the tags and map a handful to terminal formatting
+  (`<b>`→bold, `<i>`→italic, `<u>`→underline, `<br>`→line break, `<ul>`→`- `, `<ol>`→`1.`), decode
+  entities, drop the rest. `src/state/message-html.ts` is the pure parser (`htmlToStyledLines` /
+  `htmlToPlainText` / `hasHtml`); it's in `src/state/` because a selector (reply preview) needs it and
+  tui must not be imported by state.
+- **Bold/italic/underline need the `<b>/<i>/<u>` elements, not `style`.** A `style={{ bold: true }}`
+  on `<text>`/`<span>` is ignored (verified via `captureSpans().attributes` = 0). The dedicated
+  modifier elements set the real attribute bits (bold=1, italic=4, underline=8); nest them for
+  combinations. `fg`/`bg` on the parent `<text>` cascades into the modifier spans, which only add
+  attributes — so set the selection/status colour on the line and let runs inherit it.
 
 ## Testing
 

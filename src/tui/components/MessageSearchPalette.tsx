@@ -1,6 +1,7 @@
 import type { MessageSearchState } from '@/state/types.ts'
 import { formatTime } from '@/tui/message-format.ts'
 import { networkMarker } from '@/tui/components/InboxPane.tsx'
+import { useTheme } from '@/tui/theme/context.tsx'
 
 export interface MessageSearchPaletteProps {
   state: MessageSearchState
@@ -14,7 +15,9 @@ export interface MessageSearchPaletteProps {
 const VISIBLE_RESULTS = 12
 
 export function MessageSearchPalette({ state }: MessageSearchPaletteProps) {
+  const theme = useTheme()
   const { query, status, results, selectedIndex, partial, note, scopeChatId } = state
+  const selStyle = { bg: theme.selectionBg, fg: theme.selectionFg }
   const title = scopeChatId !== null ? 'Search messages (this chat)' : 'Search messages'
   const windowStart = Math.max(
     0,
@@ -35,9 +38,14 @@ export function MessageSearchPalette({ state }: MessageSearchPaletteProps) {
             : 'Enter to search'
 
   return (
-    <box title={title} border style={{ flexGrow: 1, flexDirection: 'column', padding: 1 }}>
+    <box
+      title={title}
+      border
+      borderColor={theme.borderFocused}
+      style={{ flexGrow: 1, flexDirection: 'column', padding: 1 }}
+    >
       <text style={{ flexShrink: 0 }}>{`? ${query}▏`}</text>
-      <text style={{ flexShrink: 0, fg: partial ? '#f59e0b' : '#94a3b8' }}>
+      <text style={{ flexShrink: 0, fg: partial ? theme.warning : theme.muted }}>
         {partial ? `${statusLine} · partial` : statusLine}
       </text>
       <box style={{ flexGrow: 1, flexDirection: 'column' }}>
@@ -52,17 +60,15 @@ export function MessageSearchPalette({ state }: MessageSearchPaletteProps) {
           }`
           return (
             <box key={hit.messageId} style={{ flexDirection: 'column' }}>
-              <text style={selected ? { bg: '#334155', fg: '#ffffff' } : { fg: '#94a3b8' }}>
+              <text style={selected ? selStyle : { fg: theme.muted }}>
                 {`${selected ? '›' : ' '} ${context}`}
               </text>
-              <text style={selected ? { bg: '#334155', fg: '#ffffff' } : {}}>
-                {`   ${hit.snippet}`}
-              </text>
+              <text style={selected ? selStyle : {}}>{`   ${hit.snippet}`}</text>
             </box>
           )
         })}
       </box>
-      <text style={{ flexShrink: 0, fg: '#94a3b8' }}>{'↑/↓ select · ⏎ open · Esc cancel'}</text>
+      <text style={{ flexShrink: 0, fg: theme.muted }}>{'↑/↓ select · ⏎ open · Esc cancel'}</text>
     </box>
   )
 }

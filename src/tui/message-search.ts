@@ -1,5 +1,6 @@
 import type { MessageSummary } from '@/beeper/types.ts'
 import type { AppState, MessageSearchHit } from '@/state/types.ts'
+import { htmlToPlainText } from '@/state/message-html.ts'
 
 /**
  * Message-search helpers shared by the runtime. `toHit` enriches a bare message
@@ -21,7 +22,11 @@ export function toHit(state: AppState, message: MessageSummary): MessageSearchHi
     network: chat?.network ?? '',
     senderName,
     timestamp: message.timestamp,
-    snippet: (message.text ?? '').replace(/\s+/g, ' ').trim().slice(0, SNIPPET_MAX),
+    // Strip HTML so snippets show clean text, not `<strong>…` markup.
+    snippet: htmlToPlainText(message.text ?? '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, SNIPPET_MAX),
   }
 }
 

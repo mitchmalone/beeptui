@@ -74,8 +74,10 @@ describe('large-inbox scale + bounded memory', () => {
 
   test('the network rail aggregates unread across all accounts', () => {
     const rail = selectNetworkRail(seeded)
-    expect(rail.map((e) => e.id)).toEqual(['all', 'wa', 'fb', 'sl'])
-    const perAccount = rail.filter((e) => e.id !== 'all').reduce((s, e) => s + e.unreadCount, 0)
+    expect(rail.map((e) => e.id)).toEqual(['all', 'wa', 'fb', 'sl', 'archived'])
+    const perAccount = rail
+      .filter((e) => e.kind === 'scope' && e.id !== 'all')
+      .reduce((s, e) => s + e.unreadCount, 0)
     expect(rail.find((e) => e.id === 'all')?.unreadCount).toBe(perAccount) // All == sum of parts
   })
 

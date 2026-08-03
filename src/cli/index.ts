@@ -27,6 +27,8 @@ Usage:
 
 Flags:
   --json                  Machine-readable output (status, doctor)
+  --demo                  Launch with synthetic data — no Beeper/auth needed
+                          (for screenshots and screen recordings)
 `
 
 /** Build the live context: resolve the endpoint, then the active token (an
@@ -63,12 +65,14 @@ async function buildContext(): Promise<{
 async function main(argv: string[]): Promise<void> {
   const [command, ...rest] = argv
   const json = rest.includes('--json')
+  const demo = argv.includes('--demo')
 
   switch (command) {
     case undefined:
+    case '--demo':
     case 'run': {
       const { launch } = await import('@/tui/launch.ts')
-      await launch()
+      await launch({ demo })
       return
     }
     case 'status': {

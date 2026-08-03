@@ -3,12 +3,26 @@ import { useTerminalDimensions } from '@opentui/react'
 import type { ActiveConversation } from '@/state/selectors.ts'
 import type { Density, MessageEntity } from '@/state/types.ts'
 import { messageLine } from '@/tui/message-format.ts'
+import { hasHtml } from '@/state/message-html.ts'
+import { MessageView } from '@/tui/components/MessageView.tsx'
 import { networkColor, type NetworkColors } from '@/tui/components/InboxPane.tsx'
-import { visibleMessages } from '@/tui/conversation-scroll.ts'
+import { CHROME_ROWS, CHROME_ROWS_COMPACT, visibleMessages } from '@/state/conversation-scroll.ts'
+import { ConversationActionMenu } from '@/tui/components/ConversationActionMenu.tsx'
+import { EmojiPicker } from '@/tui/components/EmojiPicker.tsx'
+import { CONVERSATION_ACTIONS } from '@/state/reactions.ts'
+import { useTheme } from '@/tui/theme/context.tsx'
+import type { Theme } from '@/tui/theme/theme.ts'
+
+/** The floating menu open over the message cursor, if any. Positioned by this
+ *  component just under (or above) the selected message row. */
+export type ConversationMenu =
+  { kind: 'actions'; actionCursor: number } | { kind: 'emoji'; emojiCursor: number } | null
 
 export interface ConversationViewProps {
   conversation: ActiveConversation
   focused: boolean
+  /** Floating action-menu / emoji-picker anchored on the selected message. */
+  menu?: ConversationMenu
   /** Test override for the viewport height in rows. */
   capacityOverride?: number
   /** Per-network colour overrides from config. */
@@ -17,17 +31,21 @@ export interface ConversationViewProps {
   density?: Density | undefined
 }
 
-/** Rows the surrounding chrome (border, padding, header, hints, status bar)
- *  takes from the terminal height, leaving the rest for messages. Compact
- *  density drops the pane's top+bottom padding, freeing two rows. */
-const CHROME_ROWS = 9
-const CHROME_ROWS_COMPACT = 7
+/** Rows a floating menu occupies (border + rows + hint), for open-up/down choice. */
+function menuHeight(menu: NonNullable<ConversationMenu>): number {
+  // border (2) + hint (1) + content rows.
+  return menu.kind === 'emoji' ? 2 + 1 + 1 : 2 + 1 + CONVERSATION_ACTIONS.length
+}
 
-function rowStyle(message: MessageEntity, selected: boolean): { fg?: string; bg?: string } {
+function rowStyle(
+  message: MessageEntity,
+  selected: boolean,
+  theme: Theme
+): { fg?: string; bg?: string } {
   // Selection highlight wins visually — it's the active cursor.
-  if (selected) return { fg: '#0f172a', bg: '#38bdf8' }
-  if (message.status === 'failed') return { fg: '#f87171' }
-  if (message.status === 'pending') return { fg: '#94a3b8' }
+  if (selected) return { fg: theme.selectionFg, bg: theme.selectionBg }
+  if (message.status === 'failed') return { fg: theme.danger }
+  if (message.status === 'pending') return { fg: theme.muted }
   return {}
 }
 
@@ -39,18 +57,26 @@ function rowStyle(message: MessageEntity, selected: boolean): { fg?: string; bg?
 export const ConversationView = memo(function ConversationView({
   conversation,
   focused,
+  menu = null,
   capacityOverride,
   networkColors,
   density = 'comfortable',
 }: ConversationViewProps) {
+  const theme = useTheme()
   const { height } = useTerminalDimensions()
   const { chat, messages, hasMoreOlder, scrollOffset, newMessagesBelow, selectedMessageId } =
     conversation
   const pad = density === 'compact' ? 0 : 1
+  const borderColor = focused ? theme.borderFocused : theme.border
 
   if (chat === null) {
     return (
-      <box title="Conversation" border style={{ flexGrow: 1, padding: pad }}>
+      <box
+        title={focused ? 'Conversation ●' : 'Conversation'}
+        border
+        borderColor={borderColor}
+        style={{ flexGrow: 1, padding: pad }}
+      >
         <text>Select a chat with j/k, then ⏎.</text>
       </box>
     )
@@ -66,38 +92,73 @@ export const ConversationView = memo(function ConversationView({
       : '— start of history —'
     : '— ↑ older —'
 
+  // Anchor the floating menu on the selected message's row within the visible
+  // window: open downward just under it, or upward when it would overflow the
+  // bottom. `top`/`left` are relative to the (position:relative) messages box,
+  // whose row 0 is the first visible message.
+  const menuRow = menu !== null ? visible.findIndex((m) => m.id === selectedMessageId) : -1
+  const showMenu = menu !== null && menuRow >= 0
+  const menuTop =
+    showMenu && menu !== null
+      ? menuRow + 1 + menuHeight(menu) <= capacity
+        ? menuRow + 1
+        : Math.max(0, menuRow - menuHeight(menu))
+      : 0
+
   return (
     <box
       title={focused ? 'Conversation ●' : 'Conversation'}
       border
+      borderColor={borderColor}
       style={{ flexGrow: 1, flexDirection: 'column', padding: pad }}
     >
       <box style={{ flexShrink: 0, flexDirection: 'row' }}>
         <text>{`${chat.title} · `}</text>
         <text style={{ fg: networkColor(chat.network, networkColors) }}>{chat.network}</text>
       </box>
-      <text style={{ flexShrink: 0, fg: '#94a3b8' }}>{topHint}</text>
-      <box style={{ flexGrow: 1, flexDirection: 'column' }}>
+      <text style={{ flexShrink: 0, fg: theme.muted }}>{topHint}</text>
+      <box style={{ flexGrow: 1, flexDirection: 'column', position: 'relative' }}>
         {visible.length === 0 ? (
           <text>No messages yet.</text>
         ) : (
-          visible.map((message) => (
-            <text key={message.id} style={rowStyle(message, message.id === selectedMessageId)}>
-              {messageLine(message)}
-            </text>
-          ))
+          visible.map((message) => {
+            const selected = message.id === selectedMessageId
+            const caret = selected ? '›' : ' '
+            // A `›` caret marks the message cursor, mirroring the Net/Chats rails.
+            // Messages carrying HTML get the rich multi-line renderer (bold /
+            // italic / lists / line breaks); ordinary messages keep the cheap
+            // single-line path.
+            return hasHtml(message.text ?? '') ? (
+              <MessageView key={message.id} message={message} selected={selected} caret={caret} />
+            ) : (
+              <text key={message.id} style={rowStyle(message, selected, theme)}>
+                {`${caret} ${messageLine(message)}`}
+              </text>
+            )
+          })
         )}
+        {showMenu && menu !== null ? (
+          <box style={{ position: 'absolute', top: menuTop, left: 2, zIndex: 20 }}>
+            {menu.kind === 'actions' ? (
+              <ConversationActionMenu cursor={menu.actionCursor} />
+            ) : (
+              <EmojiPicker cursor={menu.emojiCursor} />
+            )}
+          </box>
+        ) : null}
       </box>
-      {selectedMessageId !== null ? (
-        <text style={{ flexShrink: 0, fg: '#38bdf8' }}>
-          — selecting: r reply · o open · s save · Esc exit —
-        </text>
-      ) : newMessagesBelow ? (
-        <text style={{ flexShrink: 0, fg: '#38bdf8' }}>
+      {/* The new-messages affordance takes priority — it's transient and time
+          sensitive — then the selection hint, then the plain scrolled-up hint. */}
+      {newMessagesBelow ? (
+        <text style={{ flexShrink: 0, fg: theme.accent }}>
           — ↓ new messages — press G for latest —
         </text>
+      ) : selectedMessageId !== null ? (
+        <text style={{ flexShrink: 0, fg: theme.accent }}>
+          — ↑/↓ move · ⏎ actions · r reply · Esc back —
+        </text>
       ) : scrollOffset > 0 ? (
-        <text style={{ flexShrink: 0, fg: '#94a3b8' }}>— ↓ j for newer —</text>
+        <text style={{ flexShrink: 0, fg: theme.muted }}>— ↓ j for newer —</text>
       ) : null}
     </box>
   )

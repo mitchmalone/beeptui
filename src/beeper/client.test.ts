@@ -153,6 +153,23 @@ describe('BeeperAdapter happy paths', () => {
     expect(body).toMatchObject({ archived: true })
   })
 
+  test('addReaction posts the reaction key to the message reactions endpoint', async () => {
+    let body: unknown = null
+    let path = ''
+    let method = ''
+    const capturing = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(typeof input === 'string' ? input : input.toString())
+      path = url.pathname
+      method = init?.method ?? 'GET'
+      body = init?.body ? JSON.parse(String(init.body)) : null
+      return json({ success: true })
+    }) as unknown as typeof fetch
+    await adapter(capturing).addReaction('!wa-1:beeper.local', 'm-42', '👍')
+    expect(method).toBe('POST')
+    expect(path).toContain('/messages/m-42/reactions')
+    expect(body).toMatchObject({ reactionKey: '👍' })
+  })
+
   test('sendMessage posts and returns the pending id', async () => {
     let sawPost = false
     const a = adapter(

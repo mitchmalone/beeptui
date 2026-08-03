@@ -11,6 +11,7 @@ import {
   retrySend,
   runMessageSearch,
   saveAttachment,
+  sendReaction,
   submitSend,
   watchStatusToConnection,
   type Gateway,
@@ -88,6 +89,7 @@ function gateway(over: Partial<Gateway> = {}): Gateway {
     getChat: async () => chats[0]!,
     searchMessages: async () => ({ messages: [], scopeHonored: true, capped: false }),
     setArchived: async () => {},
+    addReaction: async () => {},
     downloadAttachment: async () => ({ localPath: '/cache/beeper/file.png' }),
     ...over,
   }
@@ -571,6 +573,69 @@ describe('archiveChat', () => {
     expect(h.getState().notice).toContain("Couldn't archive")
     const upserts = h.events.filter((e) => e.type === 'chats/upserted')
     expect(upserts).toHaveLength(2) // optimistic flip + rollback
+  })
+})
+
+describe('sendReaction', () => {
+  const c = (over: Partial<ChatSummary>): ChatSummary => ({ ...chats[0]!, ...over })
+
+  function harness(initialChats: ChatSummary[]) {
+    let state = reduce(initialState, { type: 'chats/loaded', chats: initialChats })
+    const events: AppEvent[] = []
+    const dispatch = (e: AppEvent): void => {
+      events.push(e)
+      state = reduce(state, e)
+    }
+    return { events, dispatch, getState: () => state }
+  }
+
+  test('adds the reaction and shows a success notice', async () => {
+    const h = harness([c({ id: 'c1', canReact: true })])
+    const args: string[] = []
+    await sendReaction(
+      gateway({ addReaction: async (_ch, _m, key) => void args.push(key) }),
+      h.dispatch,
+      h.getState,
+      'c1',
+      'm-9',
+      '👍'
+    )
+    expect(args).toEqual(['👍'])
+    expect(h.events.at(-1)).toMatchObject({ type: 'notice/shown', message: 'Reacted 👍' })
+  })
+
+  test('unsupported capability → named notice, no adapter call (degrade visibly)', async () => {
+    const h = harness([c({ id: 'c1', canReact: false })])
+    let called = false
+    await sendReaction(
+      gateway({ addReaction: async () => void (called = true) }),
+      h.dispatch,
+      h.getState,
+      'c1',
+      'm-9',
+      '👍'
+    )
+    expect(called).toBe(false)
+    expect(h.events).toEqual([
+      { type: 'notice/shown', message: 'Reactions not available for WhatsApp via Beeper.' },
+    ])
+  })
+
+  test('a failed reaction surfaces an honest notice (no fake success)', async () => {
+    const h = harness([c({ id: 'c1', canReact: true })])
+    await sendReaction(
+      gateway({
+        addReaction: async () => {
+          throw new BeeperError('unreachable', 'down')
+        },
+      }),
+      h.dispatch,
+      h.getState,
+      'c1',
+      'm-9',
+      '👍'
+    )
+    expect(h.getState().notice).toContain("Couldn't react")
   })
 })
 

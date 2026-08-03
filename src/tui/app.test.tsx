@@ -58,6 +58,7 @@ async function renderApp(store: Store, over: Partial<AppProps> = {}) {
     onArchiveChat: noop,
     onOpenAttachment: noop,
     onSaveAttachment: noop,
+    onReact: noop,
     ...over,
   }
   return testRender(<App {...props} />, { width: 100, height: 24 })
@@ -110,6 +111,34 @@ describe('App shell', () => {
     expect(store.getState().selectedChatId).toBe('c2')
     await mockInput.pressKey('RETURN')
     expect(opened).toEqual(['c2'])
+  })
+
+  test('t cycles the theme through the registry and names it in the status bar', async () => {
+    const store = seededStore()
+    const { renderOnce, captureCharFrame, mockInput } = await renderApp(store)
+    await renderOnce()
+    expect(store.getState().themeName).toBe('system') // initial
+    await mockInput.pressKey('t') // system → default (registry order)
+    await renderOnce()
+    expect(store.getState().themeName).toBe('default')
+    expect(captureCharFrame()).toContain('Theme: default')
+    await mockInput.pressKey('t') // default → dracula
+    expect(store.getState().themeName).toBe('dracula')
+  })
+
+  test('rail: navigate to Archived and Enter toggles it, leaving the scope', async () => {
+    const store = seededStore()
+    store.dispatch({ type: 'focus/changed', focus: 'rail' })
+    const { renderOnce, mockInput } = await renderApp(store)
+    await renderOnce()
+    expect(store.getState().railCursor).toBe('all')
+    await mockInput.pressKey('k') // up from 'all' wraps to the Archived entry (last)
+    expect(store.getState().railCursor).toBe('archived')
+    expect(store.getState().filter.scope).toBe('all') // scope untouched by resting on Archived
+    await mockInput.pressKey('RETURN') // Enter toggles the archived view
+    expect(store.getState().filter.archived).toBe(true)
+    expect(store.getState().focus).toBe('rail') // stayed in the rail (didn't drill in)
+    expect(store.getState().filter.scope).toBe('all')
   })
 
   test('a config keymap override rebinds a command end-to-end', async () => {
@@ -197,10 +226,9 @@ describe('App shell', () => {
     expect(older).toEqual([['c1', 'CUR-7']])
   })
 
-  test('k/j scroll the conversation when it is focused', async () => {
+  test('k/j move the message cursor when the conversation is focused', async () => {
     const store = seededStore()
     store.dispatch({ type: 'chat/selected', chatId: 'c1' })
-    store.dispatch({ type: 'focus/changed', focus: 'conversation' })
     const messages: MessageSummary[] = Array.from({ length: 5 }, (_, i) => ({
       id: `m${i}`,
       chatId: 'c1',
@@ -213,14 +241,18 @@ describe('App shell', () => {
       isUnread: false,
     }))
     store.dispatch({ type: 'messages/loaded', chatId: 'c1', page: 'initial', messages })
+    // Focus after loading so the newest message is auto-selected.
+    store.dispatch({ type: 'focus/changed', focus: 'conversation' })
 
     const { renderOnce, mockInput } = await renderApp(store)
     await renderOnce()
-    expect(store.getState().conversationOffset).toBe(0)
-    await mockInput.pressKey('k') // scroll up
-    expect(store.getState().conversationOffset).toBe(1)
-    await mockInput.pressKey('j') // scroll back down
-    expect(store.getState().conversationOffset).toBe(0)
+    expect(store.getState().selectedMessageId).toBe('m4') // newest
+    await mockInput.pressKey('k') // cursor up → older
+    expect(store.getState().selectedMessageId).toBe('m3')
+    await mockInput.pressKey('k')
+    expect(store.getState().selectedMessageId).toBe('m2')
+    await mockInput.pressKey('j') // cursor down → newer
+    expect(store.getState().selectedMessageId).toBe('m3')
   })
 
   describe('compose', () => {
@@ -235,6 +267,21 @@ describe('App shell', () => {
       // 'q' in compose types, it does not quit.
       await mockInput.pressKey('q')
       expect(store.getState().drafts.c1).toBe('hiq')
+    })
+
+    test('status-bar hints only advertise keys that fire: compose hides the global shortcuts', async () => {
+      const store = openChatStore()
+      const { renderOnce, captureCharFrame, mockInput } = await renderApp(store)
+      await renderOnce()
+      // Conversation focus: the global shortcuts run, so they're shown.
+      expect(captureCharFrame()).toContain('q quit')
+      // Compose captures every key for text entry — those shortcuts no longer
+      // fire, so they're hidden and the compose keys are shown instead.
+      await mockInput.pressKey('TAB')
+      await renderOnce()
+      const frame = captureCharFrame()
+      expect(frame).toContain('send · Esc back')
+      expect(frame).not.toContain('q quit')
     })
 
     test('Enter sends the draft via the explicit onSend callback', async () => {

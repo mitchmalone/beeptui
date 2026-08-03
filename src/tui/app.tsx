@@ -1,4 +1,4 @@
-import { useMemo, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { useKeyboard, useTerminalDimensions } from '@opentui/react'
 import {
   selectActiveConversation,
@@ -8,8 +8,12 @@ import {
   selectLastFailedSend,
   selectNetworkRail,
   selectReplyContext,
+  selectSelectedMessage,
 } from '@/state/selectors.ts'
 import { checkCapability } from '@/state/capabilities.ts'
+import { conversationCapacity } from '@/state/conversation-scroll.ts'
+import { CONVERSATION_ACTIONS, QUICK_REACTIONS } from '@/state/reactions.ts'
+import { RAIL_ARCHIVED_ID } from '@/state/types.ts'
 import { edgeSelection, moveSelection } from '@/tui/navigation.ts'
 import { helpGroups, KEYMAP, resolveCommand, resolveKey, type Binding } from '@/tui/keymap.ts'
 import { searchChats } from '@/tui/fuzzy.ts'
@@ -17,14 +21,21 @@ import type { Store } from '@/state/store.ts'
 import { InboxPane, type NetworkColors } from '@/tui/components/InboxPane.tsx'
 import { NetworkRail } from '@/tui/components/NetworkRail.tsx'
 import { StatusBar } from '@/tui/components/StatusBar.tsx'
-import { ConversationView } from '@/tui/components/ConversationView.tsx'
+import { ConversationView, type ConversationMenu } from '@/tui/components/ConversationView.tsx'
 import { Compose } from '@/tui/components/Compose.tsx'
 import { SearchPalette } from '@/tui/components/SearchPalette.tsx'
 import { MessageSearchPalette } from '@/tui/components/MessageSearchPalette.tsx'
 import { HelpOverlay } from '@/tui/components/HelpOverlay.tsx'
+import { ThemeProvider } from '@/tui/theme/context.tsx'
+import { BUILTIN_THEMES, type Theme } from '@/tui/theme/theme.ts'
+import { resolveTheme } from '@/tui/theme/resolve.ts'
 
 /** Below this terminal width we collapse to a single pane. */
 const NARROW_WIDTH = 80
+
+/** Built-ins-only theme registry — the default when launch doesn't supply the
+ *  folder-loaded one (e.g. in tests). */
+const BUILTIN_REGISTRY = new Map<string, Theme>(Object.entries(BUILTIN_THEMES))
 
 export interface AppProps {
   store: Store
@@ -47,10 +58,15 @@ export interface AppProps {
   onOpenAttachment: () => void
   /** Save the selected message's attachment to Downloads. */
   onSaveAttachment: () => void
+  /** Add a reaction to a message (explicit user pick, capability-gated). */
+  onReact: (chatId: string, messageId: string, reactionKey: string) => void
   /** Effective keymap (base + user config overrides). Defaults to the base. */
   keymap?: readonly Binding[]
   /** Per-network colour overrides from `config.theme.networkColors`. */
   networkColors?: NetworkColors | undefined
+  /** name→Theme registry (built-ins + user themes). `t` cycles through its keys.
+   *  Defaults to built-ins only. */
+  themeRegistry?: Map<string, Theme>
 }
 
 /**
@@ -71,8 +87,10 @@ export function App({
   onArchiveChat,
   onOpenAttachment,
   onSaveAttachment,
+  onReact,
   keymap = KEYMAP,
   networkColors,
+  themeRegistry = BUILTIN_REGISTRY,
 }: AppProps) {
   const state = useSyncExternalStore(store.subscribe, store.getState)
   // Memoize the derived views on the specific state slices they depend on, so
@@ -106,17 +124,34 @@ export function App({
   )
   /* eslint-enable react-hooks/exhaustive-deps */
   // Status-bar key hint from the effective keymap, so rebinds show their keys.
+  // Context-aware: only advertise keys that actually fire right now. Compose
+  // captures every key for text entry, and an open overlay captures input for
+  // itself — so the global net/arch/quit shortcuts don't run in either, and
+  // showing them there would be a lie (invariant 8: no misleading controls).
   const keyHint = useMemo(() => {
     const display = (command: string) => keymap.find((b) => b.command === command)?.display ?? ''
+    if (state.focus === 'compose') return '⏎ send · Esc back'
+    if (state.overlay !== 'none') return 'Esc close'
     return `${display('network-cycle')} net · ${display('toggle-archived')} arch · ${display('quit')} quit`
-  }, [keymap])
+  }, [keymap, state.focus, state.overlay])
   const scopeLabel = rail.find((e) => e.isSelected)?.label ?? 'All'
   const failedSend = selectLastFailedSend(state)
-  const { width } = useTerminalDimensions()
+  // Resolve the selected theme name (cycled with `t`) to its tokens; the provider
+  // below hands them to every component via `useTheme()`.
+  const theme = resolveTheme(state.themeName, themeRegistry)
+  const { width, height } = useTerminalDimensions()
   const narrow = width < NARROW_WIDTH
   const focus = state.focus
   const selectedChatId = state.selectedChatId
   const chatOpen = selectedChatId !== null && conversation.chat !== null
+
+  // Tell the reducer how many message rows the conversation viewport holds, so it
+  // can keep the selection cursor on screen as ↑/↓ move it. Re-dispatched only
+  // when the derived capacity actually changes (guarded in the reducer too).
+  const viewportRows = conversationCapacity(height, state.density)
+  useEffect(() => {
+    store.dispatch({ type: 'viewport/measured', rows: viewportRows })
+  }, [store, viewportRows])
 
   useKeyboard((key) => {
     // Read live state (the closure's `state` can be stale under fast input).
@@ -180,6 +215,42 @@ export function App({
       return
     }
 
+    // The conversation action menu (ENTER "dropdown"): ↑/↓ move, ⏎ chooses the
+    // action, Esc closes back to the conversation.
+    if (s.overlay === 'conversationActions') {
+      if (key.name === 'escape') {
+        store.dispatch({ type: 'overlay/closed' })
+      } else if (key.name === 'up') {
+        store.dispatch({ type: 'actionMenu/moved', delta: -1 })
+      } else if (key.name === 'down') {
+        store.dispatch({ type: 'actionMenu/moved', delta: 1 })
+      } else if (key.name === 'return' || key.name === 'enter') {
+        const action = CONVERSATION_ACTIONS[s.actionCursor]
+        if (action?.id === 'react')
+          store.dispatch({ type: 'overlay/opened', overlay: 'emojiPicker' })
+      }
+      return
+    }
+
+    // The limited emoji picker: ←/→ move, ⏎ reacts, Esc steps back to the menu.
+    if (s.overlay === 'emojiPicker') {
+      if (key.name === 'escape') {
+        store.dispatch({ type: 'overlay/opened', overlay: 'conversationActions' })
+      } else if (key.name === 'left') {
+        store.dispatch({ type: 'emojiPicker/moved', delta: -1 })
+      } else if (key.name === 'right') {
+        store.dispatch({ type: 'emojiPicker/moved', delta: 1 })
+      } else if (key.name === 'return' || key.name === 'enter') {
+        const emoji = QUICK_REACTIONS[s.emojiCursor]
+        const target = selectSelectedMessage(s)
+        if (emoji !== undefined && target !== null && s.selectedChatId !== null) {
+          onReact(s.selectedChatId, target.id, emoji)
+        }
+        store.dispatch({ type: 'overlay/closed' })
+      }
+      return
+    }
+
     // Compose owns every key while focused (letters must type, not run commands).
     if (s.focus === 'compose') return
 
@@ -223,6 +294,18 @@ export function App({
       store.dispatch({ type: 'density/toggled' })
       return
     }
+    if (command === 'cycle-theme') {
+      // Advance to the next registered theme (wrapping), and name it in the
+      // status bar so the switch is legible.
+      const names = [...themeRegistry.keys()]
+      const index = names.indexOf(s.themeName)
+      const next = names[(index + 1) % names.length] ?? names[0]
+      if (next !== undefined) {
+        store.dispatch({ type: 'theme/selected', name: next })
+        store.dispatch({ type: 'notice/shown', message: `Theme: ${next}` })
+      }
+      return
+    }
     if (command === 'quit') {
       onQuit()
       return
@@ -231,33 +314,33 @@ export function App({
     const conv = selectActiveConversation(s)
     const failed = selectLastFailedSend(s)
 
-    // Rail focus: the leftmost, outermost pane. j/k switch networks; Enter / l /
-    // → drill back into the chat list. Esc / h / ← is a no-op (nothing further
-    // out). The global [ ] / a / U shortcuts above still apply here too.
+    // Rail focus: the leftmost, outermost pane. j/k move the cursor over the
+    // scopes plus the Archived toggle; Enter / l / → toggles Archived when the
+    // cursor is on it, otherwise drills into the chat list. g/G jump to the first
+    // and last *scope*. The global [ ] / a / U shortcuts above still apply.
     if (s.focus === 'rail') {
-      const railEntries = selectNetworkRail(s)
-      if (key.name === 'right' || key.sequence === 'l') {
-        store.dispatch({ type: 'focus/changed', focus: 'inbox' })
+      const scopes = selectNetworkRail(s).filter((e) => e.kind === 'scope')
+      const onArchived = s.railCursor === RAIL_ARCHIVED_ID
+      if (command === 'open' || key.name === 'right' || key.sequence === 'l') {
+        if (onArchived) store.dispatch({ type: 'filter/archivedToggled' })
+        else store.dispatch({ type: 'focus/changed', focus: 'inbox' })
         return
       }
       switch (command) {
         case 'move-down':
-          store.dispatch({ type: 'filter/scopeCycled', direction: 1 })
+          store.dispatch({ type: 'rail/cursorMoved', direction: 1 })
           break
         case 'move-up':
-          store.dispatch({ type: 'filter/scopeCycled', direction: -1 })
+          store.dispatch({ type: 'rail/cursorMoved', direction: -1 })
           break
         case 'top':
-          store.dispatch({ type: 'filter/scopeSelected', scope: railEntries[0]?.id ?? 'all' })
+          store.dispatch({ type: 'filter/scopeSelected', scope: scopes[0]?.id ?? 'all' })
           break
         case 'bottom':
           store.dispatch({
             type: 'filter/scopeSelected',
-            scope: railEntries[railEntries.length - 1]?.id ?? 'all',
+            scope: scopes[scopes.length - 1]?.id ?? 'all',
           })
-          break
-        case 'open':
-          store.dispatch({ type: 'focus/changed', focus: 'inbox' })
           break
         default:
           break
@@ -305,23 +388,12 @@ export function App({
       return
     }
 
-    // Message-selection mode (entered with `v`): j/k move the cursor, Esc exits,
-    // and r/o/s act on the selected message. Matched on the raw key so the
-    // reply/open/save letters don't shadow the global `r`/`s` bindings.
+    // Conversation focus. A message cursor is always active here (auto-selected
+    // on entry — see the reducer's focus/changed), so ↑/↓ move the indicator,
+    // ⏎ opens the action menu, and Esc leaves to the inbox. r/o/s act on the
+    // selected message; they're raw-matched so `r`/`s` don't run the global
+    // refresh/search bindings while a message is selected.
     if (s.selectedMessageId !== null) {
-      switch (command) {
-        case 'move-up':
-          store.dispatch({ type: 'messageSelection/moved', delta: -1 })
-          return
-        case 'move-down':
-          store.dispatch({ type: 'messageSelection/moved', delta: 1 })
-          return
-        case 'back':
-          store.dispatch({ type: 'messageSelection/cleared' })
-          return
-        default:
-          break
-      }
       if (key.sequence === 'r') {
         // Reply — capability-gated: a network that reports no reply support gets
         // a named notice, never a dead control (invariant 8).
@@ -344,25 +416,31 @@ export function App({
         onSaveAttachment()
         return
       }
-      return // swallow other keys while selecting
     }
 
-    // Conversation focus: scroll, page older, compose, retry, and back.
     switch (command) {
       case 'move-up':
-        store.dispatch({ type: 'conversation/scrolled', delta: 1 })
+        store.dispatch({ type: 'messageSelection/moved', delta: -1 })
         break
       case 'move-down':
-        store.dispatch({ type: 'conversation/scrolled', delta: -1 })
+        store.dispatch({ type: 'messageSelection/moved', delta: 1 })
         break
       case 'top':
-        store.dispatch({ type: 'conversation/scrolled', delta: conv.messages.length })
+        store.dispatch({ type: 'messageSelection/moved', delta: -conv.messages.length })
         break
       case 'bottom':
-        store.dispatch({ type: 'conversation/scrolled', delta: -conv.messages.length })
+        store.dispatch({ type: 'messageSelection/moved', delta: conv.messages.length })
         break
       case 'select-message':
+        // `v` re-anchors the cursor at the newest message (selection is otherwise
+        // always on in the conversation).
         store.dispatch({ type: 'messageSelection/started' })
+        break
+      case 'open':
+        // ⏎ opens the action menu on the selected message (the "dropdown").
+        if (conv.chat !== null && s.selectedMessageId !== null) {
+          store.dispatch({ type: 'overlay/opened', overlay: 'conversationActions' })
+        }
         break
       case 'compose':
         if (conv.chat !== null) store.dispatch({ type: 'focus/changed', focus: 'compose' })
@@ -376,6 +454,8 @@ export function App({
         if (conv.chat !== null) onArchiveChat(conv.chat.id)
         break
       case 'back':
+        // Leave the conversation: drop the cursor and step out to the inbox.
+        store.dispatch({ type: 'messageSelection/cleared' })
         store.dispatch({ type: 'focus/changed', focus: 'inbox' })
         break
       case 'load-older':
@@ -412,55 +492,79 @@ export function App({
       <MessageSearchPalette state={state.messageSearch} />
     ) : null
 
+  // The action menu / emoji picker are NOT full-screen overlays — they float
+  // over the conversation, anchored on the message cursor, so the panes stay
+  // mounted (no full-screen redraw). ConversationView positions them.
+  const conversationMenu: ConversationMenu =
+    state.overlay === 'conversationActions'
+      ? { kind: 'actions', actionCursor: state.actionCursor }
+      : state.overlay === 'emojiPicker'
+        ? { kind: 'emoji', emojiCursor: state.emojiCursor }
+        : null
+
   return (
-    <box style={{ flexDirection: 'column', width: '100%', height: '100%' }}>
-      {overlayPane ??
-        (narrow ? (
-          // No rail column when narrow; rail focus still shows the list (which
-          // re-filters as you switch networks), scope visible in the status bar.
-          focus === 'inbox' || focus === 'rail' ? (
-            <InboxPane rows={rows} grow networkColors={networkColors} density={state.density} />
+    <ThemeProvider theme={theme}>
+      <box style={{ flexDirection: 'column', width: '100%', height: '100%' }}>
+        {overlayPane ??
+          (narrow ? (
+            // No rail column when narrow; rail focus still shows the list (which
+            // re-filters as you switch networks), scope visible in the status bar.
+            focus === 'inbox' || focus === 'rail' ? (
+              <InboxPane
+                rows={rows}
+                grow
+                focused={focus === 'inbox' || focus === 'rail'}
+                networkColors={networkColors}
+                density={state.density}
+              />
+            ) : (
+              <box style={{ flexDirection: 'column', flexGrow: 1 }}>
+                <ConversationView
+                  conversation={conversation}
+                  focused={focus === 'conversation'}
+                  menu={conversationMenu}
+                  networkColors={networkColors}
+                  density={state.density}
+                />
+                {composePane}
+              </box>
+            )
           ) : (
-            <box style={{ flexDirection: 'column', flexGrow: 1 }}>
-              <ConversationView
-                conversation={conversation}
-                focused={focus === 'conversation'}
+            <box style={{ flexDirection: 'row', flexGrow: 1 }}>
+              <NetworkRail
+                entries={rail}
+                unreadOnly={state.filter.unreadOnly}
+                focused={focus === 'rail'}
+                networkColors={networkColors}
+              />
+              <InboxPane
+                rows={rows}
+                focused={focus === 'inbox'}
                 networkColors={networkColors}
                 density={state.density}
               />
-              {composePane}
+              <box style={{ flexDirection: 'column', flexGrow: 1 }}>
+                <ConversationView
+                  conversation={conversation}
+                  focused={focus === 'conversation'}
+                  menu={conversationMenu}
+                  networkColors={networkColors}
+                  density={state.density}
+                />
+                {composePane}
+              </box>
             </box>
-          )
-        ) : (
-          <box style={{ flexDirection: 'row', flexGrow: 1 }}>
-            <NetworkRail
-              entries={rail}
-              archived={state.filter.archived}
-              unreadOnly={state.filter.unreadOnly}
-              focused={focus === 'rail'}
-              networkColors={networkColors}
-            />
-            <InboxPane rows={rows} networkColors={networkColors} density={state.density} />
-            <box style={{ flexDirection: 'column', flexGrow: 1 }}>
-              <ConversationView
-                conversation={conversation}
-                focused={focus === 'conversation'}
-                networkColors={networkColors}
-                density={state.density}
-              />
-              {composePane}
-            </box>
-          </box>
-        ))}
-      <StatusBar
-        banner={banner}
-        accountCount={state.accountOrder.length}
-        scopeLabel={scopeLabel}
-        archived={state.filter.archived}
-        unreadOnly={state.filter.unreadOnly}
-        notice={state.notice}
-        keyHint={keyHint}
-      />
-    </box>
+          ))}
+        <StatusBar
+          banner={banner}
+          accountCount={state.accountOrder.length}
+          scopeLabel={scopeLabel}
+          archived={state.filter.archived}
+          unreadOnly={state.filter.unreadOnly}
+          notice={state.notice}
+          keyHint={keyHint}
+        />
+      </box>
+    </ThemeProvider>
   )
 }

@@ -61,6 +61,11 @@ describe('ConversationView', () => {
     expect(frame).toContain('Select a chat')
   })
 
+  test('focus indicator shows in the placeholder title too (frameOf renders focused)', async () => {
+    const frame = await frameOf({ ...conv(), chat: null })
+    expect(frame).toContain('Conversation ●')
+  })
+
   test('header + empty-history hint + empty state', async () => {
     const frame = await frameOf(conv())
     expect(frame).toContain('Grace Hopper')
