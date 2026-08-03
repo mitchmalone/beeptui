@@ -38,17 +38,51 @@ The benchmark doubles as a **regression tripwire**: its assertions are ~10× the
 measured values, so an accidental O(n²) or per-event allocation blow-up fails
 the suite rather than silently eroding the budget.
 
-## Not yet measured — render loop
+## Measured — render loop (`src/tui/profile.ts`)
 
-Render-loop profiling (OpenTUI draw time per frame under a busy channel) needs
-the **live native renderer** and a real terminal; it can't be measured from a
-headless unit test. Mitigations already in place:
+Render-loop profiling needs the **live native renderer** and a TTY, so it's a
+harness (`bun run src/tui/profile.ts`), not a unit test — but the maths is tested
+(`src/tui/frame-profiler.ts`). It seeds a 3000-chat inbox, renders the real App,
+replays a 300-message burst on the open conversation, and measures inter-frame
+times via the renderer's frame callback.
+
+Representative run (indicative — re-run in your own terminal for its numbers):
+
+| Metric               | Value    |
+| -------------------- | -------- |
+| p50 inter-frame time | ~17.8 ms |
+| p95                  | ~18.6 ms |
+| p99                  | ~19.1 ms |
+| max (single frame)   | ~475 ms  |
+| mean FPS             | ~49      |
+
+**Read:** steady state is ~18 ms/frame (~56 fps) — essentially the render
+cadence, i.e. the loop keeps up with a sustained inbound burst without falling
+behind. The lone ~475 ms `max` is a warm-up/GC outlier (p99 is 19 ms), not a
+recurring hitch; mean FPS is dragged down only by that single sample. Existing
+mitigations that keep this flat:
 
 - Compose typing no longer re-renders the whole tree — panes are `memo`-ised on
   their exact state slices (STATUS, Slice 10).
 - The conversation view renders only a computed, bottom-pinned **window** over
   the loaded messages, not the whole history.
 
-A live render-profiling pass (e.g. instrument `createCliRenderer` frame timing
-during a synthetic burst) remains optional polish —
+## Inline image preview — feasibility (spike, 2026-08-02)
+
+Spiked whether images can render _inside_ the TUI (the open question behind the
+media-preview item). **Feasible** — OpenTUI has first-class paths, so it's not a
+fight-the-framebuffer hack:
+
+- `OptimizedBuffer.drawSuperSampleBuffer(x, y, rgbaPtr, …)` blits an RGBA pixel
+  buffer as supersampled cells — works in **any** terminal (unicode half/quadrant
+  blocks), no protocol needed. `drawGrayscaleBufferSupersampled` too.
+- OpenTUI also detects native protocols: `renderer.capabilities.kitty_graphics`
+  and `.sixel` — so a higher-fidelity path is available where the terminal
+  supports it (our `src/tui/media-preview.ts` already builds those escapes).
+
+**The one real cost:** both paths need decoded **RGBA pixels**, and image
+decoding (PNG/JPEG → raw) is _not_ in the Bun/stdlib surface — it needs a
+decode dependency (or the native-protocol path, which takes encoded bytes but
+only renders on kitty/iTerm2/WezTerm). So the remaining work is a **dependency +
+integration** decision, not an unknown. Tracked in
 `docs/plans/backlog/PLAN-v1-polish-backlog.md`.
