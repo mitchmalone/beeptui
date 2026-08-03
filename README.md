@@ -19,39 +19,42 @@ with cross-platform token storage, config for keymap/colours/notification hooks,
 binary. Remaining work is gated on live validation (more networks, a real remote host) and a couple
 of product decisions. See [`docs/STATUS.md`](docs/STATUS.md) for the precise state.
 
-## Docs
+## Install
 
-| Doc                                      | What it is                                           |
-| ---------------------------------------- | ---------------------------------------------------- |
-| [`docs/PRD.md`](docs/PRD.md)             | Product requirements — the source of truth           |
-| [`docs/ROADMAP.md`](docs/ROADMAP.md)     | Phases broken into agent-sized slices                |
-| [`docs/STATUS.md`](docs/STATUS.md)       | Where we are right now                               |
-| [`docs/plans/`](docs/plans)              | One plan per slice: `backlog/` → `active/` → `done/` |
-| [`docs/DECISIONS.md`](docs/DECISIONS.md) | Dated decision log                                   |
-| [`docs/JOURNAL.md`](docs/JOURNAL.md)     | Append-only learnings                                |
-| [`docs/RUNBOOK.md`](docs/RUNBOOK.md)     | Hand-run operational procedures                      |
-| [`CLAUDE.md`](CLAUDE.md)                 | Operating rules for coding agents                    |
-| [`AGENTS.md`](AGENTS.md)                 | Project coding standards (extends global)            |
+Homebrew (macOS and Linux) is the default:
+
+```bash
+brew install mitchmalone/tap/beeptui
+```
+
+Alternatives:
+
+- **Standalone binary** — download the binary for your OS from
+  [GitHub Releases](https://github.com/mitchmalone/beeptui/releases) (no Bun needed at runtime),
+  verify it against the release's `sha256sums.txt`, then make it executable:
+
+  ```bash
+  shasum -a 256 -c sha256sums.txt
+  chmod +x beeptui-darwin-arm64    # or beeptui-linux-x64
+  ```
+
+- **From source** — with [Bun](https://bun.sh) `>=1.3.14` and a checkout of this repo:
+
+  ```bash
+  bun install
+  bun run src/cli/index.ts    # run directly, or:
+  bun run build               # compile → dist/beeptui (a single ~69 MB executable)
+  ```
 
 ## Getting started
 
-### 1. Prerequisites
+### 1. Run Beeper Desktop
 
-- [**Bun**](https://bun.sh) `>=1.3.14` — the runtime and package manager (`brew install bun`).
-- [**Beeper Desktop**](https://www.beeper.com), running and signed in. beeptui is a client for its
-  local API — it never talks to your networks directly, so Beeper has to be open.
-- macOS is the tested platform (the token can live in the Keychain). Other platforms work via the
-  environment variable below.
-- For committing to the repo only: [`gitleaks`](https://github.com/gitleaks/gitleaks)
-  (`brew install gitleaks`) — the pre-commit hook uses it to block secrets.
+[**Beeper Desktop**](https://www.beeper.com) must be running and signed in — beeptui is a client
+for its local API and never talks to your networks directly. macOS is the tested platform (the
+token can live in the Keychain); other platforms work via the environment variable below.
 
-### 2. Install dependencies
-
-```bash
-bun install
-```
-
-### 3. Get a Beeper access token
+### 2. Get a Beeper access token
 
 In **Beeper Desktop → Settings → Integrations → Approved connections**, create a token. beeptui
 reads it from either (env var wins):
@@ -70,55 +73,57 @@ The token never gets written to a config file, log, or the repo. The default end
 `http://127.0.0.1:23373`; override it with `BEEPTUI_ENDPOINT` if your Beeper API listens
 elsewhere.
 
-### 4. Verify the setup
+### 3. Verify the setup
 
 ```bash
-bun run src/cli/index.ts doctor    # checks: Beeper reachable, token present, authenticated, accounts
+beeptui doctor    # checks: Beeper reachable, token present, authenticated, accounts
 ```
 
-`doctor` tells you exactly what's missing (Beeper not running, no token, auth failure, no accounts)
-and how to fix it. `bun run src/cli/index.ts status` prints the endpoint, auth state, and a summary
-of connected accounts.
+`doctor` tells you exactly what's missing (Beeper not running, no token, auth failure, no
+accounts) and how to fix it. `beeptui status` prints the endpoint, auth state, and a summary of
+connected accounts.
 
-### 5. Launch
+### 4. Launch
 
 ```bash
-bun run dev
+beeptui
 ```
 
 Keys once you're in: `?` help overlay · `/` fuzzy-filter the inbox · `S` message search · `[` / `]`
 cycle the network rail · `a` archived · `U` unread-only · `q` quit.
 
+All commands: `beeptui` (TUI), `beeptui status`, `beeptui doctor` (add `--json` for
+machine-readable output), and — for a remote endpoint — `beeptui login` / `beeptui logout`
+(OAuth 2.0 + PKCE; tokens are stored in the OS credential store via `Bun.secrets`, never in a
+file or on a command line).
+
+## Docs
+
+| Doc                                      | What it is                                           |
+| ---------------------------------------- | ---------------------------------------------------- |
+| [`docs/PRD.md`](docs/PRD.md)             | Product requirements — the source of truth           |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md)     | Phases broken into agent-sized slices                |
+| [`docs/STATUS.md`](docs/STATUS.md)       | Where we are right now                               |
+| [`docs/plans/`](docs/plans)              | One plan per slice: `backlog/` → `active/` → `done/` |
+| [`docs/DECISIONS.md`](docs/DECISIONS.md) | Dated decision log                                   |
+| [`docs/JOURNAL.md`](docs/JOURNAL.md)     | Append-only learnings                                |
+| [`docs/RUNBOOK.md`](docs/RUNBOOK.md)     | Hand-run operational procedures                      |
+| [`CLAUDE.md`](CLAUDE.md)                 | Operating rules for coding agents                    |
+| [`AGENTS.md`](AGENTS.md)                 | Project coding standards (extends global)            |
+
 ## Development
 
+Working from a checkout needs [Bun](https://bun.sh) `>=1.3.14` (`brew install bun`) and, for
+committing, [`gitleaks`](https://github.com/gitleaks/gitleaks) (`brew install gitleaks`) — the
+pre-commit hook uses it to block secrets.
+
 ```bash
+bun run dev          # launch the TUI from source
 bun run typecheck    # tsc --noEmit (strict)
 bun run lint         # eslint
 bun run format       # prettier --write
 bun test             # bun:test — unit + component tests
-```
-
-## Install
-
-`beeptui` runs against a local Beeper Desktop (with the API enabled in its
-settings). Three ways to install:
-
-```bash
-# 1. Homebrew.
-brew install mitchmalone/tap/beeptui
-beeptui doctor
-
-# 2. A standalone binary from a GitHub Release — no Bun needed at runtime.
-#    Each release attaches per-OS binaries + sha256sums.txt; verify then install:
-#      shasum -a 256 -c sha256sums.txt
-#      chmod +x beeptui-darwin-arm64 && ./beeptui-darwin-arm64 doctor
-#    Or build it yourself (validated on macOS arm64):
-bun run build              # → dist/beeptui (a single ~69 MB executable)
-./dist/beeptui doctor   # verify the connection + auth
-./dist/beeptui          # launch the TUI
-
-# 3. Directly from a checkout, if you have Bun.
-bun run src/cli/index.ts doctor
+bun run build        # compile the standalone binary → dist/beeptui
 ```
 
 **Releases & Homebrew.** Pushing a `v*` tag runs
@@ -129,11 +134,6 @@ repo, then set the repo variable `HOMEBREW_TAP_REPO` (`owner/homebrew-tap`) and
 the secret `HOMEBREW_TAP_TOKEN` (a token that can push to it). Without those, the
 release still publishes and the tap step is skipped. The formula is generated by
 `src/packaging/homebrew.ts` (no static file to hand-edit).
-
-Commands: `beeptui` (TUI), `beeptui status`, `beeptui doctor` (add
-`--json` for machine-readable output), and — for a remote endpoint —
-`beeptui login` / `beeptui logout` (OAuth 2.0 + PKCE; tokens are stored in
-the OS credential store via `Bun.secrets`, never in a file or on a command line).
 
 ## Configuration
 
