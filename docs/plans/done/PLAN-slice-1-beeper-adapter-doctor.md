@@ -42,7 +42,7 @@ constructor takes a custom `fetch`, so tests inject synthetic fixtures — no li
 - [x] ~~Read the Beeper Desktop API docs~~; journalled endpoints/auth/capabilities. **Done** —
       official SDK `@beeper/desktop-api@5.0.0` chosen; Bun compatibility + synthetic-`fetch` fixture
       seam smoke-verified.
-- [x] Config module (`config.ts`): endpoint resolution (env > file > default) + `~/.config/beeper-tui/`
+- [x] Config module (`config.ts`): endpoint resolution (env > file > default) + `~/.config/beeptui/`
       path, validated at load with clear errors. Token resolution (`keychain.ts`) reads env >
       Keychain (`security … -w`, argv-safe); config holds no secret. Secure _write_ deferred to the
       auth/login flow (the write path would put the token in argv — invariant 6).
@@ -52,8 +52,8 @@ constructor takes a custom `fetch`, so tests inject synthetic fixtures — no li
       tests (injected `fetch`) for happy paths and each error class, test-first. **Fixtures are
       synthetic** (`fixtures.ts`) — invented names/ids only.
 - [x] Capability detection (`capabilities.ts`) from `info.retrieve()`; typed, explicit fallback.
-- [x] `beeper-tui status`: endpoint, auth state, account list summary — human-readable + `--json`.
-- [x] `beeper-tui doctor`: named checks with pass/fail/skip and remediation — unreachable, no token,
+- [x] `beeptui status`: endpoint, auth state, account list summary — human-readable + `--json`.
+- [x] `beeptui doctor`: named checks with pass/fail/skip and remediation — unreachable, no token,
       auth failure, no accounts. Non-zero exit on any failure. Verified end-to-end via a spawned CLI
       test against a closed port.
 - [x] Redaction (`redact.ts`): `formatError`/`redactSecrets` tested to never emit a token or cause

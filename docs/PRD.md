@@ -5,7 +5,7 @@
 **Status:** Accepted — in delivery (see `STATUS.md`)
 **Owner:** Mitch Malone
 **Product:** Local-first terminal chat client
-**Working name:** `beeper-tui` (repo: `beeptui`)
+**Name:** `beeptui`
 
 ## Summary
 
@@ -244,8 +244,8 @@ Typed Beeper adapter ──► event reducer ──► local cache/drafts
 
 ## Open questions for PRD approval
 
-- Name: keep the literal `beeper-tui`, or choose a distinct project name before public packaging.
-  (Repo is `beeptui`.)
+- ~~Name~~ — resolved: the name is `beeptui` everywhere (`DECISIONS.md` 2026-08-03, superseding
+  2026-07-30).
 - Is local Beeper Desktop-only the correct Phase 1 constraint, with Server Client/OAuth deferred to
   Phase 3?
 - Should v1 target rich terminals only (Kitty, Ghostty, iTerm2, WezTerm), or commit to a

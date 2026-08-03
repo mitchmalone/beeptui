@@ -11,7 +11,7 @@
  * (added out-of-band) or the env var.
  */
 
-export const KEYCHAIN_SERVICE = 'beeper-tui'
+export const KEYCHAIN_SERVICE = 'beeptui'
 export const KEYCHAIN_ACCOUNT = 'access-token'
 export const TOKEN_ENV_VAR = 'BEEPER_ACCESS_TOKEN'
 

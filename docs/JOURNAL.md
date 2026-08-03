@@ -5,10 +5,23 @@
 
 ---
 
+### 2026-08-03 — Renamed `beeper-tui` → `beeptui` everywhere
+
+- **The name is now a single token, matching the repo.** Package/bin, config dir
+  (`~/.config/beeptui/`), state dir (`~/.local/state/beeptui/`), keychain service, endpoint env var
+  (`BEEPTUI_ENDPOINT`), OAuth `client_name`, notify prefix, and the Homebrew formula
+  (`beeptui.rb`, `class Beeptui`) all dropped the hyphen. Reverses the 2026-07-30 lock
+  (`DECISIONS.md`).
+- **Hard break, no compat shim** (pre-1.0): the keychain service and config/state dirs changed, so
+  existing local installs orphan their token + config — re-run `login` / `doctor`. Scripts using
+  `BEEPER_TUI_ENDPOINT` must switch to `BEEPTUI_ENDPOINT`.
+- **`sed -i '' ...` silently no-ops when GNU sed is on PATH** (Homebrew): it consumed the `''` as an
+  input filename and matched nothing. Used `perl -i -pe` for the cross-platform in-place pass.
+
 ### 2026-08-03 — Demo mode = real TUI + a synthetic Gateway
 
 - **`--demo` swaps the `Gateway`, nothing else.** The runtime already talks to an abstract `Gateway`
-  (the smoke tests fake it), so `beeper-tui --demo` just injects `createDemoGateway()` and the whole
+  (the smoke tests fake it), so `beeptui --demo` just injects `createDemoGateway()` and the whole
   real app runs on fictitious data — no auth, no network. Reads return fixtures; writes resolve as
   no-ops so the optimistic UI behaves.
 - **Must skip persistence + the status writer in demo.** Otherwise the synthetic inbox/drafts would
@@ -104,7 +117,7 @@ density)` in a `useEffect` and dispatches it; the reducer then uses the pure `of
 
 ### 2026-08-03 — `login` opens a dead page on a local endpoint; session tidy-up
 
-- **`beeper-tui login` against a local Desktop opens a dead localhost page.** Root cause: `login`
+- **`beeptui login` against a local Desktop opens a dead localhost page.** Root cause: `login`
   runs the remote OAuth flow unconditionally — it opens the advertised `authorization_endpoint` and
   waits on a loopback. On a **local** Desktop (`remote_access: false`) that endpoint isn't a real
   consent page, so you get a static tab and a callback that never arrives. Local auth is a **token**
@@ -240,7 +253,7 @@ density)` in a `useEffect` and dispatches it; the reducer then uses the pure `of
   `SecretStore` (fake in tests); `auth-session.ts`'s `login`/`logout`/`currentAccessToken`/
   `resolveActiveToken` take an `OAuthHttp` (fetch + injected `nowMs`) and a `getInfo` thunk — so the
   whole lifecycle (incl. refresh-on-expiry persisting the new token) is unit-tested with no keychain,
-  no sockets, no real clock. Only `beeper-tui login`'s browser step needs a human + a live endpoint.
+  no sockets, no real clock. Only `beeptui login`'s browser step needs a human + a live endpoint.
 - **Token resolution precedence:** env/legacy keychain first (fast, offline-friendly), then the
   stored OAuth session (which reads `/v1/info` for the OAuth endpoints and refreshes if expired). So
   a `BEEPER_ACCESS_TOKEN` still short-circuits without any network call.
@@ -256,7 +269,7 @@ density)` in a `useEffect` and dispatches it; the reducer then uses the pure `of
   testable; the payload is app + **network name only** — never sender, chat, or body (invariant 6) —
   and `runNotifier` spawns with an arg array (no shell), best-effort (a missing notifier can't crash
   the TUI). Config validated with explicit errors so a typo never silently disables it.
-- **`bun build --compile` just works on macOS arm64.** One command → a 69 MB standalone `dist/beeper-tui`
+- **`bun build --compile` just works on macOS arm64.** One command → a 69 MB standalone `dist/beeptui`
   that runs `--help`/`doctor`/TUI with no Bun at runtime, native OpenTUI renderer bundled. This was
   the PRD's flagged compatibility risk (OpenTUI/Bun/Zig on macOS arm64); validated by running the
   built binary's `doctor` (all checks green). `dist/` was already gitignored.
@@ -633,7 +646,7 @@ Implication: Slice 1 **wraps the SDK** rather than hand-rolling HTTP + a full Zo
   commas, no semis), Husky v9 (pre-commit lint-staged + gitleaks, commit-msg commitlint, pre-push
   `bun test`), gitleaks secret scanning locally and in CI, and GitHub Actions (typecheck/lint/
   format/test on macOS arm64 + ubuntu, plus a full-history gitleaks job).
-- Name locked: package/CLI/config is `beeper-tui` (repo stays `beeptui`).
+- Name locked: package/CLI/config is `beeptui`.
 
 ### 2026-07-30 — Repo scaffolded docs-first
 

@@ -24,7 +24,7 @@ accounts/endpoints that don't exist in the current environment.
 
 - [ ] Stand up / point at a **real remote Server Client endpoint** with `remote_access` enabled
       (or flip remote access on in Beeper settings).
-- [ ] Run `beeper-tui login` end-to-end: browser OAuth (Authorization Code + PKCE) → loopback
+- [ ] Run `beeptui login` end-to-end: browser OAuth (Authorization Code + PKCE) → loopback
       capture → live token exchange → token persisted in the OS credential store.
 - [ ] Confirm `launch`/`status`/`doctor` resolve the stored remote token; confirm `logout` revokes.
 - [ ] Note the first-real-endpoint result in `PLAN-slice-13` / `STATUS.md`.

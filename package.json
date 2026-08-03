@@ -1,19 +1,19 @@
 {
-  "name": "beeper-tui",
+  "name": "beeptui",
   "version": "0.2.0",
   "type": "module",
   "private": true,
   "license": "MIT",
   "description": "A terminal client for Beeper — read, watch, and reply across your chat networks without leaving the terminal.",
   "bin": {
-    "beeper-tui": "./src/cli/index.ts"
+    "beeptui": "./src/cli/index.ts"
   },
   "engines": {
     "bun": ">=1.3.14"
   },
   "scripts": {
     "dev": "bun run src/cli/index.ts",
-    "build": "bun build src/cli/index.ts --compile --outfile dist/beeper-tui",
+    "build": "bun build src/cli/index.ts --compile --outfile dist/beeptui",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",

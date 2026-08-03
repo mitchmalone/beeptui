@@ -15,7 +15,7 @@ links:
 ## Goal
 
 Make a released binary report its real version, and stop it drifting again. `v0.1.0` shipped with
-`beeper-tui --version` printing **`0.0.0`** because `src/cli/index.ts` reads `version` from
+`beeptui --version` printing **`0.0.0`** because `src/cli/index.ts` reads `version` from
 `package.json`, which was never bumped. Fix the value, tie it to the tag so it can't drift, and clear
 the release run's Node-20 action-deprecation warning while we're in the workflow.
 
@@ -44,14 +44,14 @@ the `v`) into `package.json` before `bun build --compile`. Keep `package.json` a
 - [ ] Bump the GitHub Actions to the Node-24 majors (`actions/checkout@v5`,
       `actions/upload-artifact@v5`, `actions/download-artifact@v5` — verify current majors) to clear
       the deprecation warning.
-- [ ] Cut `v0.1.1`; confirm `beeper-tui --version` prints `0.1.1` from the released binary and the
+- [ ] Cut `v0.1.1`; confirm `beeptui --version` prints `0.1.1` from the released binary and the
       tap updates.
 
 ## Acceptance criteria
 
 - [ ] A binary from a `vX.Y.Z` release prints `X.Y.Z` for `--version`.
 - [ ] The release workflow runs without the Node-20 deprecation annotation.
-- [ ] `brew upgrade beeper-tui` yields a binary reporting the new version.
+- [ ] `brew upgrade beeptui` yields a binary reporting the new version.
 
 ## Out of scope
 

@@ -40,8 +40,8 @@ v1 definition of done.
 - [x] **brew tap / versioned releases — DONE (v0.1.0, 2026-08-02).** `src/packaging/homebrew.ts`
       renders the formula and `release.yml` publishes per-target binaries + `sha256sums.txt` and
       pushes the formula to the tap. Exercised end-to-end by the **first real release**: tag
-      `v0.1.0` → both binaries + checksums on the GitHub Release → `Formula/beeper-tui.rb` committed
-      to `mitchmalone/homebrew-tap` with matching SHA-256s. `brew install mitchmalone/tap/beeper-tui`
+      `v0.1.0` → both binaries + checksums on the GitHub Release → `Formula/beeptui.rb` committed
+      to `mitchmalone/homebrew-tap` with matching SHA-256s. `brew install mitchmalone/tap/beeptui`
       resolves.
 
 ## Ready-to-work plans (open)

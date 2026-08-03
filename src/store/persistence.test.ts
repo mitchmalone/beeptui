@@ -9,7 +9,7 @@ import type { ChatSummary } from '@/beeper/types.ts'
 let counter = 0
 const paths: string[] = []
 function tempPath(): string {
-  const p = `${tmpdir()}/beeper-tui-persist-${process.pid}-${counter++}.db`
+  const p = `${tmpdir()}/beeptui-persist-${process.pid}-${counter++}.db`
   paths.push(p)
   return p
 }

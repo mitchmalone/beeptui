@@ -213,7 +213,7 @@ export async function registerClient(
       method: 'POST',
       headers: { 'content-type': 'application/json', accept: 'application/json' },
       body: JSON.stringify({
-        client_name: 'beeper-tui',
+        client_name: 'beeptui',
         redirect_uris: [redirectUri],
         grant_types: ['authorization_code', 'refresh_token'],
         response_types: ['code'],

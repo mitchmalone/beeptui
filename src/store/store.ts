@@ -39,10 +39,10 @@ export interface OpenOptions {
   migrations?: Migration[]
 }
 
-/** Default DB location: `$XDG_STATE_HOME/beeper-tui/ui.db` (or `~/.local/state`). */
+/** Default DB location: `$XDG_STATE_HOME/beeptui/ui.db` (or `~/.local/state`). */
 export function defaultDbPath(env: NodeJS.ProcessEnv = process.env, home = homedir()): string {
   const stateHome = env.XDG_STATE_HOME ?? `${home}/.local/state`
-  return `${stateHome}/beeper-tui/ui.db`
+  return `${stateHome}/beeptui/ui.db`
 }
 
 interface CachedChatRow {

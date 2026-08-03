@@ -8,7 +8,7 @@ import type { ChatSummary } from '@/beeper/types.ts'
 let counter = 0
 const paths: string[] = []
 function tempPath(): string {
-  const p = `${tmpdir()}/beeper-tui-test-${process.pid}-${counter++}.db`
+  const p = `${tmpdir()}/beeptui-test-${process.pid}-${counter++}.db`
   paths.push(p)
   return p
 }
@@ -40,9 +40,9 @@ function chat(id: string, over: Partial<ChatSummary> = {}): ChatSummary {
 }
 
 describe('defaultDbPath', () => {
-  test('honors XDG_STATE_HOME, else ~/.local/state, under beeper-tui/', () => {
-    expect(defaultDbPath({ XDG_STATE_HOME: '/xdg' }, '/home/ada')).toBe('/xdg/beeper-tui/ui.db')
-    expect(defaultDbPath({}, '/home/ada')).toBe('/home/ada/.local/state/beeper-tui/ui.db')
+  test('honors XDG_STATE_HOME, else ~/.local/state, under beeptui/', () => {
+    expect(defaultDbPath({ XDG_STATE_HOME: '/xdg' }, '/home/ada')).toBe('/xdg/beeptui/ui.db')
+    expect(defaultDbPath({}, '/home/ada')).toBe('/home/ada/.local/state/beeptui/ui.db')
   })
 })
 

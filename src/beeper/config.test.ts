@@ -7,7 +7,7 @@ describe('resolveConfig', () => {
   test('defaults to the local Desktop endpoint with no env or file', () => {
     const cfg = resolveConfig({ env: {}, homedir: home, readFile: () => undefined })
     expect(cfg.endpoint).toBe(DEFAULT_ENDPOINT)
-    expect(cfg.configPath).toBe('/home/ada/.config/beeper-tui/config.json')
+    expect(cfg.configPath).toBe('/home/ada/.config/beeptui/config.json')
   })
 
   test('honors XDG_CONFIG_HOME for the config path', () => {
@@ -16,7 +16,7 @@ describe('resolveConfig', () => {
       homedir: home,
       readFile: () => undefined,
     })
-    expect(cfg.configPath).toBe('/xdg/beeper-tui/config.json')
+    expect(cfg.configPath).toBe('/xdg/beeptui/config.json')
   })
 
   test('config file endpoint overrides the default', () => {
@@ -30,7 +30,7 @@ describe('resolveConfig', () => {
 
   test('env var wins over the config file', () => {
     const cfg = resolveConfig({
-      env: { BEEPER_TUI_ENDPOINT: 'http://127.0.0.1:1111' },
+      env: { BEEPTUI_ENDPOINT: 'http://127.0.0.1:1111' },
       homedir: home,
       readFile: () => JSON.stringify({ endpoint: 'http://127.0.0.1:9999' }),
     })
@@ -40,7 +40,7 @@ describe('resolveConfig', () => {
   test('rejects a non-http(s) endpoint with a clear error', () => {
     expect(() =>
       resolveConfig({
-        env: { BEEPER_TUI_ENDPOINT: 'ftp://nope' },
+        env: { BEEPTUI_ENDPOINT: 'ftp://nope' },
         homedir: home,
         readFile: () => undefined,
       })
@@ -56,7 +56,7 @@ describe('resolveConfig', () => {
   test('rejects plain http for a non-loopback endpoint (token would transit cleartext)', () => {
     expect(() =>
       resolveConfig({
-        env: { BEEPER_TUI_ENDPOINT: 'http://my-vps.example:23373' },
+        env: { BEEPTUI_ENDPOINT: 'http://my-vps.example:23373' },
         homedir: home,
         readFile: () => undefined,
       })
@@ -71,7 +71,7 @@ describe('resolveConfig', () => {
       'https://remote.example:23373',
     ]) {
       const cfg = resolveConfig({
-        env: { BEEPER_TUI_ENDPOINT: endpoint },
+        env: { BEEPTUI_ENDPOINT: endpoint },
         homedir: home,
         readFile: () => undefined,
       })
@@ -129,9 +129,9 @@ describe('resolveConfig', () => {
     expect(cfg.endpoints.local).toBe('http://127.0.0.1:23373')
   })
 
-  test('endpoints: env BEEPER_TUI_ENDPOINT can select a name too', () => {
+  test('endpoints: env BEEPTUI_ENDPOINT can select a name too', () => {
     const cfg = resolveConfig({
-      env: { BEEPER_TUI_ENDPOINT: 'remote' },
+      env: { BEEPTUI_ENDPOINT: 'remote' },
       homedir: home,
       readFile: () => JSON.stringify({ endpoints: { remote: 'https://r.example.com' } }),
     })
@@ -140,7 +140,7 @@ describe('resolveConfig', () => {
 
   test('endpoints: a literal URL that is not a configured name is used verbatim', () => {
     const cfg = resolveConfig({
-      env: { BEEPER_TUI_ENDPOINT: 'https://direct.example.com' },
+      env: { BEEPTUI_ENDPOINT: 'https://direct.example.com' },
       homedir: home,
       readFile: () => JSON.stringify({ endpoints: { remote: 'https://r.example.com' } }),
     })

@@ -25,9 +25,9 @@ bun run src/cli/index.ts doctor          # named checks, non-zero exit on failur
 ```
 
 `doctor` identifies: Beeper not running / endpoint unreachable, no access token, authentication
-failure, and no connected accounts. The token is read from the macOS Keychain (service `beeper-tui`,
+failure, and no connected accounts. The token is read from the macOS Keychain (service `beeptui`,
 account `access-token`) or the `BEEPER_ACCESS_TOKEN` env var; override the endpoint with
-`BEEPER_TUI_ENDPOINT`.
+`BEEPTUI_ENDPOINT`.
 
 ## Checks (the merge gate)
 
@@ -68,7 +68,7 @@ On a host with Beeper **remote access enabled** (`server.remote_access: true` in
 
 ```bash
 # point at the remote endpoint (a URL, or a name from config.endpoints)
-export BEEPER_TUI_ENDPOINT="https://your-remote-host:PORT"
+export BEEPTUI_ENDPOINT="https://your-remote-host:PORT"
 bun run src/cli/index.ts login      # opens the browser for OAuth 2.0 + PKCE; stores tokens in the OS keychain
 bun run src/cli/index.ts doctor     # expect: remote endpoint reachable, authenticated, token scope
 bun run dev                         # inbox + read + send over the remote endpoint

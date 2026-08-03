@@ -4,7 +4,7 @@ import { buildNotifyArgs, notificationText, shouldNotify } from '@/tui/notify.ts
 describe('notification hooks', () => {
   test('notificationText is redacted — app + network only, no content', () => {
     const text = notificationText('WhatsApp')
-    expect(text).toBe('beeper-tui: new message on WhatsApp')
+    expect(text).toBe('beeptui: new message on WhatsApp')
     // Must never carry a sender, chat title, or message body.
     expect(text).not.toMatch(/message on WhatsApp.+:/)
   })
@@ -26,7 +26,7 @@ describe('notification hooks', () => {
     expect(buildNotifyArgs({ command: ['terminal-notifier', '-message'] }, 'Slack')).toEqual([
       'terminal-notifier',
       '-message',
-      'beeper-tui: new message on Slack',
+      'beeptui: new message on Slack',
     ])
   })
 })

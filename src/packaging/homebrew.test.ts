@@ -14,19 +14,19 @@ const valid: FormulaInputs = {
 describe('renderFormula', () => {
   test('embeds version, per-target URLs, and matching SHA-256s', () => {
     const rb = renderFormula(valid)
-    expect(rb).toContain('class BeeperTui < Formula')
+    expect(rb).toContain('class Beeptui < Formula')
     expect(rb).toContain('version "1.2.0"')
     expect(rb).toContain('license "MIT"')
     expect(rb).toContain(
-      'https://github.com/mitchmalone/beeptui/releases/download/v1.2.0/beeper-tui-darwin-arm64'
+      'https://github.com/mitchmalone/beeptui/releases/download/v1.2.0/beeptui-darwin-arm64'
     )
     expect(rb).toContain(
-      'https://github.com/mitchmalone/beeptui/releases/download/v1.2.0/beeper-tui-linux-x64'
+      'https://github.com/mitchmalone/beeptui/releases/download/v1.2.0/beeptui-linux-x64'
     )
     expect(rb).toContain(`sha256 "${SHA_A}"`)
     expect(rb).toContain(`sha256 "${SHA_B}"`)
-    expect(rb).toContain('bin.install "beeper-tui-darwin-arm64" => "beeper-tui"')
-    expect(rb).toContain('bin.install "beeper-tui-linux-x64" => "beeper-tui"')
+    expect(rb).toContain('bin.install "beeptui-darwin-arm64" => "beeptui"')
+    expect(rb).toContain('bin.install "beeptui-linux-x64" => "beeptui"')
   })
 
   test('rejects a non-semver version', () => {

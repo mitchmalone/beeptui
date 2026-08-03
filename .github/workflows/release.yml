@@ -43,13 +43,13 @@ jobs:
           bun test
 
       - name: Compile standalone binary
-        run: bun build src/cli/index.ts --compile --outfile dist/beeper-tui-${{ matrix.target }}
+        run: bun build src/cli/index.ts --compile --outfile dist/beeptui-${{ matrix.target }}
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: beeper-tui-${{ matrix.target }}
-          path: dist/beeper-tui-${{ matrix.target }}
+          name: beeptui-${{ matrix.target }}
+          path: dist/beeptui-${{ matrix.target }}
           if-no-files-found: error
 
   release:
@@ -68,7 +68,7 @@ jobs:
       - name: Generate checksums
         run: |
           cd artifacts
-          shasum -a 256 beeper-tui-* | tee sha256sums.txt
+          shasum -a 256 beeptui-* | tee sha256sums.txt
 
       - name: Create release + attach binaries
         env:
@@ -78,7 +78,7 @@ jobs:
             --repo "${{ github.repository }}" \
             --title "${{ github.ref_name }}" \
             --generate-notes \
-            artifacts/beeper-tui-* artifacts/sha256sums.txt
+            artifacts/beeptui-* artifacts/sha256sums.txt
 
   # Update the Homebrew tap so `brew upgrade` picks up the new binary. Runs only
   # when a tap is configured (repo variable HOMEBREW_TAP_REPO + secret
@@ -108,11 +108,11 @@ jobs:
           FORMULA_VERSION: ${{ github.ref_name }}
           FORMULA_REPO: ${{ github.repository }}
         run: |
-          darwin=$(shasum -a 256 artifacts/beeper-tui-darwin-arm64 | cut -d' ' -f1)
-          linux=$(shasum -a 256 artifacts/beeper-tui-linux-x64 | cut -d' ' -f1)
+          darwin=$(shasum -a 256 artifacts/beeptui-darwin-arm64 | cut -d' ' -f1)
+          linux=$(shasum -a 256 artifacts/beeptui-linux-x64 | cut -d' ' -f1)
           FORMULA_SHA_DARWIN_ARM64="$darwin" FORMULA_SHA_LINUX_X64="$linux" \
-            bun run src/packaging/homebrew.ts > beeper-tui.rb
-          cat beeper-tui.rb
+            bun run src/packaging/homebrew.ts > beeptui.rb
+          cat beeptui.rb
 
       - name: Commit to tap
         env:
@@ -120,10 +120,10 @@ jobs:
         run: |
           git clone "https://x-access-token:${GH_TOKEN}@github.com/${{ vars.HOMEBREW_TAP_REPO }}.git" tap
           mkdir -p tap/Formula
-          cp beeper-tui.rb tap/Formula/beeper-tui.rb
+          cp beeptui.rb tap/Formula/beeptui.rb
           cd tap
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Formula/beeper-tui.rb
-          git commit -m "beeper-tui ${{ github.ref_name }}"
+          git add Formula/beeptui.rb
+          git commit -m "beeptui ${{ github.ref_name }}"
           git push

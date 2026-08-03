@@ -9,7 +9,7 @@ labels: bug
 **Steps to reproduce**
 
 **Environment**: OS, terminal emulator, Bun version (`bun --version`), Beeper Desktop version,
-and `beeper-tui doctor` output.
+and `beeptui doctor` output.
 
 > ⚠️ **Redact before posting**: no message content, contact names, chat titles, account ids, or
 > tokens in issue text, logs, or screenshots. `doctor` output is redacted by design, but

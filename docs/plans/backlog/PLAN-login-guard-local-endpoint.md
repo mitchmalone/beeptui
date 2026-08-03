@@ -14,7 +14,7 @@ links:
 
 ## Goal
 
-Stop `beeper-tui login` from opening a doomed browser tab against an endpoint that can't do
+Stop `beeptui login` from opening a doomed browser tab against an endpoint that can't do
 OAuth. Today it always runs the remote flow; against a **local Beeper Desktop** (or any endpoint
 with `remote_access: false`) it opens the advertised `authorization_endpoint` — a static/dead
 localhost page — then waits forever on a loopback callback that never comes. Turn that into an
@@ -45,13 +45,13 @@ endpoint.
 - [ ] Wire it into the `login` handler in `src/cli/index.ts`: on `!ok`, print the reason + guidance
       and `process.exit(1)` **before** `getInfo`→`login` opens a browser.
 - [ ] Message content: name the situation ("local Beeper Desktop, remote access off — already
-      authenticated via a token; run `beeper-tui`"), and how to use remote (enable remote access /
-      point `BEEPER_TUI_ENDPOINT` at a remote Server Client).
+      authenticated via a token; run `beeptui`"), and how to use remote (enable remote access /
+      point `BEEPTUI_ENDPOINT` at a remote Server Client).
 - [ ] Unit-test the helper (local → refuse; remote+access-on → allow; remote+access-off → refuse).
 
 ## Acceptance criteria
 
-- [ ] `beeper-tui login` against the local default endpoint prints the guidance and exits non-zero
+- [ ] `beeptui login` against the local default endpoint prints the guidance and exits non-zero
       **without** opening a browser or starting the loopback.
 - [ ] `login` still proceeds normally when the endpoint is remote with remote access enabled.
 - [ ] Helper has unit tests; `bun run typecheck` + `bun test` green.

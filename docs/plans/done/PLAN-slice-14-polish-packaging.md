@@ -29,7 +29,7 @@ Everything functional exists after Slice 13. This is the PRD's Phase 3 remainder
 between "works for Mitch's checkout" and "a tool someone installs".
 
 > Being worked incrementally as unblocked items (Mitch: "do the unblocked polish now", 2026-08-01),
-> not as one big slice. Naming is resolved (`beeper-tui`); the open-source flip (#6) still gates
+> not as one big slice. Naming is resolved (`beeptui`); the open-source flip (#6) still gates
 > license/README audience but not these features.
 
 ## Candidate scope (split when re-planning)
@@ -57,8 +57,8 @@ between "works for Mitch's checkout" and "a tool someone installs".
   OpenTUI's renderer is platform-specific), gates on typecheck+test, and attaches the binaries to
   a GitHub Release via `gh` (no third-party action). **Exercised only on a tag push** — validated
   structurally (YAML parses; uses the proven `bun build --compile`). `bun run build` compiles a **standalone binary**
-  (`dist/beeper-tui`, ~69 MB Mach-O arm64) that runs `--help`/`doctor`/TUI with no Bun at
-  runtime — **OpenTUI/Bun compat validated on macOS arm64** (the PRD risk note). `beeper-tui`
+  (`dist/beeptui`, ~69 MB Mach-O arm64) that runs `--help`/`doctor`/TUI with no Bun at
+  runtime — **OpenTUI/Bun compat validated on macOS arm64** (the PRD risk note). `beeptui`
   name + `bin` already set; README has install/usage docs. Remaining: brew tap / versioned
   releases + the open-source/license call (#6) before public distribution.
 
@@ -72,4 +72,4 @@ between "works for Mitch's checkout" and "a tool someone installs".
 ## Risks / open questions
 
 - Open-source decision (#6) gates license, repo hygiene, and README audience (naming — #1 — is
-  resolved: `beeper-tui`).
+  resolved: `beeptui`).
