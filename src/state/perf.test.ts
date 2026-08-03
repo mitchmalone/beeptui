@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { reduce } from '@/state/reducer.ts'
-import { initialState, type AppEvent, type AppState } from '@/state/types.ts'
+import { initialState, MAX_MESSAGES_PER_CHAT, type AppEvent, type AppState } from '@/state/types.ts'
 import { selectInboxRows, selectActiveConversation } from '@/state/selectors.ts'
 import type { Account, ChatSummary, MessageSummary } from '@/beeper/types.ts'
 
@@ -100,6 +100,9 @@ describe('state performance benchmark', () => {
 
   test(`applying ${N_LIVE} live messages averages well under a millisecond each`, () => {
     let s = reduce(seeded, { type: 'chat/selected', chatId: 'c1' })
+    // Measure the viewport: without it the reducer skips the row-layout path
+    // entirely and this benchmark would not see its cost at all.
+    s = reduce(s, { type: 'viewport/measured', rows: 40, cols: 120 })
     const start = performance.now()
     for (let n = 0; n < N_LIVE; n++) {
       s = reduce(s, { type: 'message/received', message: msg('c1', n) })
@@ -118,5 +121,42 @@ describe('state performance benchmark', () => {
     // Each event well under the 2s render budget with vast headroom.
     expect(totalMs / N_LIVE).toBeLessThan(2)
     expect(convMs).toBeLessThan(50)
+  })
+
+  test('scrolled-up arrivals and cursor moves stay cheap with a full message window', () => {
+    // Both paths lay the whole loaded window out into rows to work in row
+    // units, so they are the most expensive things the reducer does. Fill the
+    // window first so this measures the worst case, not an empty chat.
+    let s = reduce(seeded, { type: 'chat/selected', chatId: 'c1' })
+    s = reduce(s, { type: 'viewport/measured', rows: 40, cols: 120 })
+    // One short of the cap: at the cap an arrival evicts the oldest, the window
+    // length does not change, and the offset-bump branch is skipped entirely —
+    // which would make the arrival measurement below vacuous.
+    for (let n = 0; n < MAX_MESSAGES_PER_CHAT - 1; n++) {
+      s = reduce(s, { type: 'message/received', message: msg('c1', n) })
+    }
+    s = reduce(s, { type: 'conversation/scrolled', delta: 20 })
+
+    // Arrival while scrolled up: lays out before and after to bump the offset
+    // by the rows that were added.
+    const arrivalMs = medianMs(20, () => {
+      reduce(s, { type: 'message/received', message: msg('c1', 99_999) })
+    })
+    console.log(
+      `  [perf] scrolled-up arrival (${MAX_MESSAGES_PER_CHAT - 1} loaded): ${arrivalMs.toFixed(2)}ms`
+    )
+
+    const withCursor = reduce(s, { type: 'messageSelection/started' })
+    const moveMs = medianMs(20, () => {
+      reduce(withCursor, { type: 'messageSelection/moved', delta: -1 })
+    })
+    console.log(
+      `  [perf] cursor move (${MAX_MESSAGES_PER_CHAT - 1} loaded): ${moveMs.toFixed(2)}ms`
+    )
+
+    // A keypress must feel instant; the PRD's budget is 2s and these are the
+    // reducer's heaviest events.
+    expect(arrivalMs).toBeLessThan(50)
+    expect(moveMs).toBeLessThan(50)
   })
 })
