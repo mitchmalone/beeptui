@@ -3,7 +3,7 @@
 > The cursor: where we are right now. Keep this **terse** — a snapshot, not a history.
 > History lives in git, `plans/done/`, and `JOURNAL.md`.
 >
-> Last updated: 2026-08-01
+> Last updated: 2026-08-03
 
 ## Where we are
 
@@ -119,18 +119,24 @@ no silent failures. Fixed pagination resilience along the way. **199 tests** gre
 
 ## Next up
 
-All planned slices (0–14) are done on code + tests. What remains is not code:
+All planned slices (0–14) are done, `v0.1.0` is released and installable via Homebrew, and the tree
+is tidy (only `main` locally + remote). Two tracks remain:
 
-- **Production-only validation → see `TODO.md`.** The Slice 12 multi-network matrix
-  (Discord/IG/X) and the Slice 13 remote-endpoint `login` are the only outstanding runs; both need
-  external accounts/endpoints this environment doesn't have (accepted risk). Declaring **Phase 2
-  fully validated in production** waits on the Slice 12 matrix actually running — the code is done,
-  the docs won't claim the production run happened until it does.
-- **Optional v1 polish** (`docs/plans/backlog/PLAN-v1-polish-backlog.md`): the bulk landed on
-  `feat/v1-polish` (density, state perf benchmark, media-preview capability, Homebrew packaging).
-  Residuals that need hardware/infra: in-TUI image rendering, live render-loop profiling, and the
-  first real tagged release + tap. Pull one into `active/` if
-  and when it's worth doing; none block v1.
+**Ready-to-work code slices** (in `docs/plans/backlog/`, each a standalone plan — pick one, move to
+`active/`, branch, TDD):
+
+- **`PLAN-login-guard-local-endpoint.md`** — `login` refuses on a local / remote-access-off endpoint
+  instead of opening a dead browser tab (found 2026-08-03). Small, no hardware needed.
+- **`PLAN-release-hygiene-versioning.md`** — fix `--version` (`0.0.0` → tag), stamp version from the
+  tag in CI, bump Node-20 actions; cut `v0.1.1`.
+- **`PLAN-inline-image-rendering.md`** — inline image attachments (native protocol first; feasibility
+  confirmed, `docs/PERF.md`). `PLAN-v1-polish-backlog.md` indexes these.
+
+**Production-only validation → `TODO.md`** — the Slice 12 multi-network matrix (Discord/IG/X) and the
+Slice 13 remote-endpoint `login` need external accounts/endpoints not available here (accepted risk).
+Declaring **Phase 2 fully validated in production** waits on the Slice 12 matrix actually running.
+
+> Mitch is running a UX pass next, then working these slices.
 
 ## Deferred live validation (accepted risk, Mitch 2026-08-01) → `TODO.md`
 

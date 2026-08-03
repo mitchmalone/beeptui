@@ -5,6 +5,23 @@
 
 ---
 
+### 2026-08-03 — `login` opens a dead page on a local endpoint; session tidy-up
+
+- **`beeper-tui login` against a local Desktop opens a dead localhost page.** Root cause: `login`
+  runs the remote OAuth flow unconditionally — it opens the advertised `authorization_endpoint` and
+  waits on a loopback. On a **local** Desktop (`remote_access: false`) that endpoint isn't a real
+  consent page, so you get a static tab and a callback that never arrives. Local auth is a **token**
+  (already green in `doctor`), not a browser login. Fix is a preflight guard — refuse with guidance
+  before opening a browser (invariant 8, no dead controls): `PLAN-login-guard-local-endpoint.md`.
+- **`--version` prints `0.0.0`** — the CLI reads `version` from `package.json`, never bumped. The
+  `v0.1.0` Release/formula are correct; only the embedded binary is wrong. Fix + tag-stamping in
+  `PLAN-release-hygiene-versioning.md`.
+- **Tidy-up:** deleted all merged/orphaned branches (local + remote) — only `main` remains both
+  places, plus pruned stale remote-tracking refs. Note: the pre-rewrite branches had **no common
+  ancestor** with `main` (the open-source `git filter-repo` rewrote history), so `--merged` couldn't
+  detect them and `compare` 404s — they're orphaned refs whose content is on `main`; safe to drop.
+  `dist/` (69 MB, gitignored) left for a manual `rm -rf dist` (the tool sandbox blocks `rm -rf`).
+
 ### 2026-08-01 — v1 polish pass (density, perf, media-preview, brew) in one branch
 
 - Did all four optional-polish items on `feat/v1-polish` at Mitch's "break the rules, do it all"

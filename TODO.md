@@ -29,6 +29,11 @@ accounts/endpoints that don't exist in the current environment.
 - [ ] Confirm `launch`/`status`/`doctor` resolve the stored remote token; confirm `logout` revokes.
 - [ ] Note the first-real-endpoint result in `PLAN-slice-13` / `STATUS.md`.
 
+> Related (code, not validation): against a **local** endpoint `login` currently opens a dead
+> browser tab. The fix — refuse up front with guidance — is a ready-to-work plan,
+> `docs/plans/backlog/PLAN-login-guard-local-endpoint.md`. Local auth uses a token and already works
+> (`doctor` green), so this is UX, not a blocker.
+
 ## Open-source flip — history rewrite first (decided 2026-08-01)
 
 - [x] ~~Run `git filter-repo`~~ — **done 2026-08-01**: dropped the 59 MB `.bun-build` blob and
