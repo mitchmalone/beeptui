@@ -5,6 +5,18 @@
 
 ---
 
+### 2026-08-03 — Release version stamped from the tag; `v0.2.0` was doc-only
+
+- **The binary version now comes from the git tag, not `package.json`.** `release.yml` writes
+  `github.ref_name` (minus `v`) into `package.json` before `bun build --compile`, so a `vX.Y.Z` tag
+  always produces a binary that reports `X.Y.Z`. `v0.1.0` shipped `0.0.0` because the version was
+  hand-maintained and drifted; the tag is now the single source of truth.
+- **`v0.2.0` existed only in docs/`package.json` — never a git tag or GitHub Release.** Commit
+  messages said "shipped as v0.2.0" but `git tag` / `gh release list` showed only `v0.1.0`. The
+  rename release (`v0.2.0`) is the first real tag since, folding in the never-released UX pass.
+- **Bumped `actions/checkout` + `upload/download-artifact` v4 → v5** to clear the Node-20
+  deprecation warning on the release run (warning only; wasn't failing).
+
 ### 2026-08-03 — Renamed `beeper-tui` → `beeptui` everywhere
 
 - **The name is now a single token, matching the repo.** Package/bin, config dir
