@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { formatMessage, formatSize, formatTime, messageLine } from '@/tui/message-format.ts'
+import { formatMessage, formatSize, formatTime, messageLine } from '@/state/message-format.ts'
 import type { MessageEntity } from '@/state/types.ts'
 
 // Base omits the optional fields (senderName, text, …) so tests add only what

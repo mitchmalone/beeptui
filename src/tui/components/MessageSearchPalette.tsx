@@ -1,5 +1,5 @@
 import type { MessageSearchState } from '@/state/types.ts'
-import { formatTime } from '@/tui/message-format.ts'
+import { formatTime } from '@/state/message-format.ts'
 import { networkMarker } from '@/tui/components/InboxPane.tsx'
 import { useTheme } from '@/tui/theme/context.tsx'
 

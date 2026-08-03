@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from 'react'
 import type { MessageEntity } from '@/state/types.ts'
-import { attachmentLabel, formatTime, messageStatusMarker } from '@/tui/message-format.ts'
+import { attachmentLabel, formatTime, messageStatusMarker } from '@/state/message-format.ts'
 import { htmlToStyledLines, type StyledRun } from '@/state/message-html.ts'
 import { useTheme } from '@/tui/theme/context.tsx'
 
