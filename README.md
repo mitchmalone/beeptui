@@ -98,8 +98,8 @@ bun test             # bun:test — unit + component tests
 settings). Three ways to install:
 
 ```bash
-# 1. Homebrew (once a tap is configured; see below).
-brew install <owner>/tap/beeptui
+# 1. Homebrew.
+brew install mitchmalone/tap/beeptui
 beeptui doctor
 
 # 2. A standalone binary from a GitHub Release — no Bun needed at runtime.
