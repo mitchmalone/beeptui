@@ -1,7 +1,21 @@
 import { memo } from 'react'
+import { useTerminalDimensions } from '@opentui/react'
 import type { InboxRow } from '@/state/selectors.ts'
 import type { Density } from '@/state/types.ts'
 import { useTheme } from '@/tui/theme/context.tsx'
+
+/** Truncate `text` to `max` columns, marking the cut with a single-column `…`.
+ *  Keeps chat names on one line (clip, not wrap). Uses string length as a width
+ *  proxy — fine for the mostly-ASCII names the rail shows. */
+export function clipText(text: string, max: number): string {
+  if (max <= 0) return ''
+  if (text.length <= max) return text
+  if (max === 1) return '…'
+  return text.slice(0, max - 1) + '…'
+}
+
+/** Fixed width of the chat rail (non-grow). */
+const RAIL_WIDTH = 32
 
 /** Two-letter network marker for the rail (e.g. WhatsApp → WA). */
 export function networkMarker(network: string): string {
@@ -69,7 +83,11 @@ export const InboxPane = memo(function InboxPane({
   density = 'comfortable',
 }: InboxPaneProps) {
   const theme = useTheme()
+  const { width } = useTerminalDimensions()
   const pad = density === 'compact' ? 0 : 1
+  // Columns available for a row's text (pane width minus border + padding). The
+  // grow pane fills the terminal; the rail is fixed.
+  const contentWidth = Math.max(1, (grow ? width : RAIL_WIDTH) - 2 - 2 * pad)
   return (
     <box
       title={focused ? 'Chats ●' : 'Chats'}
@@ -78,13 +96,20 @@ export const InboxPane = memo(function InboxPane({
       style={
         grow
           ? { flexGrow: 1, flexDirection: 'column', padding: pad }
-          : { width: 32, flexShrink: 0, flexDirection: 'column', padding: pad }
+          : { width: RAIL_WIDTH, flexShrink: 0, flexDirection: 'column', padding: pad }
       }
     >
       {rows.length === 0 ? (
         <text>No chats to show.</text>
       ) : (
-        rows.map((row) => <InboxRowView key={row.id} row={row} networkColors={networkColors} />)
+        rows.map((row) => (
+          <InboxRowView
+            key={row.id}
+            row={row}
+            networkColors={networkColors}
+            contentWidth={contentWidth}
+          />
+        ))
       )}
     </box>
   )
@@ -93,27 +118,36 @@ export const InboxPane = memo(function InboxPane({
 function InboxRowView({
   row,
   networkColors,
+  contentWidth,
 }: {
   row: InboxRow
   networkColors?: NetworkColors | undefined
+  contentWidth: number
 }) {
   const theme = useTheme()
   const prefix = row.isSelected ? '›' : ' '
   const unread = row.hasUnread ? ` (${row.unreadCount})` : ''
   const muted = row.isMuted ? ' 🔇' : ''
   const selected = row.isSelected
+  const marker = `${prefix} ${networkMarker(row.network)}`
+  // Clip the title so the whole row fits one line: budget = content width minus
+  // the marker, the two-space gap, and the unread/mute suffixes (kept intact).
+  const titleBudget = contentWidth - marker.length - 2 - unread.length - muted.length
+  const title = clipText(row.title, titleBudget)
   // The network marker is tinted by network; the title stays readable on the
-  // selection highlight. Row-level bg spans the line via the container.
+  // selection highlight. `height: 1` + overflow guarantees no wrap even if a
+  // width estimate is off.
   return (
     <box
-      style={{ flexDirection: 'row', ...(selected ? { backgroundColor: theme.selectionBg } : {}) }}
+      style={{
+        flexDirection: 'row',
+        height: 1,
+        overflow: 'hidden',
+        ...(selected ? { backgroundColor: theme.selectionBg } : {}),
+      }}
     >
-      <text
-        style={{ fg: networkColor(row.network, networkColors) }}
-      >{`${prefix} ${networkMarker(row.network)}`}</text>
-      <text
-        style={selected ? { fg: theme.selectionFg } : {}}
-      >{`  ${row.title}${unread}${muted}`}</text>
+      <text style={{ fg: networkColor(row.network, networkColors) }}>{marker}</text>
+      <text style={selected ? { fg: theme.selectionFg } : {}}>{`  ${title}${unread}${muted}`}</text>
     </box>
   )
 }

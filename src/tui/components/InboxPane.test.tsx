@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { testRender } from '@opentui/react/test-utils'
 import { rgbToHex } from '@opentui/core'
 import type { CapturedFrame } from '@opentui/core'
-import { InboxPane, networkColor, networkMarker } from '@/tui/components/InboxPane.tsx'
+import { clipText, InboxPane, networkColor, networkMarker } from '@/tui/components/InboxPane.tsx'
 import type { InboxRow } from '@/state/selectors.ts'
 import { ThemeProvider } from '@/tui/theme/context.tsx'
 import { DRACULA_THEME } from '@/tui/theme/theme.ts'
@@ -54,6 +54,40 @@ describe('InboxPane', () => {
     // The selected row's title cells carry the theme's selection background —
     // proving tokens reach real paint, not just the context value.
     expect(bgOfSpanWith(captureSpans(), 'Ada')).toBe(DRACULA_THEME.selectionBg.toLowerCase())
+  })
+
+  test('a long chat name is clipped with an ellipsis, on one line (no wrap)', async () => {
+    const longRow: InboxRow = {
+      ...row,
+      isSelected: false,
+      title: 'A ridiculously long group chat name that would wrap the rail',
+    }
+    const { renderOnce, captureCharFrame } = await testRender(<InboxPane rows={[longRow]} />, {
+      width: 32,
+      height: 6,
+    })
+    await renderOnce()
+    const frame = captureCharFrame()
+    expect(frame).toContain('…') // truncated
+    expect(frame).not.toContain('would wrap') // the tail is gone, not wrapped onto another line
+    // The row occupies a single line: the full name never appears intact.
+    expect(frame).not.toContain(longRow.title)
+  })
+})
+
+describe('clipText', () => {
+  test('leaves short text untouched', () => {
+    expect(clipText('Ada', 10)).toBe('Ada')
+    expect(clipText('Ada', 3)).toBe('Ada')
+  })
+
+  test('truncates with a trailing ellipsis at the budget', () => {
+    expect(clipText('Grace Hopper', 6)).toBe('Grace…')
+    expect(clipText('Grace Hopper', 1)).toBe('…')
+  })
+
+  test('a zero/negative budget yields nothing', () => {
+    expect(clipText('Grace', 0)).toBe('')
   })
 })
 
