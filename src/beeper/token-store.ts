@@ -16,7 +16,7 @@ import { resolveConfig } from '@/beeper/config.ts'
  * refresh and revoke both require the same client the tokens were issued to.
  */
 
-const SERVICE = 'beeper-tui'
+const SERVICE = 'beeptui'
 const AUTH_NAME = 'oauth-session'
 
 /** The stored OAuth session: the registered client + its tokens. */

@@ -73,7 +73,7 @@ export async function launch(options: { demo?: boolean } = {}): Promise<void> {
     gateway = createDemoGateway()
   } else {
     // Resolve the token: an explicit env/legacy token wins; otherwise a stored
-    // OAuth session (from `beeper-tui login`), refreshed if expired. Needs the
+    // OAuth session (from `beeptui login`), refreshed if expired. Needs the
     // endpoint's OAuth metadata, so it reads `/v1/info` via a pre-auth adapter.
     const preAuth = new BeeperAdapter({ endpoint })
     token = await resolveActiveToken({

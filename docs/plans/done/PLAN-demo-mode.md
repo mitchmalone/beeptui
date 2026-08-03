@@ -27,7 +27,7 @@ HTML-formatted message, themes).
   socket, persistence (must not overwrite the user's real cached inbox/drafts), and the tmux status
   writer. Theme resolution + everything else is identical. Auto-open the first chat so the
   conversation pane has content on first paint.
-- **CLI:** `beeper-tui --demo` (and `run --demo`) → `launch({ demo: true })`.
+- **CLI:** `beeptui --demo` (and `run --demo`) → `launch({ demo: true })`.
 
 ## Steps
 
@@ -39,7 +39,7 @@ HTML-formatted message, themes).
 
 ## Acceptance criteria
 
-- [x] `beeper-tui --demo` boots with fictitious multi-network chats, no token/network required
+- [x] `beeptui --demo` boots with fictitious multi-network chats, no token/network required
 - [x] Demo never touches the user's persisted store or tmux title
 - [x] `bun run typecheck`, `bun run lint`, `bun test` green
 

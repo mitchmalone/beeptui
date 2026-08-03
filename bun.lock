@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "beeper-tui",
+      "name": "beeptui",
       "dependencies": {
         "@beeper/desktop-api": "5.0.0",
         "@opentui/core": "0.4.5",

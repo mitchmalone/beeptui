@@ -38,18 +38,18 @@ describe('token store', () => {
   })
 
   test('load degrades to null (logged out) on a corrupt entry, never throws', async () => {
-    const store = fakeStore({ 'beeper-tui/oauth-session': 'not json{' })
+    const store = fakeStore({ 'beeptui/oauth-session': 'not json{' })
     expect(await loadAuth(store)).toBeNull()
   })
 
   test('load rejects a blob missing clientId or accessToken', async () => {
     expect(
       await loadAuth(
-        fakeStore({ 'beeper-tui/oauth-session': JSON.stringify({ tokens: { accessToken: 'x' } }) })
+        fakeStore({ 'beeptui/oauth-session': JSON.stringify({ tokens: { accessToken: 'x' } }) })
       )
     ).toBeNull()
     expect(
-      await loadAuth(fakeStore({ 'beeper-tui/oauth-session': JSON.stringify({ clientId: 'c' }) }))
+      await loadAuth(fakeStore({ 'beeptui/oauth-session': JSON.stringify({ clientId: 'c' }) }))
     ).toBeNull()
   })
 

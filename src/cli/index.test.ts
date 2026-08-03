@@ -15,7 +15,7 @@ async function runCli(
     env: {
       PATH: process.env.PATH ?? '',
       HOME: process.env.HOME ?? '',
-      BEEPER_TUI_ENDPOINT: CLOSED_ENDPOINT,
+      BEEPTUI_ENDPOINT: CLOSED_ENDPOINT,
       // Ensure no ambient token leaks into the run.
       BEEPER_ACCESS_TOKEN: '',
       ...env,
@@ -31,7 +31,7 @@ async function runCli(
   return { code, stdout, stderr }
 }
 
-describe('beeper-tui CLI', () => {
+describe('beeptui CLI', () => {
   test('doctor against a closed endpoint names the failure and exits non-zero', async () => {
     const { code, stdout } = await runCli(['doctor', '--json'])
     expect(code).toBe(1)
@@ -53,7 +53,7 @@ describe('beeper-tui CLI', () => {
   test('--help prints usage and exits 0', async () => {
     const { code, stdout } = await runCli(['--help'])
     expect(code).toBe(0)
-    expect(stdout).toContain('beeper-tui')
+    expect(stdout).toContain('beeptui')
     expect(stdout).toContain('doctor')
   })
 
@@ -71,7 +71,7 @@ describe('beeper-tui CLI', () => {
 
   test('a bad config surfaces one clear line, not a stack trace', async () => {
     const { code, stderr } = await runCli(['status'], {
-      BEEPER_TUI_ENDPOINT: 'http://not-loopback.example:23373',
+      BEEPTUI_ENDPOINT: 'http://not-loopback.example:23373',
     })
     expect(code).toBe(1)
     expect(stderr).toMatch(/https/i)

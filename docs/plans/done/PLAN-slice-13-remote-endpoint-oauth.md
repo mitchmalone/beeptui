@@ -72,12 +72,12 @@ The mechanism is **discoverable and standard** — no guessing:
       (no more argv/FFI fork — `Bun.secrets` + an honest encrypted-file fallback).
 - [x] Session lifecycle (`auth-session.ts`): `login` (authorize + persist), `logout` (revoke + clear),
       `currentAccessToken` (refresh-on-expiry + persist), `resolveActiveToken` (env/legacy → stored
-      OAuth). `beeper-tui login` / `logout` CLI commands; `launch` + `status`/`doctor` resolve the
+      OAuth). `beeptui login` / `logout` CLI commands; `launch` + `status`/`doctor` resolve the
       active token through it. Unit-tested end-to-end against fakes.
 - [x] Named-endpoint config + selection; token introspection checks in `doctor`. **Introspection
       done** — `doctor` reports token scope via `introspectToken` (RFC 7662), flagging read-only
       tokens (live-verified). **Named endpoints done** — `config.endpoints` (`{name: url}`); the
-      `endpoint` selector (or `BEEPER_TUI_ENDPOINT`) is a URL _or_ a name resolved against it.
+      `endpoint` selector (or `BEEPTUI_ENDPOINT`) is a URL _or_ a name resolved against it.
 - [x] Security review pass; record + fix findings (`DECISIONS.md`, 2026-08-01). **Passed** — no
       exploitable findings; fixed one non-security IPv6-loopback labelling bug in `classifyEndpoint`.
 
@@ -86,7 +86,7 @@ The mechanism is **discoverable and standard** — no guessing:
 - [~] Full flow works against a **real Server Client endpoint**: configure → authenticate → inbox →
   send, tokens only in the credential store. **Built + unit-tested end-to-end; the credential-store
   persistence is live-verified** (`Bun.secrets` set/get/delete round-trip on the macOS Keychain).
-  **Remaining gate:** running `beeper-tui login` against a real remote endpoint (browser flow +
+  **Remaining gate:** running `beeptui login` against a real remote endpoint (browser flow +
   `remote_access` enabled) — not available locally (`remote_access:false`).
 - [x] `doctor` distinguishes local-desktop vs remote-endpoint failure modes.
 - [x] Security review completed and its findings recorded in `DECISIONS.md` / fixed
@@ -97,14 +97,14 @@ The mechanism is **discoverable and standard** — no guessing:
 Closed as **code-complete, live-validation deferred (accepted risk, Mitch)**. The full OAuth surface
 (PKCE core, dynamic registration, exchange/refresh/revoke, token persistence via `Bun.secrets`,
 headless-Linux encrypted-file fallback, `login`/`logout` wiring, endpoint-aware `doctor`) is built,
-unit-tested, security-reviewed, and merged. The single unrun item — `beeper-tui login` against a
+unit-tested, security-reviewed, and merged. The single unrun item — `beeptui login` against a
 **real remote endpoint** with `remote_access` on — has no such endpoint available here
 (`remote_access:false` locally), so Mitch chose to close the slice and carry that live run as a
 tracked follow-up in `TODO.md`.
 
 ## Blocking gates (need Mitch / environment) — DEFERRED to TODO.md
 
-1. **A real remote Server Client endpoint** with `remote_access` enabled, to validate `beeper-tui
+1. **A real remote Server Client endpoint** with `remote_access` enabled, to validate `beeptui
 login` end-to-end (the browser flow + a live token exchange). Only a local Desktop
    (`remote_access: false`) is available here. Everything up to that point is built + tested.
 

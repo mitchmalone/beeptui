@@ -3,7 +3,7 @@ import type { Gateway } from '@/tui/runtime.ts'
 import type { MessageHistoryPage, MessageSearchPage } from '@/beeper/client.ts'
 
 /**
- * A synthetic `Gateway` for `beeper-tui --demo`: the real TUI, fake data, no
+ * A synthetic `Gateway` for `beeptui --demo`: the real TUI, fake data, no
  * network or auth. Everything here is invented — no real names, chats, or
  * content (invariant 9). Writes resolve as no-ops so the optimistic UI behaves.
  */

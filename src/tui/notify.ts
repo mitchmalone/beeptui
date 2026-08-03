@@ -12,7 +12,7 @@ import type { MessageSummary } from '@/beeper/types.ts'
 /** The redacted notification line. Network is a platform name (WhatsApp/Slack),
  *  not content or a contact — safe to surface. */
 export function notificationText(network: string): string {
-  return `beeper-tui: new message on ${network}`
+  return `beeptui: new message on ${network}`
 }
 
 /**

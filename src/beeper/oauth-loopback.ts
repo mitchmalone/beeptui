@@ -59,7 +59,7 @@ export async function startLoopback(expectedState: string): Promise<LoopbackRece
         return new Response('Bad request', { status: 400 })
       }
       resolveCallback(request.url)
-      return new Response('beeper-tui: authentication complete — you can close this tab.', {
+      return new Response('beeptui: authentication complete — you can close this tab.', {
         headers: { 'content-type': 'text/plain' },
       })
     },

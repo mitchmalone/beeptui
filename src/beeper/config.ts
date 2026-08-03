@@ -88,7 +88,7 @@ function validateEndpoint(endpoint: string): string {
 }
 
 /**
- * Resolve the effective config. Endpoint precedence: `BEEPER_TUI_ENDPOINT` env >
+ * Resolve the effective config. Endpoint precedence: `BEEPTUI_ENDPOINT` env >
  * config-file `endpoint` > default. The config file may set only the endpoint —
  * tokens never live in it (they belong in the platform credential store;
  * CLAUDE.md invariant 1/6).
@@ -99,7 +99,7 @@ export function resolveConfig(deps: ResolveConfigDeps = {}): ResolvedConfig {
   const readFile = deps.readFile ?? defaultReadFile
 
   const configHome = env.XDG_CONFIG_HOME ?? `${homedir}/.config`
-  const configPath = `${configHome}/beeper-tui/config.json`
+  const configPath = `${configHome}/beeptui/config.json`
 
   let fileEndpoint: string | undefined
   let endpoints: Record<string, string> = {}
@@ -129,7 +129,7 @@ export function resolveConfig(deps: ResolveConfigDeps = {}): ResolvedConfig {
 
   // The selection may be a URL or the name of a configured endpoint; resolve a
   // name against `endpoints`, otherwise treat it as a literal URL.
-  const selection = env.BEEPER_TUI_ENDPOINT ?? fileEndpoint ?? DEFAULT_ENDPOINT
+  const selection = env.BEEPTUI_ENDPOINT ?? fileEndpoint ?? DEFAULT_ENDPOINT
   const endpoint = validateEndpoint(endpoints[selection] ?? selection)
   return { endpoint, endpoints, configPath, notify, keymap, theme }
 }

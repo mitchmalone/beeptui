@@ -11,7 +11,7 @@ function memIO(): FileIO & { files: Map<string, string> } {
   }
 }
 
-const entry = { service: 'beeper-tui', name: 'oauth-session' }
+const entry = { service: 'beeptui', name: 'oauth-session' }
 
 describe('encrypted file secret store (headless fallback)', () => {
   test('set then get round-trips the value', async () => {
@@ -54,9 +54,9 @@ describe('encrypted file secret store (headless fallback)', () => {
   test('multiple keys coexist in the one encrypted file', async () => {
     const io = memIO()
     const store = createFileSecretStore('/cfg', io)
-    await store.set({ service: 'beeper-tui', name: 'a', value: 'AAA' })
-    await store.set({ service: 'beeper-tui', name: 'b', value: 'BBB' })
-    expect(await store.get({ service: 'beeper-tui', name: 'a' })).toBe('AAA')
-    expect(await store.get({ service: 'beeper-tui', name: 'b' })).toBe('BBB')
+    await store.set({ service: 'beeptui', name: 'a', value: 'AAA' })
+    await store.set({ service: 'beeptui', name: 'b', value: 'BBB' })
+    expect(await store.get({ service: 'beeptui', name: 'a' })).toBe('AAA')
+    expect(await store.get({ service: 'beeptui', name: 'b' })).toBe('BBB')
   })
 })

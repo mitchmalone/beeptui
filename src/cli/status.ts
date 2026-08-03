@@ -55,7 +55,7 @@ function renderHuman(report: StatusReport): string {
   if (!report.reachable) {
     const detail = report.error && report.error !== 'unreachable' ? ` (${report.error})` : ''
     lines.push(`Status:    unreachable${detail}`)
-    lines.push('           Is Beeper Desktop running? Try `beeper-tui doctor`.')
+    lines.push('           Is Beeper Desktop running? Try `beeptui doctor`.')
     return lines.join('\n')
   }
   if (report.app) {
@@ -66,7 +66,7 @@ function renderHuman(report: StatusReport): string {
     lines.push(`Accounts:  ${report.accounts.length}`)
     for (const a of report.accounts) lines.push(`  • ${a.network} — ${a.displayName}`)
   } else if (!report.authenticated) {
-    lines.push('           No token configured — run `beeper-tui doctor` for help.')
+    lines.push('           No token configured — run `beeptui doctor` for help.')
   }
   return lines.join('\n')
 }

@@ -14,16 +14,16 @@ import { formatDoctor, runDoctor } from '@/cli/doctor.ts'
 import { runStatus } from '@/cli/status.ts'
 import { version } from '../../package.json'
 
-const USAGE = `beeper-tui — a terminal client for Beeper
+const USAGE = `beeptui — a terminal client for Beeper
 
 Usage:
-  beeper-tui              Launch the TUI (alias: run)
-  beeper-tui status       Show endpoint, auth state, and connected accounts
-  beeper-tui doctor       Run diagnostic checks (non-zero exit on any failure)
-  beeper-tui login        Authenticate a remote endpoint via OAuth (browser)
-  beeper-tui logout       Revoke + forget the stored OAuth session
-  beeper-tui --help       Show this help
-  beeper-tui --version    Show the version
+  beeptui              Launch the TUI (alias: run)
+  beeptui status       Show endpoint, auth state, and connected accounts
+  beeptui doctor       Run diagnostic checks (non-zero exit on any failure)
+  beeptui login        Authenticate a remote endpoint via OAuth (browser)
+  beeptui logout       Revoke + forget the stored OAuth session
+  beeptui --help       Show this help
+  beeptui --version    Show the version
 
 Flags:
   --json                  Machine-readable output (status, doctor)

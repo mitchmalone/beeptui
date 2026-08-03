@@ -6,6 +6,21 @@
 
 ---
 
+### 2026-08-03 · Canonical name is `beeptui` (drop the `beeper-tui` spelling)
+
+**Decision.** The package name, CLI binary, config/state directories, keychain service, endpoint
+env var, and Homebrew formula are all `beeptui` — matching the repo. The hyphenated `beeper-tui`
+spelling is retired everywhere. The env var becomes `BEEPTUI_ENDPOINT`; config lives at
+`~/.config/beeptui/`, state at `~/.local/state/beeptui/`, keychain service `beeptui`, formula
+`beeptui.rb` (`class Beeptui`). Reverses the 2026-07-30 lock below.
+
+**Why.** One name, everywhere. `beeper-tui` split the identity between the repo (`beeptui`) and the
+shipped surface for no benefit; a single token reads cleaner and removes the repo-vs-binary mismatch.
+
+**Consequences.** Hard break, taken pre-1.0 with no compat shim: existing local installs lose their
+token (old keychain service) and config/state (old dirs) — re-run `login` / `doctor`. Any script
+setting `BEEPER_TUI_ENDPOINT` must switch to `BEEPTUI_ENDPOINT`. The homebrew tap ships `beeptui.rb`.
+
 ### 2026-08-01 · MIT license; history rewrite before the public flip
 
 **Decision.** The project is licensed **MIT** (Mitch, 2026-08-01) — `LICENSE` added,
@@ -214,7 +229,10 @@ re-evaluate bumping both together. TS 7 already forced one config change kept fo
 `tsconfig` `baseUrl` is removed in TS 7, so the `@/*` alias uses a relative `paths` mapping
 (`./src/*`) that works on both lines. Quirks recorded in `LEARNINGS.md`.
 
-### 2026-07-30 · Package/CLI/config name is `beeper-tui`
+### 2026-07-30 · Package/CLI/config name is `beeper-tui` — superseded 2026-08-03
+
+> **Superseded by the 2026-08-03 entry above:** the name is now `beeptui` everywhere. Preserved
+> below as the original record.
 
 **Decision.** The npm package name, CLI binary, and config directory are `beeper-tui` (config at
 `~/.config/beeper-tui/`). The git repo stays `beeptui`. Resolves PRD open question #1.

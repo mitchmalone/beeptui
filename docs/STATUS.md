@@ -7,8 +7,17 @@
 
 ## Where we are
 
-**TUI UX pass shipped — merged to `main` as `v0.2.0`** (2026-08-03, PR #33, squash-merged; no
-release/tag cut). A batch of interaction/visual work, built and committed feature-by-feature:
+**Renamed to `beeptui` + released `v0.2.0`** (2026-08-03, PR #35). The app is `beeptui` everywhere
+— package/bin, config `~/.config/beeptui/`, state `~/.local/state/beeptui/`, keychain service,
+`BEEPTUI_ENDPOINT`, and the Homebrew formula (`beeptui.rb`, `class Beeptui`) — reversing the
+2026-07-30 `beeper-tui` lock (`DECISIONS.md`). Breaking, no compat shim (pre-1.0): existing installs
+re-run `login`/`doctor`. Same PR fixed **release version stamping** — the binary now embeds the git
+tag (v0.1.0 had shipped `0.0.0`) — bumped the release actions off Node-20, and made the tap
+self-retire the old formula + refresh its README on release. `v0.2.0` folds in the earlier UX pass,
+which had a doc version but was never tagged/released.
+
+**TUI UX pass** — merged to `main` (2026-08-03, PR #33, squash-merged; released as part of `v0.2.0`
+above). A batch of interaction/visual work, built and committed feature-by-feature:
 
 - **Theming** — semantic token system behind `ThemeProvider`/`useTheme()`; built-in **default /
   dracula / system** (system adapts to the terminal's light/dark via `waitForThemeMode`) + user themes
@@ -22,7 +31,7 @@ release/tag cut). A batch of interaction/visual work, built and committed featur
   `railCursor` decoupled from scope — works at All + per-network).
 - **HTML → terminal formatting** — translate `<b>/<i>/<u>`, `<br>`, `<ul>`/`<ol>`, entities; strip the
   rest (a translator, not a renderer). Applied in the conversation, search snippets, reply preview.
-- **Demo mode** — `beeper-tui --demo` runs the real TUI on a synthetic gateway (no Beeper/auth/net),
+- **Demo mode** — `beeptui --demo` runs the real TUI on a synthetic gateway (no Beeper/auth/net),
   fictitious multi-network data. **Verified live in tmux.**
 
 Version bumped `0.0.0 → 0.2.0` (was stale; `--version` correct now). **539 tests** green; typecheck +
@@ -31,9 +40,9 @@ extraction, line-aware HTML menu anchoring, self-driving demo choreography.
 
 **First tagged release — `v0.1.0` (2026-08-02).** Pushed tag `v0.1.0`; the release workflow built
 both binaries (darwin-arm64 + linux-x64), published a GitHub Release with `sha256sums.txt`, and
-pushed `Formula/beeper-tui.rb` to `mitchmalone/homebrew-tap` (SHA-256s match). `brew install
-mitchmalone/tap/beeper-tui` resolves. The brew/release polish item is **done** — end-to-end, not
-just structural. (Minor: the run warns on Node-20 GitHub-action majors; bump when convenient.)
+pushed `Formula/beeptui.rb` to `mitchmalone/homebrew-tap` (SHA-256s match). `brew install
+mitchmalone/tap/beeptui` resolves. The brew/release polish item is **done** — end-to-end, not
+just structural. (The Node-20 action-major warning was cleared in `v0.2.0`.)
 
 **v1 polish pass (`feat/v1-polish`, 2026-08-01).** Knocked out the optional backlog in one branch
 (Mitch: "break the rules, do it all"): **layout density** toggle (`D`, seeded from
@@ -105,7 +114,7 @@ orchestrator, unit-tested against a fake auth server; `oauth-loopback.ts` is the
 `DECISIONS.md` 2026-08-01). `doctor` distinguishes local vs remote. **Token persistence now built**
 (`token-store.ts` + `auth-session.ts`): backed by **`Bun.secrets`** — Bun's cross-platform OS
 credential store (Keychain / Secret Service / Credential Manager), in-process (argv-free), zero-dep —
-which closes the security review's open item. `beeper-tui login` / `logout` wire the full lifecycle
+which closes the security review's open item. `beeptui login` / `logout` wire the full lifecycle
 (authorize → persist → refresh-on-expiry → revoke); `launch`/`status`/`doctor` resolve the active
 token through it (env/legacy → stored OAuth). Live-verified the Keychain round-trip. **Headless-Linux
 fallback** (`secret-file-store.ts`): AES-256-GCM encrypted `0600` file when no keyring is present.
@@ -119,7 +128,7 @@ endpoint (`remote_access:false` locally).
 redacted app+network-only command on new inbound messages, argv-free), and **config-file
 customization** — `config.keymap` rebinds any command (validated, help reflects it) and
 `config.theme.networkColors` overrides the per-network accent colours (validated hex). **Packaging:**
-`bun run build` compiles a standalone `dist/beeper-tui` (~69 MB Mach-O arm64) that runs
+`bun run build` compiles a standalone `dist/beeptui` (~69 MB Mach-O arm64) that runs
 `--help`/`doctor`/TUI with no Bun at runtime — OpenTUI/Bun compat validated on macOS arm64; README
 has Install + Configuration docs. **429 tests** green; typecheck + lint + format + security review
 clean. **Slice 14 closed** (plan moved to `plans/done/`): the power features + packaging shipped;
@@ -149,8 +158,6 @@ is tidy (only `main` locally + remote). Two tracks remain:
 
 - **`PLAN-login-guard-local-endpoint.md`** — `login` refuses on a local / remote-access-off endpoint
   instead of opening a dead browser tab (found 2026-08-03). Small, no hardware needed.
-- **`PLAN-release-hygiene-versioning.md`** — fix `--version` (`0.0.0` → tag), stamp version from the
-  tag in CI, bump Node-20 actions; cut `v0.1.1`.
 - **`PLAN-inline-image-rendering.md`** — inline image attachments (native protocol first; feasibility
   confirmed, `docs/PERF.md`). `PLAN-v1-polish-backlog.md` indexes these.
 
@@ -167,7 +174,7 @@ live in `TODO.md`.
 
 - ~~**Slice 11 live reply send**~~ — **done 2026-08-01** (real replies sent from the TUI on a
   connected network; the one invariant-5-gated step). Slice 11 fully closed.
-- **Slice 13 remote login** — run `beeper-tui login` against a real remote endpoint with
+- **Slice 13 remote login** — run `beeptui login` against a real remote endpoint with
   `remote_access` on (browser OAuth + live token exchange). All code built + unit-tested.
 - **Slice 12 live matrix** — connect Discord / Instagram DMs / X DMs, then run
   list/read/send/reply/search/attachments per network. Clears the last item before **Phase 2 complete**.
@@ -189,8 +196,8 @@ live in `TODO.md`.
 
 Record outcomes in `DECISIONS.md` when made.
 
-1. ~~Final name~~ — **resolved 2026-07-30:** package/CLI/config is `beeper-tui`, repo stays
-   `beeptui` (`DECISIONS.md`).
+1. ~~Final name~~ — **resolved:** the name is `beeptui` everywhere (`DECISIONS.md` 2026-08-03,
+   superseding the 2026-07-30 `beeper-tui` lock).
 2. Phase 1 = local Beeper Desktop only? (Assumed **yes** by the slice plans.)
 3. Terminal support baseline: rich terminals only vs conservative baseline. (Slice plans assume
    rich terminals — Ghostty/Kitty/iTerm2/WezTerm — first.)

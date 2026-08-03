@@ -208,7 +208,7 @@ const BANNER_MESSAGE: Partial<Record<ConnectionState, string>> = {
   idle: 'Not connected.',
   connecting: 'Connecting to Beeper…',
   unreachable: 'Beeper Desktop is unreachable. Is it running?',
-  unauthorized: 'Not authorized. Check your Beeper token (run `beeper-tui doctor`).',
+  unauthorized: 'Not authorized. Check your Beeper token (run `beeptui doctor`).',
 }
 
 /** A banner to show when the connection is anything other than healthy; null
