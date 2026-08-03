@@ -46,7 +46,7 @@ the `v`) into `package.json` before `bun build --compile`. Keep `package.json` a
 - [x] Bump the GitHub Actions to the Node-24 majors (`actions/checkout@v5`,
       `actions/upload-artifact@v5`, `actions/download-artifact@v5`) to clear the deprecation warning.
 - [x] Cut the next release (`v0.2.0`, folded in with the `beeptui` rename); confirm `beeptui
-    --version` prints the tag version from the released binary and the tap updates. _(release run
+--version` prints the tag version from the released binary and the tap updates. _(release run
       verified at close — see JOURNAL 2026-08-03)_
 
 ## Acceptance criteria
