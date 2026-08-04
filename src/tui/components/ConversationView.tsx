@@ -40,6 +40,11 @@ export interface ConversationViewProps {
   /** An older page has been asked for and hasn't arrived — the top hint says so
    *  rather than leaving the pane looking like it ignored the keypress. */
   loadingOlder?: boolean
+  /** Message being replied to, marked so it is obvious what the draft answers.
+   *  Distinct from the selection cursor: the cursor is where the arrow keys
+   *  are, this is what the reply targets, and they are rarely the same message
+   *  because starting a reply moves focus to compose. */
+  replyToId?: string | null
 }
 
 /** Rows a floating menu occupies (border + rows + hint), for open-up/down choice. */
@@ -109,6 +114,7 @@ export const ConversationView = memo(function ConversationView({
   networkColors,
   density = 'comfortable',
   loadingOlder = false,
+  replyToId = null,
 }: ConversationViewProps) {
   const theme = useTheme()
   const { height, width } = useTerminalDimensions()
@@ -190,6 +196,9 @@ export const ConversationView = memo(function ConversationView({
         ) : (
           visible.map((vr, i) => {
             const selected = vr.messageId === selectedMessageId
+            // A quote bar in the gutter marks the reply target — a different
+            // glyph from the `›` cursor so the two never read as the same state.
+            const replying = replyToId !== null && vr.messageId === replyToId
             const style = rowStyle(byId.get(vr.messageId), selected, theme)
             // The separator belongs to the message above it but not to its
             // block — tinting it would run the highlight a row too far.
@@ -208,7 +217,9 @@ export const ConversationView = memo(function ConversationView({
                 }}
               >
                 <box style={{ width: CARET_GUTTER, flexShrink: 0 }}>
-                  <text style={style}>{selected && vr.first ? '›' : ' '}</text>
+                  <text style={replying ? { fg: theme.accent } : style}>
+                    {selected && vr.first ? '›' : replying && vr.row.kind !== 'blank' ? '┃' : ' '}
+                  </text>
                 </box>
                 <box style={{ flexGrow: 1, flexDirection: 'column' }}>
                   <RowContent row={vr.row} style={style} />
