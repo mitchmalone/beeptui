@@ -1,6 +1,6 @@
 ---
 title: v0.3 — the ladder, and the release itself
-status: planned
+status: active
 created: 2026-08-04
 updated: 2026-08-04
 links:
@@ -49,15 +49,15 @@ the layout slice and deferred rather than folded in.
 
 ## Release steps (after 1–7 land)
 
-- [ ] `main` green: `bun run typecheck`, `bun run lint`, `bun test`, and the GitHub Actions run on
+- [x] `main` green: `bun run typecheck`, `bun run lint`, `bun test`, and the GitHub Actions run on
       `main` — checked, not assumed.
-- [ ] Full manual pass in `--demo` **and** against a real account: launch state, chat open, cursor
+- [x] Full manual pass in `--demo` **and** against a real account: launch state, chat open, cursor
       behaviour, paging by `↑`, reply from the dropdown, settings → theme, images.
-- [ ] Bump `package.json` to `0.3.0`. (The release workflow stamps the binary from the git tag; the
+- [x] Bump `package.json` to `0.3.0`. (The release workflow stamps the binary from the git tag; the
       package version is for local dev builds.)
-- [ ] `docs/STATUS.md` rewritten to describe 0.3 as shipped, not in flight. `docs/JOURNAL.md` and
+- [x] `docs/STATUS.md` rewritten to describe 0.3 as shipped, not in flight. `docs/JOURNAL.md` and
       `LEARNINGS.md` current. Every step's plan moved to `plans/done/`.
-- [ ] Confirm `README.md` and the website claim nothing 0.3 does not do (cross-repo rule 2 —
+- [x] Confirm `README.md` and the website claim nothing 0.3 does not do (cross-repo rule 2 —
       `beeptui-web` copy must match `STATUS.md` and `README.md`).
 - [ ] Tag `v0.3.0` and push. Watch the release workflow: both binaries build, `sha256sums.txt`
       publishes, the tap job pushes `Formula/beeptui.rb`, and the SHA-256s match.
@@ -66,6 +66,20 @@ the layout slice and deferred rather than folded in.
       contents:write on `beeptui-web`) or it silently skips. Set them before tagging, or accept that
       beeptui.com keeps showing the old version.
 - [ ] `brew install mitchmalone/tap/beeptui` resolves to 0.3.0 from a clean shell.
+
+## Manual pass — 2026-08-04
+
+Run against a real account, not the demo. All green:
+
+- Launch: All scope, first chat highlighted, Chats focused, conversation invites you to open it.
+- `⏎` opens a chat and seats the cursor on the newest message.
+- Holding `↑` walks continuously back through history, fetching pages; `G` returns to the newest.
+- `⏎` on a message offers Reply and React; Reply retitles compose to `Replying in thread ●` and marks
+  the target with a quote bar.
+- Net rail → Settings → Theme lists the themes with the active one marked; `Esc` steps back one level.
+
+The pass found one bug, fixed before release: messages containing links rendered raw `<a href=…>`
+markup (#47).
 
 ## Out of scope for 0.3
 

@@ -7,67 +7,42 @@
 
 ## Where we are
 
-**The v0.3 ladder — 3 of 7 done** (2026-08-04). Seven slices, each its own plan and its own PR,
-laddering to a `v0.3.0` release; index and release checklist in
-`docs/plans/backlog/PLAN-v03-release.md`.
+**v0.3 — six of seven slices shipped; inline images deferred to 0.4.** The conversation is
+navigable and configurable: one scrolling model, a cursor that is always somewhere sensible, replies
+you can find, and a home for settings. Full detail per slice in `plans/done/`; the release checklist
+is `plans/backlog/PLAN-v03-release.md`.
 
-| #   | Slice                                                                         | State              |
-| --- | ----------------------------------------------------------------------------- | ------------------ |
-| 1   | **Login guard** — `login` refuses instead of opening a dead browser tab       | done, merged (#39) |
-| 2   | **Full-window eviction** — live arrivals ignored once 200 messages are loaded | done, merged (#40) |
-| 3   | **Selection & focus** — the active column always has a cursor                 | done (#41)         |
-| 4   | **History paging on scroll** — drop `u`; `↑` at the top pages history         | not started        |
-| 5   | **Reply from the action menu** — `Replying in thread ●`, mark the target      | not started        |
-| 6   | **Settings menu** in the Net rail → Theme                                     | not started        |
-| 7   | **Inline image rendering**                                                    | not started        |
+| #   | Slice                                                                         | State                   |
+| --- | ----------------------------------------------------------------------------- | ----------------------- |
+| 1   | **Login guard** — `login` refuses instead of opening a dead browser tab       | done (#39)              |
+| 2   | **Full-window eviction** — live arrivals ignored once 200 messages are loaded | done (#40)              |
+| 3   | **Selection & focus** — the active column always has a cursor                 | done (#41)              |
+| 4   | **History paging on scroll** — `u` dropped; `↑` at the top pages history      | done (#42)              |
+| 5   | **Reply from the action menu** — `Replying in thread ●`, target marked        | done (#43)              |
+| 6   | **Settings menu** in the Net rail → Theme                                     | done (#44)              |
+| 7   | **Inline image rendering**                                                    | deferred to 0.4 (Mitch) |
 
-Steps 4 and 5 both build on 3 and must land in order — all three move selection state in the
-reducer. Step 7 is last because its emit-point spike is the only unresolved feasibility question in
-the set; an unhappy result there costs the release nothing but images.
+Three more fixes landed alongside, each found by using the app rather than by a test:
 
-**Step 1 — login guard.** `beeptui login` no longer opens a dead browser tab and hangs on a callback
-that never comes: it refuses up front when the endpoint reports `remote_access` off, naming the
-situation and pointing at the token path (local) or at enabling remote access (remote). Gated on
-`remote_access` rather than locality — narrower than the plan proposed, see `JOURNAL.md`.
+- **Dead `conversation/scrolled` removed** (#45) — dispatched by nothing since the message cursor
+  arrived, yet fifteen tests reached a "scrolled up" state through it. They now scroll by moving the
+  cursor, which is the only scroll there is.
+- **Media messages name themselves** (#46) — `type: IMAGE`/`VIDEO` messages arrive from Beeper with
+  neither text nor attachment metadata (21 of 22 image messages across ten chats) and were rendering
+  as an empty line. They now say `[image]` / `[video]`; real labels and text still win.
+- **Anchors detected as HTML** (#47) — a message containing a link rendered its raw markup. The
+  translator handled anchors all along; the detection whitelist had been written from the tags the
+  formatter implements rather than the tags bridges send.
 
-**Step 2 — full-window eviction.** Live arrivals are detected from what the merge actually added,
-not from the message list's length. At `MAX_MESSAGES_PER_CHAT` an arrival evicts the oldest so the
-length never moves, which had silently disabled the reading-position hold, the new-messages
-affordance and cursor-follow on any busy chat with a full window. A self-echo that consumes an
-optimistic placeholder is deliberately not an arrival.
+**644 tests** green; typecheck + lint clean. Verified live against a real account: launch state,
+opening a chat, paging back through history, replying from the dropdown, and the settings flyout.
 
-**Step 6 — settings menu.** Settings is pinned to the foot of the Net rail; `⏎` opens a flyout, and
-Theme opens the theme list with the active one marked. `Esc` steps back one level. Anchored on the
-app root rather than the rail — an 8-column box clips its own absolute children. Also fixes a
-pre-existing bug the work exposed: the rail's caret was frozen because `selectNetworkRail`'s memo
-omitted `state.railCursor`.
+**Before tagging `v0.3.0`:** set repo variable `WEB_REPO=mitchmalone/beeptui-web` and secret
+`WEB_REPO_TOKEN` (fine-grained PAT, contents:write on `beeptui-web`), or the release's website job
+silently skips and beeptui.com keeps showing the old version.
 
-**Step 5 — reply from the action menu.** `⏎` offers Reply above React; it and `r` share one
-`startReply` helper so the capability gate can't drift between entry points. The target message
-carries a `┃` quote bar in the gutter — a different glyph from the `›` cursor, since starting a reply
-moves focus to compose and clears the cursor. Compose retitles to `Replying in thread ●`.
-
-**Step 4 — history paging on scroll.** `u` is gone. Reaching the oldest loaded message and pressing
-`↑` again requests the next page; the cursor lands on the newest message of the arriving batch, so
-one keypress moves by one message the way it does anywhere else. A pending marker stops a held key
-stacking requests, an error clears it rather than leaving a permanent "loading", and `g` still jumps
-to the oldest _loaded_ without paging. Verified live: holding `↑` walks continuously back through
-history, `G` returns to the newest. The dead `conversation/scrolled` event has since been removed;
-the tests that used it to fake a scrolled-up state now scroll by moving the cursor, which is the
-only scroll there is.
-
-**Step 3 — selection & focus.** The active column always has a cursor: the first _visible_ chat is
-highlighted when the list loads (highlight only — opening stays `⏎`), the newest message is seated
-when a chat's history arrives (not just on focus, which races the fetch), and the message cursor
-clears while composing without touching an in-progress reply. Every filter change re-seeds — including
-`rail/cursorMoved` and `chats/upserted`, both missed on the first pass and caught by Mitch testing.
-Two defects surfaced and fixed on the way: jumping to the newest message now pins to the bottom
-instead of top-anchoring a tall one (which left a non-zero offset the reducer read as "scrolled up",
-raising a false new-messages affordance on a freshly opened chat), and an unopened chat now says
-"Press ⏎ to open this chat." instead of claiming it has no messages.
-
-**Conversation block layout + row-exact viewport** — merged to `main` (2026-08-04, PR #36),
-released as `0.2.1`. Each message now reads as a block: **sender left / timestamp right on its own line,
+**Conversation block layout + row-exact viewport** — merged (2026-08-04, PR #36), released as
+`0.2.1`. Each message now reads as a block: **sender left / timestamp right on its own line,
 body beneath, a blank line of relief between messages** (dropped at compact density). The caret
 moved out of the message string into its own layout column, which fixes the reported **2-character
 drift** — every line after the first, wrapped or `<br>`-broken, now starts in the same column as
@@ -228,32 +203,15 @@ no silent failures. Fixed pagination resilience along the way. **199 tests** gre
 
 ## Next up
 
-All planned slices (0–14) are done, `v0.1.0` is released and installable via Homebrew, and the tree
-is tidy (only `main` locally + remote). Two tracks remain:
-
-**Ready-to-work code slices** (in `docs/plans/backlog/`, each a standalone plan — pick one, move to
-`active/`, branch, TDD):
-
-- **`PLAN-login-guard-local-endpoint.md`** — `login` refuses on a local / remote-access-off endpoint
-  instead of opening a dead browser tab (found 2026-08-03). Small, no hardware needed.
-- **`PLAN-inline-image-rendering.md`** — inline image attachments (native protocol first; feasibility
-  confirmed, `docs/PERF.md`). `PLAN-v1-polish-backlog.md` indexes these.
+**0.4 — inline image rendering** (`plans/backlog/PLAN-inline-image-rendering.md`). Deferred out of
+0.3 by Mitch. Two halves: an image has to occupy rows the reducer can predict _without the bytes in
+hand_, or scrolling drifts the moment one is on screen; and a throwaway spike on where to emit the
+escape sequence so it survives OpenTUI's redraws. Do the spike first and stop there if it fails —
+everything else in the plan depends on it.
 
 **Production-only validation → `TODO.md`** — the Slice 12 multi-network matrix (Discord/IG/X) and the
-Slice 13 remote-endpoint `login` need external accounts/endpoints not available here (accepted risk).
-Declaring **Phase 2 fully validated in production** waits on the Slice 12 matrix actually running.
-
-> Mitch is running a UX pass next, then working these slices.
-
-**Website version stamping — on `main`, needs its repo settings** (landed 2026-08-04 in PR #36).
-`release.yml` has a `website` job that pushes `src/data/release.json` to the web repo on each `v*`
-tag (same gated pattern as the tap job), so beeptui.com renders the real version. It reached `main`
-by riding along in PR #36 — the commit had been sitting unpushed on local `main`, and pushing over
-SSH sidesteps the `gh` token's missing `workflow` scope entirely (`LEARNINGS.md`). **Still to do
-before it does anything:** set repo variable `WEB_REPO=mitchmalone/beeptui-web` and secret
-`WEB_REPO_TOKEN` (fine-grained PAT, contents:write on `beeptui-web`). The job is gated, so releases
-pass without them — it just silently skips. The web side is already live (`beeptui-web` renders the
-hero version from `src/data/release.json`, seeded 0.2.0).
+Slice 13 remote-endpoint `login` need external accounts and endpoints that do not exist here
+(accepted risk, Mitch 2026-08-01). Neither is a code gap.
 
 ## Deferred live validation (accepted risk, Mitch 2026-08-01) → `TODO.md`
 
