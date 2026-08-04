@@ -73,7 +73,8 @@ a page is pending must not stack requests.
       conversation switch; update `MESSAGE_SELECT_HELP` and the help overlay.
 - [ ] Update the top hint: replace "— press u to load older —" with a loading/more-history wording
       that matches the new behaviour.
-- [ ] Delete the dead `conversation/scrolled` event, its reducer case, and its tests.
+- [x] Delete the dead `conversation/scrolled` event, its reducer case, and its tests.
+      (Done as a follow-up change rather than in this slice — see below.)
 - [ ] Verify live in `--demo` and against a real chat with enough history to page more than once.
 
 ## Acceptance criteria
@@ -113,9 +114,10 @@ before it was checked against a second measurement. Lesson in `JOURNAL.md`: a ne
 synthetic input needs a positive control — prove the input path works before concluding the feature
 does not.
 
-**Deferred from this slice:** removing the dead `conversation/scrolled` event. It is genuinely dead
-in production, but 15 test call sites use it to reach a "scrolled up" state, and rewriting them to
-scroll by moving the cursor is its own reviewable change rather than a footnote to this one.
+**Deferred from this slice, then done separately:** removing the dead `conversation/scrolled` event.
+It was genuinely dead in production, but 15 test call sites used it to reach a "scrolled up" state,
+and rewriting them to scroll by moving the cursor was its own reviewable change. Landed right after
+this one.
 
 ## Risks / open questions
 

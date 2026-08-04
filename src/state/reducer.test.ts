@@ -41,6 +41,19 @@ function msg(id: string, sortKey: string, over: Partial<MessageSummary> = {}): M
   }
 }
 
+/** Scroll the view up the way a user does. The message cursor is the only
+ *  scroll there is now, so walking it back is what moves the window — and how
+ *  far it has to walk depends on message heights and viewport, hence the loop
+ *  rather than a fixed number of steps. */
+function scrolledUp(from: AppState): AppState {
+  let out = from
+  for (let i = 0; i < 60 && out.conversationOffset === 0; i += 1) {
+    out = reduce(out, { type: 'messageSelection/moved', delta: -1 })
+  }
+  expect(out.conversationOffset).toBeGreaterThan(0)
+  return out
+}
+
 /** Apply a sequence of events from initial state. */
 function run(events: AppEvent[], from: AppState = initialState): AppState {
   return events.reduce(reduce, from)
@@ -184,7 +197,7 @@ describe('focus + pagination metadata', () => {
     expect(initialState.focus).toBe('inbox')
   })
 
-  test('conversation/scrolled clamps within loaded messages; chat/selected resets it', () => {
+  test('walking the cursor to the oldest message scrolls to the top and no further', () => {
     const base = run([
       { type: 'chats/loaded', chats: [chat('c1')] },
       { type: 'chat/selected', chatId: 'c1' },
@@ -194,13 +207,17 @@ describe('focus + pagination metadata', () => {
         page: 'initial',
         messages: [msg('m1', '1'), msg('m2', '2'), msg('m3', '3')],
       },
+      { type: 'viewport/measured', rows: 4, cols: 120 },
     ])
-    const up = run([{ type: 'conversation/scrolled', delta: 99 }], base)
-    expect(up.conversationOffset).toBe(2) // clamped to count - 1
-    const down = run([{ type: 'conversation/scrolled', delta: -99 }], up)
+    const layouts = layOutMessages(base.messagesByChat['c1']?.items ?? [], CONTENT_WIDTH)
+    const up = run(Array(9).fill({ type: 'messageSelection/moved', delta: -1 }), base)
+    expect(up.selectedMessageId).toBe('m1')
+    expect(up.conversationOffset).toBe(totalRows(layouts) - 4) // the oldest row, clamped
+    // Back down to the newest pins to the floor.
+    const down = reduce(up, { type: 'messageSelection/moved', delta: 99 })
     expect(down.conversationOffset).toBe(0)
     // Switching chats snaps back to the newest.
-    expect(run([{ type: 'chat/selected', chatId: 'other' }], up).conversationOffset).toBe(0)
+    expect(reduce(up, { type: 'chat/selected', chatId: 'other' }).conversationOffset).toBe(0)
   })
 
   test('messages/loaded records hasMoreOlder and the older cursor', () => {
@@ -229,14 +246,21 @@ describe('new-messages affordance (scrolled up)', () => {
       page: 'initial',
       messages: [msg('m1', '1'), msg('m2', '2'), msg('m3', '3')],
     },
+    // Scrolling is a consequence of cursor movement, which needs a measured
+    // viewport — without one the reducer has no rows to move the window by.
+    { type: 'viewport/measured', rows: 4, cols: 120 },
   ]
 
   test('a message arriving while scrolled up preserves position and flags new-below', () => {
-    const scrolled = run([...seed, { type: 'conversation/scrolled', delta: 2 }])
-    expect(scrolled.conversationOffset).toBe(2)
+    const scrolled = scrolledUp(run(seed))
     const after = run([{ type: 'message/received', message: msg('m4', '4') }], scrolled)
-    // Offset bumped by 1 so the visible window is unchanged; flag set.
-    expect(after.conversationOffset).toBe(3)
+    // The offset moves by exactly the rows the arrival added, so the window the
+    // user is reading is unchanged.
+    const grew =
+      totalRows(layOutMessages(after.messagesByChat['c1']?.items ?? [], CONTENT_WIDTH)) -
+      totalRows(layOutMessages(scrolled.messagesByChat['c1']?.items ?? [], CONTENT_WIDTH))
+    expect(grew).toBeGreaterThan(0)
+    expect(after.conversationOffset).toBe(scrolled.conversationOffset + grew)
     expect(after.newMessagesBelow).toBe(true)
   })
 
@@ -246,21 +270,20 @@ describe('new-messages affordance (scrolled up)', () => {
     expect(after.conversationOffset).toBe(0)
   })
 
-  test('scrolling back to the bottom dismisses the affordance', () => {
-    let s = run([...seed, { type: 'conversation/scrolled', delta: 2 }])
+  test('walking back down to the newest dismisses the affordance', () => {
+    let s = scrolledUp(run(seed))
     s = run([{ type: 'message/received', message: msg('m4', '4') }], s)
     expect(s.newMessagesBelow).toBe(true)
-    s = run([{ type: 'conversation/scrolled', delta: -99 }], s)
+    s = reduce(s, { type: 'messageSelection/moved', delta: 99 }) // G
     expect(s.conversationOffset).toBe(0)
     expect(s.newMessagesBelow).toBe(false)
   })
 
   test('a message for a different chat never raises the flag', () => {
-    const s = run([
-      ...seed,
-      { type: 'conversation/scrolled', delta: 2 },
-      { type: 'message/received', message: msg('x', '9', { chatId: 'other' }) },
-    ])
+    const s = reduce(scrolledUp(run(seed)), {
+      type: 'message/received',
+      message: msg('x', '9', { chatId: 'other' }),
+    })
     expect(s.newMessagesBelow).toBe(false)
   })
 })
@@ -970,26 +993,19 @@ describe('conversation navigation cursor + viewport follow', () => {
       run([{ type: 'focus/changed', focus: 'conversation' }], seededTen())
     )
     const layouts = layOutMessages(seeded.messagesByChat['c1']?.items ?? [], CONTENT_WIDTH)
-    const up = run(Array(60).fill({ type: 'conversation/scrolled', delta: 1 }), seeded)
+    const up = run(Array(60).fill({ type: 'messageSelection/moved', delta: -1 }), seeded)
     expect(up.conversationOffset).toBe(totalRows(layouts) - 4)
   })
 
   test('a message arriving while scrolled up holds the reading position in rows', () => {
-    const parked = run(
-      [
-        { type: 'viewport/measured', rows: 6, cols: 120 },
-        { type: 'conversation/scrolled', delta: 4 },
-      ],
-      seededTen()
-    )
-    expect(parked.conversationOffset).toBe(4)
+    const parked = scrolledUp(run([{ type: 'viewport/measured', rows: 6, cols: 120 }], seededTen()))
     // A two-row arrival (header + body) plus the separator the previously-last
     // message now needs must move the offset by that many rows, not by one.
     const after = reduce(parked, { type: 'message/received', message: msg('m10', 'x') })
     const grew =
       totalRows(layOutMessages(after.messagesByChat['c1']?.items ?? [], CONTENT_WIDTH)) -
       totalRows(layOutMessages(parked.messagesByChat['c1']?.items ?? [], CONTENT_WIDTH))
-    expect(after.conversationOffset).toBe(4 + grew)
+    expect(after.conversationOffset).toBe(parked.conversationOffset + grew)
     expect(after.newMessagesBelow).toBe(true)
   })
 })
@@ -1043,8 +1059,7 @@ describe('live arrivals at a full message window', () => {
   const inbound = (id: string) => msg(id, '99999')
 
   test('holds the reading position when scrolled up', () => {
-    const parked = reduce(full(), { type: 'conversation/scrolled', delta: 6 })
-    expect(parked.conversationOffset).toBe(6)
+    const parked = scrolledUp(full())
     // The arrival must be *taller* than the message it evicts, or the row delta
     // is zero and this asserts nothing.
     const tall = msg('live', '99999', { text: 'lorem ipsum dolor sit amet '.repeat(10) })
@@ -1053,11 +1068,11 @@ describe('live arrivals at a full message window', () => {
       totalRows(layOutMessages(after.messagesByChat['c1']?.items ?? [], CONTENT_WIDTH)) -
       totalRows(layOutMessages(parked.messagesByChat['c1']?.items ?? [], CONTENT_WIDTH))
     expect(grew).toBeGreaterThan(0)
-    expect(after.conversationOffset).toBe(6 + grew)
+    expect(after.conversationOffset).toBe(parked.conversationOffset + grew)
   })
 
   test('raises the new-messages affordance when scrolled up', () => {
-    const parked = reduce(full(), { type: 'conversation/scrolled', delta: 6 })
+    const parked = scrolledUp(full())
     const after = reduce(parked, { type: 'message/received', message: inbound('live') })
     expect(after.newMessagesBelow).toBe(true)
   })
@@ -1072,12 +1087,11 @@ describe('live arrivals at a full message window', () => {
   test('our own echo replacing a pending send is not an arrival', () => {
     // The echo carries a new server id but consumes the optimistic placeholder,
     // so nothing new appears to the user — no affordance.
-    const parked = run(
-      [
-        { type: 'send/requested', chatId: 'c1', clientId: 'cid-1', text: 'hi', timestamp: 'x' },
-        { type: 'conversation/scrolled', delta: 6 },
-      ],
-      full()
+    const parked = scrolledUp(
+      run(
+        [{ type: 'send/requested', chatId: 'c1', clientId: 'cid-1', text: 'hi', timestamp: 'x' }],
+        full()
+      )
     )
     const echo = msg('server-1', '99999', { text: 'hi', isSender: true })
     const after = reduce(parked, { type: 'message/received', message: echo })
@@ -1086,7 +1100,7 @@ describe('live arrivals at a full message window', () => {
   })
 
   test('a replayed duplicate is not an arrival', () => {
-    const parked = reduce(full(), { type: 'conversation/scrolled', delta: 6 })
+    const parked = scrolledUp(full())
     const replay = msg(
       `m${MAX_MESSAGES_PER_CHAT - 1}`,
       String(MAX_MESSAGES_PER_CHAT - 1).padStart(5, '0')
@@ -1097,7 +1111,7 @@ describe('live arrivals at a full message window', () => {
   })
 
   test('paging older history never raises the affordance', () => {
-    const parked = reduce(full(), { type: 'conversation/scrolled', delta: 6 })
+    const parked = scrolledUp(full())
     const after = reduce(parked, {
       type: 'messages/loaded',
       chatId: 'c1',
@@ -1270,8 +1284,7 @@ describe('going to the newest message pins to the bottom', () => {
   })
 
   test('G jumps to the bottom of a tall newest message, not its top', () => {
-    const scrolled = reduce(withTallNewest(), { type: 'conversation/scrolled', delta: 5 })
-    expect(scrolled.conversationOffset).toBeGreaterThan(0)
+    const scrolled = scrolledUp(withTallNewest())
     const bottom = reduce(scrolled, { type: 'messageSelection/moved', delta: 999 })
     expect(bottom.conversationOffset).toBe(0)
   })
