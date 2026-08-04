@@ -19,8 +19,10 @@ export interface InboxRow {
   isSelected: boolean
 }
 
-/** Does a chat pass the current inbox filter (scope + archived + unreadOnly)? */
-function matchesFilter(chat: ChatSummary, filter: AppState['filter']): boolean {
+/** Does a chat pass the current inbox filter (scope + archived + unreadOnly)?
+ *  Exported for the reducer, which seeds the inbox cursor onto the first chat a
+ *  user can actually see. */
+export function matchesFilter(chat: ChatSummary, filter: AppState['filter']): boolean {
   if (filter.scope !== 'all' && chat.accountId !== filter.scope) return false
   if (chat.isArchived !== filter.archived) return false
   if (filter.unreadOnly && chat.unreadCount === 0) return false
@@ -142,6 +144,10 @@ export interface ActiveConversation {
   newMessagesBelow: boolean
   /** Id of the message cursor (selection), or null when scrolling. */
   selectedMessageId: string | null
+  /** Whether this chat's history has ever been fetched. A highlighted-but-
+   *  unopened chat has none, which is not the same as a chat with no messages —
+   *  saying "no messages yet" about the first would be a lie (invariant 8). */
+  loaded: boolean
 }
 
 export function selectActiveConversation(state: AppState): ActiveConversation {
@@ -155,6 +161,7 @@ export function selectActiveConversation(state: AppState): ActiveConversation {
       scrollOffset: 0,
       newMessagesBelow: false,
       selectedMessageId: null,
+      loaded: false,
     }
   }
   const window = state.messagesByChat[id]
@@ -166,6 +173,7 @@ export function selectActiveConversation(state: AppState): ActiveConversation {
     scrollOffset: state.conversationOffset,
     newMessagesBelow: state.newMessagesBelow,
     selectedMessageId: state.selectedMessageId,
+    loaded: window !== undefined,
   }
 }
 

@@ -6,6 +6,16 @@
 
 ## GitHub / tooling
 
+- **Always branch from `main`, never from another feature branch.** Done twice in one session with
+  the same result: the parent branch's commits ride along into the child's PR and land under a title
+  that describes neither. Once from a `main` that was two commits ahead of `origin/main` (check
+  `git rev-list --count origin/main..main` before branching), and once from an open PR's branch,
+  which silently merged that PR's content and left its own PR stale. If a branch genuinely must
+  stack, say so on the PR and rebase onto `main` the moment the parent lands — a squash merge makes
+  the parent's commits unreachable, so without the rebase the child's diff re-proposes all of them.
+- **`gh pr merge --delete-branch` moves your working tree.** It checks out the default branch and
+  tries to fast-forward. With a diverged local `main` the pull fails, leaving you on a stale `main`
+  — which reads exactly like the merge failed. Check the PR state before reacting to the local error.
 - **Pushing `.github/workflows/*` changes needs the `workflow` OAuth scope.** The `gh` CLI's
   default token doesn't have it, so any push touching a workflow file is rejected ("refusing to
   allow an OAuth App to create or update workflow … without `workflow` scope" — and on `main` it

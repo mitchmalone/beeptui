@@ -1103,3 +1103,196 @@ describe('live arrivals at a full message window', () => {
     expect(after.newMessagesBelow).toBe(false)
   })
 })
+
+describe('selection follows focus (the active column always has a cursor)', () => {
+  const rows = [
+    chat('a', { lastActivity: '2026-07-30T03:00:00.000Z' }),
+    chat('b', { lastActivity: '2026-07-30T02:00:00.000Z' }),
+    chat('arch', { isArchived: true, lastActivity: '2026-07-30T01:00:00.000Z' }),
+  ]
+
+  test('chats/loaded highlights the first chat so the column is never cursorless', () => {
+    const s = run([{ type: 'chats/loaded', chats: rows }])
+    expect(s.selectedChatId).toBe('a')
+  })
+
+  test('the seeded chat is the first *visible* one, not the first loaded', () => {
+    // Archived view: only `arch` passes the filter, so it takes the cursor.
+    const s = run([{ type: 'filter/archivedToggled' }, { type: 'chats/loaded', chats: rows }])
+    expect(s.selectedChatId).toBe('arch')
+  })
+
+  test('seeding never opens a chat — the conversation stays empty until ⏎', () => {
+    const s = run([{ type: 'chats/loaded', chats: rows }])
+    expect(s.messagesByChat['a']).toBeUndefined()
+    expect(s.focus).toBe('inbox')
+  })
+
+  test('an existing selection survives a chat-list refresh', () => {
+    const s = run([
+      { type: 'chats/loaded', chats: rows },
+      { type: 'chat/selected', chatId: 'b' },
+      { type: 'chats/loaded', chats: rows },
+    ])
+    expect(s.selectedChatId).toBe('b')
+  })
+
+  test('a selection that falls out of the filter is re-seeded, not left dangling', () => {
+    const s = run([
+      { type: 'chats/loaded', chats: rows },
+      { type: 'chat/selected', chatId: 'b' },
+      { type: 'filter/archivedToggled' }, // b is not archived
+    ])
+    expect(s.selectedChatId).toBe('arch')
+  })
+
+  test('an empty filter view leaves nothing selected rather than inventing one', () => {
+    const s = run([
+      { type: 'chats/loaded', chats: [chat('a')] },
+      { type: 'filter/archivedToggled' },
+    ])
+    expect(s.selectedChatId).toBeNull()
+  })
+
+  test('messages arriving after focus put the cursor on the newest', () => {
+    // ⏎ focuses the conversation *before* history loads, so focus/changed finds
+    // an empty list and selects nothing. The load has to finish the job.
+    const opened = run([
+      { type: 'chats/loaded', chats: rows },
+      { type: 'chat/selected', chatId: 'a' },
+      { type: 'focus/changed', focus: 'conversation' },
+    ])
+    expect(opened.selectedMessageId).toBeNull()
+    const loaded = reduce(opened, {
+      type: 'messages/loaded',
+      chatId: 'a',
+      page: 'initial',
+      messages: [msg('m1', '1'), msg('m2', '2')],
+    })
+    expect(loaded.selectedMessageId).toBe('m2')
+  })
+
+  test('a later page never yanks the cursor off where the user put it', () => {
+    const s = run([
+      { type: 'chats/loaded', chats: rows },
+      { type: 'chat/selected', chatId: 'a' },
+      { type: 'focus/changed', focus: 'conversation' },
+      { type: 'messages/loaded', chatId: 'a', page: 'initial', messages: [msg('m1', '1')] },
+      { type: 'messageSelection/moved', delta: 0 },
+      { type: 'messages/loaded', chatId: 'a', page: 'newer', messages: [msg('m2', '2')] },
+    ])
+    expect(s.selectedMessageId).toBe('m1')
+  })
+
+  test('loading a chat you are not looking at selects nothing', () => {
+    const s = run([
+      { type: 'chats/loaded', chats: rows },
+      { type: 'chat/selected', chatId: 'a' },
+      { type: 'messages/loaded', chatId: 'a', page: 'initial', messages: [msg('m1', '1')] },
+    ])
+    expect(s.focus).toBe('inbox')
+    expect(s.selectedMessageId).toBeNull()
+  })
+
+  test('composing drops the message highlight but keeps the reply target', () => {
+    const conv = run([
+      { type: 'chats/loaded', chats: rows },
+      { type: 'chat/selected', chatId: 'a' },
+      { type: 'messages/loaded', chatId: 'a', page: 'initial', messages: [msg('m1', '1')] },
+      { type: 'focus/changed', focus: 'conversation' },
+    ])
+    expect(conv.selectedMessageId).toBe('m1')
+    const composing = reduce(conv, { type: 'focus/changed', focus: 'compose' })
+    expect(composing.selectedMessageId).toBeNull()
+
+    const replying = run(
+      [
+        { type: 'reply/started', messageId: 'm1' },
+        { type: 'focus/changed', focus: 'compose' },
+      ],
+      conv
+    )
+    expect(replying.replyTo).toBe('m1')
+  })
+
+  test('coming back from compose restores the cursor', () => {
+    const back = run([
+      { type: 'chats/loaded', chats: rows },
+      { type: 'chat/selected', chatId: 'a' },
+      { type: 'messages/loaded', chatId: 'a', page: 'initial', messages: [msg('m1', '1')] },
+      { type: 'focus/changed', focus: 'conversation' },
+      { type: 'focus/changed', focus: 'compose' },
+      { type: 'focus/changed', focus: 'conversation' },
+    ])
+    expect(back.selectedMessageId).toBe('m1')
+  })
+})
+
+describe('going to the newest message pins to the bottom', () => {
+  // A message taller than the viewport is anchored by its top when you navigate
+  // *up* to it — you want to read it from the start. But seating the cursor on
+  // the newest message means "show me the latest", and top-anchoring there
+  // leaves a non-zero offset, which the rest of the reducer reads as "the user
+  // has scrolled up": it raises the new-messages affordance and holds the
+  // reading position instead of following. On a chat you just opened.
+  function withTallNewest(): AppState {
+    return run([
+      { type: 'chats/loaded', chats: [chat('c1')] },
+      { type: 'chat/selected', chatId: 'c1' },
+      { type: 'viewport/measured', rows: 4, cols: 120 },
+      { type: 'focus/changed', focus: 'conversation' },
+      {
+        type: 'messages/loaded',
+        chatId: 'c1',
+        page: 'initial',
+        messages: [msg('m1', '1'), msg('m2', '2', { text: 'a long one '.repeat(30) })],
+      },
+    ])
+  }
+
+  test('opening a chat whose newest message overflows the viewport stays pinned', () => {
+    const s = withTallNewest()
+    expect(s.selectedMessageId).toBe('m2')
+    expect(s.conversationOffset).toBe(0)
+  })
+
+  test('and therefore raises no false new-messages affordance on the next arrival', () => {
+    const after = reduce(withTallNewest(), {
+      type: 'message/received',
+      message: msg('m3', '3'),
+    })
+    expect(after.newMessagesBelow).toBe(false)
+    expect(after.selectedMessageId).toBe('m3')
+  })
+
+  test('G jumps to the bottom of a tall newest message, not its top', () => {
+    const scrolled = reduce(withTallNewest(), { type: 'conversation/scrolled', delta: 5 })
+    expect(scrolled.conversationOffset).toBeGreaterThan(0)
+    const bottom = reduce(scrolled, { type: 'messageSelection/moved', delta: 999 })
+    expect(bottom.conversationOffset).toBe(0)
+  })
+
+  test('navigating up to a tall older message still anchors on its top', () => {
+    const tall = run([
+      { type: 'chats/loaded', chats: [chat('c1')] },
+      { type: 'chat/selected', chatId: 'c1' },
+      { type: 'viewport/measured', rows: 4, cols: 120 },
+      {
+        type: 'messages/loaded',
+        chatId: 'c1',
+        page: 'initial',
+        messages: [msg('m1', '1', { text: 'a long one '.repeat(30) }), msg('m2', '2')],
+      },
+      { type: 'focus/changed', focus: 'conversation' },
+      { type: 'messageSelection/moved', delta: -1 },
+    ])
+    expect(tall.selectedMessageId).toBe('m1')
+    const rows = visibleRows(
+      layOutMessages(tall.messagesByChat['c1']?.items ?? [], CONTENT_WIDTH),
+      4,
+      tall.conversationOffset
+    )
+    expect(rows[0]?.messageId).toBe('m1')
+    expect(rows[0]?.first).toBe(true)
+  })
+})
