@@ -1,5 +1,5 @@
 import type { ChatSummary } from '@/beeper/types.ts'
-import { RAIL_ARCHIVED_ID } from '@/state/types.ts'
+import { RAIL_ARCHIVED_ID, RAIL_SETTINGS_ID } from '@/state/types.ts'
 import type { AppState, ConnectionState, MessageEntity } from '@/state/types.ts'
 import { htmlToPlainText } from '@/state/message-html.ts'
 
@@ -63,8 +63,8 @@ export interface NetworkRailEntry {
   isSelected: boolean
   /** True when the rail cursor rests on this entry. */
   isCursor: boolean
-  /** A scope entry, or the Archived toggle. */
-  kind: 'scope' | 'archived'
+  /** A scope entry, the Archived toggle, or the Settings flyout opener. */
+  kind: 'scope' | 'archived' | 'settings'
   /** For the Archived entry: whether the archived view is currently on. */
   active?: boolean
 }
@@ -121,6 +121,17 @@ export function selectNetworkRail(state: AppState): NetworkRailEntry[] {
     isCursor: state.railCursor === RAIL_ARCHIVED_ID,
     kind: 'archived',
     active: state.filter.archived,
+  })
+  // Settings sits below Archived, pinned to the foot of the rail. Neither a
+  // scope nor a toggle: ⏎ on it opens a flyout.
+  entries.push({
+    id: RAIL_SETTINGS_ID,
+    label: 'Settings',
+    network: null,
+    unreadCount: 0,
+    isSelected: false,
+    isCursor: state.railCursor === RAIL_SETTINGS_ID,
+    kind: 'settings',
   })
   return entries
 }

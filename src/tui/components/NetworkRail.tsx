@@ -47,6 +47,16 @@ export const NetworkRail = memo(function NetworkRail({
               </text>
             )
           }
+          // Settings is pinned to the foot of the rail — not a scope, so it
+          // never takes the active highlight. Eight columns is tight, so it is
+          // abbreviated; a wide glyph here silently breaks the rail.
+          if (entry.kind === 'settings') {
+            return (
+              <box key={entry.id} style={{ flexGrow: 1, flexDirection: 'column-reverse' }}>
+                <text style={{ fg: theme.muted }}>{`${caret}Set`}</text>
+              </box>
+            )
+          }
           const marker = entry.network === null ? 'All' : networkMarker(entry.network)
           const dot = entry.unreadCount > 0 ? '•' : ''
           // Tint each entry by its network; 'All' stays neutral, the active scope

@@ -36,6 +36,12 @@ length never moves, which had silently disabled the reading-position hold, the n
 affordance and cursor-follow on any busy chat with a full window. A self-echo that consumes an
 optimistic placeholder is deliberately not an arrival.
 
+**Step 6 — settings menu.** Settings is pinned to the foot of the Net rail; `⏎` opens a flyout, and
+Theme opens the theme list with the active one marked. `Esc` steps back one level. Anchored on the
+app root rather than the rail — an 8-column box clips its own absolute children. Also fixes a
+pre-existing bug the work exposed: the rail's caret was frozen because `selectNetworkRail`'s memo
+omitted `state.railCursor`.
+
 **Step 5 — reply from the action menu.** `⏎` offers Reply above React; it and `r` share one
 `startReply` helper so the capability gate can't drift between entry points. The target message
 carries a `┃` quote bar in the gutter — a different glyph from the `›` cursor, since starting a reply

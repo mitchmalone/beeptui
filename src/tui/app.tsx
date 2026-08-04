@@ -12,14 +12,16 @@ import {
 } from '@/state/selectors.ts'
 import { checkCapability } from '@/state/capabilities.ts'
 import { NARROW_WIDTH, conversationCapacity } from '@/state/conversation-scroll.ts'
-import { CONVERSATION_ACTIONS, QUICK_REACTIONS } from '@/state/reactions.ts'
-import { RAIL_ARCHIVED_ID } from '@/state/types.ts'
+import { CONVERSATION_ACTIONS, QUICK_REACTIONS, SETTINGS_ITEMS } from '@/state/reactions.ts'
+import { RAIL_ARCHIVED_ID, RAIL_SETTINGS_ID } from '@/state/types.ts'
 import { edgeSelection, moveSelection } from '@/tui/navigation.ts'
 import { helpGroups, KEYMAP, resolveCommand, resolveKey, type Binding } from '@/tui/keymap.ts'
 import { searchChats } from '@/tui/fuzzy.ts'
 import type { Store } from '@/state/store.ts'
 import { InboxPane, type NetworkColors } from '@/tui/components/InboxPane.tsx'
 import { NetworkRail } from '@/tui/components/NetworkRail.tsx'
+import { SettingsMenu } from '@/tui/components/SettingsMenu.tsx'
+import { ThemePicker } from '@/tui/components/ThemePicker.tsx'
 import { StatusBar } from '@/tui/components/StatusBar.tsx'
 import { ConversationView, type ConversationMenu } from '@/tui/components/ConversationView.tsx'
 import { Compose } from '@/tui/components/Compose.tsx'
@@ -105,7 +107,18 @@ export function App({
   )
   const rail = useMemo(
     () => selectNetworkRail(state),
-    [state.chats, state.chatOrder, state.accounts, state.accountOrder, state.filter]
+    // `railCursor` belongs here: every entry carries `isCursor`, so leaving it
+    // out froze the rail's caret — the cursor moved in state and the rail kept
+    // drawing the old one until an unrelated change happened to invalidate the
+    // memo.
+    [
+      state.chats,
+      state.chatOrder,
+      state.accounts,
+      state.accountOrder,
+      state.filter,
+      state.railCursor,
+    ]
   )
   const banner = useMemo(() => selectConnectionBanner(state), [state.connection])
   const conversation = useMemo(
@@ -136,6 +149,8 @@ export function App({
   // Resolve the selected theme name (cycled with `t`) to its tokens; the provider
   // below hands them to every component via `useTheme()`.
   const theme = resolveTheme(state.themeName, themeRegistry)
+  // Registry order drives both the `t` cycle and the theme flyout's list.
+  const themeNames = useMemo(() => [...themeRegistry.keys()], [themeRegistry])
   const { width, height } = useTerminalDimensions()
   const narrow = width < NARROW_WIDTH
   const focus = state.focus
@@ -242,6 +257,39 @@ export function App({
 
     // The conversation action menu (ENTER "dropdown"): ↑/↓ move, ⏎ chooses the
     // action, Esc closes back to the conversation.
+    if (s.overlay === 'settingsMenu') {
+      if (key.name === 'escape') {
+        store.dispatch({ type: 'overlay/closed' })
+      } else if (key.name === 'up') {
+        store.dispatch({ type: 'settingsMenu/moved', delta: -1 })
+      } else if (key.name === 'down') {
+        store.dispatch({ type: 'settingsMenu/moved', delta: 1 })
+      } else if (key.name === 'return' || key.name === 'enter') {
+        if (SETTINGS_ITEMS[s.settingsCursor]?.id === 'theme') {
+          store.dispatch({ type: 'overlay/opened', overlay: 'themePicker' })
+        }
+      }
+      return
+    }
+
+    if (s.overlay === 'themePicker') {
+      // Esc steps back to Settings rather than closing out entirely — this is
+      // the one place with two levels, and jumping straight out would lose the
+      // user's place.
+      if (key.name === 'escape') {
+        store.dispatch({ type: 'overlay/opened', overlay: 'settingsMenu' })
+      } else if (key.name === 'up') {
+        store.dispatch({ type: 'themePicker/moved', delta: -1, count: themeNames.length })
+      } else if (key.name === 'down') {
+        store.dispatch({ type: 'themePicker/moved', delta: 1, count: themeNames.length })
+      } else if (key.name === 'return' || key.name === 'enter') {
+        const name = themeNames[s.themeCursor]
+        if (name !== undefined) store.dispatch({ type: 'theme/selected', name })
+        store.dispatch({ type: 'overlay/closed' })
+      }
+      return
+    }
+
     if (s.overlay === 'conversationActions') {
       if (key.name === 'escape') {
         store.dispatch({ type: 'overlay/closed' })
@@ -326,7 +374,7 @@ export function App({
     if (command === 'cycle-theme') {
       // Advance to the next registered theme (wrapping), and name it in the
       // status bar so the switch is legible.
-      const names = [...themeRegistry.keys()]
+      const names = themeNames
       const index = names.indexOf(s.themeName)
       const next = names[(index + 1) % names.length] ?? names[0]
       if (next !== undefined) {
@@ -351,7 +399,9 @@ export function App({
       const scopes = selectNetworkRail(s).filter((e) => e.kind === 'scope')
       const onArchived = s.railCursor === RAIL_ARCHIVED_ID
       if (command === 'open' || key.name === 'right' || key.sequence === 'l') {
-        if (onArchived) store.dispatch({ type: 'filter/archivedToggled' })
+        if (s.railCursor === RAIL_SETTINGS_ID) {
+          store.dispatch({ type: 'overlay/opened', overlay: 'settingsMenu' })
+        } else if (onArchived) store.dispatch({ type: 'filter/archivedToggled' })
         else store.dispatch({ type: 'focus/changed', focus: 'inbox' })
         return
       }
@@ -497,6 +547,13 @@ export function App({
     />
   ) : null
 
+  const settingsFlyout =
+    state.overlay === 'settingsMenu' ? (
+      <SettingsMenu cursor={state.settingsCursor} />
+    ) : state.overlay === 'themePicker' ? (
+      <ThemePicker names={themeNames} cursor={state.themeCursor} active={state.themeName} />
+    ) : null
+
   const overlayPane =
     state.overlay === 'help' ? (
       <HelpOverlay groups={helpGroups(keymap)} />
@@ -518,7 +575,7 @@ export function App({
 
   return (
     <ThemeProvider theme={theme}>
-      <box style={{ flexDirection: 'column', width: '100%', height: '100%' }}>
+      <box style={{ flexDirection: 'column', width: '100%', height: '100%', position: 'relative' }}>
         {overlayPane ??
           (narrow ? (
             // No rail column when narrow; rail focus still shows the list (which
@@ -573,6 +630,14 @@ export function App({
               </box>
             </box>
           ))}
+        {/* Anchored on the root, not on the rail: at 8 columns the rail clips
+            its own absolute children and the menu renders as a stub. Sits just
+            above the status bar, by the rail's Settings entry. */}
+        {settingsFlyout !== null ? (
+          <box style={{ position: 'absolute', bottom: 1, left: 1, zIndex: 30 }}>
+            {settingsFlyout}
+          </box>
+        ) : null}
         <StatusBar
           banner={banner}
           accountCount={state.accountOrder.length}

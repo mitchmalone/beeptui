@@ -20,6 +20,10 @@ export type MessageDeliveryStatus = 'sent' | 'pending' | 'failed'
 /** The rail cursor id for the Archived toggle entry (not a real scope). */
 export const RAIL_ARCHIVED_ID = 'archived'
 
+/** Rail id for the Settings entry, pinned below the Archived toggle. Not a
+ *  scope and not a toggle — landing on it and pressing ⏎ opens a flyout. */
+export const RAIL_SETTINGS_ID = 'settings'
+
 /** Which pane has keyboard focus. Ordered outer→inner: the network rail (filter),
  *  the chat list (inbox), the conversation, and the compose box within it. `Esc`
  *  walks this back out toward the rail. */
@@ -35,6 +39,10 @@ export type Overlay =
   | 'conversationActions'
   /** The limited emoji picker reached from the action menu's React option. */
   | 'emojiPicker'
+  /** The Settings flyout, opened from the Net rail's Settings entry. */
+  | 'settingsMenu'
+  /** The theme list, reached from Settings → Theme. */
+  | 'themePicker'
 
 /** One message-search hit, enriched with the chat context the palette renders. */
 export interface MessageSearchHit {
@@ -145,6 +153,10 @@ export interface AppState {
   actionCursor: number
   /** Cursor into the emoji picker (while that overlay is open). */
   emojiCursor: number
+  /** Cursor into the Settings flyout (while that overlay is open). */
+  settingsCursor: number
+  /** Cursor into the theme list (while that overlay is open). */
+  themeCursor: number
   /** True when messages arrived in the active chat while scrolled up. */
   newMessagesBelow: boolean
   /** Chat id whose older page has been requested and not yet arrived, else null.
@@ -194,6 +206,8 @@ export const initialState: AppState = {
   viewportCols: 0,
   actionCursor: 0,
   emojiCursor: 0,
+  settingsCursor: 0,
+  themeCursor: 0,
   newMessagesBelow: false,
   olderPagePending: null,
   overlay: 'none',
@@ -244,6 +258,11 @@ export type AppEvent =
   | { type: 'viewport/measured'; rows: number; cols: number }
   /** Move the action-menu cursor (the ENTER dropdown). */
   | { type: 'actionMenu/moved'; delta: number }
+  /** Move the Settings-flyout cursor. */
+  | { type: 'settingsMenu/moved'; delta: number }
+  /** Move the theme-list cursor. `count` is the registry size — the App owns the
+   *  registry, so the reducer is told how far it may travel rather than guessing. */
+  | { type: 'themePicker/moved'; delta: number; count: number }
   /** Move the emoji-picker cursor. */
   | { type: 'emojiPicker/moved'; delta: number }
   | { type: 'search/queryChanged'; query: string }

@@ -1,6 +1,6 @@
 ---
 title: settings menu in the Net rail
-status: planned
+status: done
 created: 2026-08-04
 updated: 2026-08-04
 links:
@@ -48,32 +48,32 @@ before choosing, since a wide glyph silently breaks the rail (the `●` title bu
 
 ## Steps
 
-- [ ] Extend `selectNetworkRail` with a pinned `settings` entry, or render it in the rail's footer
+- [x] Extend `selectNetworkRail` with a pinned `settings` entry, or render it in the rail's footer
       slot and include it in the cursor's range — whichever keeps the cursor maths in one place.
       Unit-test the rail selector.
-- [ ] Add `settingsMenu` and `themePicker` to `Overlay`, each with a cursor in `AppState`, following
+- [x] Add `settingsMenu` and `themePicker` to `Overlay`, each with a cursor in `AppState`, following
       `actionCursor`/`emojiCursor` exactly (including the reset-on-open behaviour).
-- [ ] Reducer: open/close/move for both, and `themePicker` choose → `theme/selected`. Tests first.
-- [ ] `SettingsMenu` component modelled on `ConversationActionMenu`; `ThemePicker` modelled on
+- [x] Reducer: open/close/move for both, and `themePicker` choose → `theme/selected`. Tests first.
+- [x] `SettingsMenu` component modelled on `ConversationActionMenu`; `ThemePicker` modelled on
       `EmojiPicker`, marking the currently active theme.
-- [ ] Anchor both flyouts off the rail (`position: 'relative'` on the rail, absolute child), with
+- [x] Anchor both flyouts off the rail (`position: 'relative'` on the rail, absolute child), with
       the same open-up/open-down overflow handling the conversation menu uses.
-- [ ] Wire the App's rail key handler: `⏎` on Settings opens the menu; `⏎` on Theme opens the
+- [x] Wire the App's rail key handler: `⏎` on Settings opens the menu; `⏎` on Theme opens the
       picker; `Esc` steps back one level, not straight out.
-- [ ] Update the help overlay and status-bar hints — the settings path must be discoverable there
+- [x] Update the help overlay and status-bar hints — the settings path must be discoverable there
       too, and `t` keeps working as the shortcut.
-- [ ] Verify live in `--demo`: open both flyouts, pick each built-in theme, confirm it applies and
+- [x] Verify live in `--demo`: open both flyouts, pick each built-in theme, confirm it applies and
       persists in state.
 
 ## Acceptance criteria
 
-- [ ] The Net rail shows a Settings entry pinned to the bottom of the pane, reachable with the
+- [x] The Net rail shows a Settings entry pinned to the bottom of the pane, reachable with the
       rail's existing cursor keys.
-- [ ] `⏎` opens a flyout containing Theme; `⏎` on Theme opens a flyout of available themes with the
+- [x] `⏎` opens a flyout containing Theme; `⏎` on Theme opens a flyout of available themes with the
       active one marked; choosing one applies it live.
-- [ ] `Esc` closes one level at a time.
-- [ ] The rail's layout is unbroken at width 8 (no dropped title, no clipped entry).
-- [ ] `bun run typecheck`, `bun run lint`, `bun test` green.
+- [x] `Esc` closes one level at a time.
+- [x] The rail's layout is unbroken at width 8 (no dropped title, no clipped entry).
+- [x] `bun run typecheck`, `bun run lint`, `bun test` green.
 
 ## Out of scope
 
@@ -82,6 +82,29 @@ before choosing, since a wide glyph silently breaks the rail (the `●` title bu
 - Writing settings back to `~/.config/beeptui/config.json`. Theme selection stays session state, as
   it is today.
 - Restyling the rail.
+
+## Outcome
+
+Done. Settings is pinned to the foot of the Net rail (`Set`, abbreviated for the 8-column width),
+reached by the rail's own cursor; `⏎` opens a Settings flyout, `⏎` on Theme opens the theme list with
+the active theme marked, and `Esc` steps back one level rather than closing out. `t` still cycles.
+
+Two things the plan got wrong, both found live:
+
+- **The flyout cannot live inside the rail.** The plan assumed it would overflow right over the Chats
+  column, the way the conversation action menu overflows its pane. It does not: an 8-column box
+  clips its own absolutely-positioned children, and the menu rendered as a 4-column stub with the
+  labels cut off. It is anchored on the app root instead, above the status bar.
+- **The rail's caret was frozen, and had been all along.** `selectNetworkRail` is memoized in the App
+  on `chats/chatOrder/accounts/accountOrder/filter` — but every entry carries `isCursor`, which
+  depends on `state.railCursor`, and that was missing from the deps. The cursor moved in state while
+  the rail kept drawing the old caret until an unrelated change happened to invalidate the memo. Not
+  introduced here; it only became obvious because Settings is the one rail entry whose cursor does
+  not also change the scope (and so had nothing else to invalidate the memo).
+
+**Not covered by a test:** `Esc` stepping back one level. The mock input does not deliver a bare
+`\x1B` as an escape key event, so an assertion there would pass without testing anything. Verified
+live instead.
 
 ## Risks / open questions
 
