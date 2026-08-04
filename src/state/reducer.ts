@@ -116,15 +116,34 @@ function capWindow(items: MessageEntity[], page: MessagePage): MessageEntity[] {
     : items.slice(items.length - MAX_MESSAGES_PER_CHAT)
 }
 
+interface MergeResult {
+  window: ChatMessages
+  /** Ids that are genuinely new to the window — excluding a self-echo that
+   *  consumed an optimistic placeholder, which replaces a message the user can
+   *  already see rather than adding one.
+   *
+   *  Callers must use this rather than diffing list lengths: once the window is
+   *  at `MAX_MESSAGES_PER_CHAT` an arrival evicts the oldest, so the length is
+   *  identical either side of a real arrival. */
+  addedIds: string[]
+}
+
 /** Merge messages into a window, deduping by id (incoming updates existing),
  *  re-sorting by effective key, and re-bounding. Pure. */
 function mergeMessages(
   window: ChatMessages | undefined,
   incoming: MessageEntity[],
   page: MessagePage
-): ChatMessages {
+): MergeResult {
   const byId = new Map<string, MessageEntity>()
   for (const m of window?.items ?? []) byId.set(m.id, m)
+  // Which incoming ids the window doesn't already hold. Recorded per incoming
+  // message rather than by snapshotting the window's ids, so this stays O(the
+  // arrival) instead of O(the whole window) on every live message.
+  const isNew = new Map<string, boolean>()
+  for (const m of incoming) isNew.set(m.id, !byId.has(m.id))
+  // Incoming ids that stood in for a placeholder we dropped — not arrivals.
+  const reconciled = new Set<string>()
 
   // Reconcile optimistic sends against their real echo. A live echo of one of
   // our own messages arrives as a self-message with NO clientId and its own
@@ -138,6 +157,7 @@ function mergeMessages(
       for (const [id, existing] of byId) {
         if (existing.clientId !== undefined && existing.isSender && existing.text === inc.text) {
           byId.delete(id)
+          reconciled.add(inc.id)
           break
         }
       }
@@ -156,10 +176,23 @@ function mergeMessages(
   // stale or null, scrollback refetches what it can; reopening the chat reloads
   // the newest page cleanly.)
   const evictedOldest = page === 'newer' && items.length < merged.length
+  // Only count what survived the cap — a message trimmed off the far end never
+  // reached the user. The membership set is built only when there is something
+  // to check, so a replay or a self-echo costs nothing.
+  let addedIds = incoming
+    .map((m) => m.id)
+    .filter((id) => isNew.get(id) === true && !reconciled.has(id))
+  if (addedIds.length > 0) {
+    const kept = new Set(items.map((m) => m.id))
+    addedIds = addedIds.filter((id) => kept.has(id))
+  }
   return {
-    items,
-    hasMoreOlder: evictedOldest || (window?.hasMoreOlder ?? false),
-    olderCursor: window?.olderCursor ?? null,
+    window: {
+      items,
+      hasMoreOlder: evictedOldest || (window?.hasMoreOlder ?? false),
+      olderCursor: window?.olderCursor ?? null,
+    },
+    addedIds,
   }
 }
 
@@ -219,7 +252,7 @@ export function reduce(state: AppState, event: AppEvent): AppState {
 
     case 'messages/loaded':
       return withChatMessages(state, event.chatId, (window) => {
-        const merged = mergeMessages(window, event.messages.map(toEntity), event.page)
+        const merged = mergeMessages(window, event.messages.map(toEntity), event.page).window
         return {
           ...merged,
           ...(event.hasMoreOlder !== undefined ? { hasMoreOlder: event.hasMoreOlder } : {}),
@@ -238,13 +271,15 @@ export function reduce(state: AppState, event: AppEvent): AppState {
         return state
       }
       const existing = state.messagesByChat[chatId]?.items ?? []
-      const before = existing.length
-      const newestBeforeId = existing[before - 1]?.id ?? null
-      const next = withChatMessages(state, chatId, (window) =>
-        mergeMessages(window, [toEntity(event.message)], 'newer')
-      )
-      const added = (next.messagesByChat[chatId]?.items.length ?? 0) - before
-      if (chatId === state.selectedChatId && added > 0) {
+      const newestBeforeId = existing[existing.length - 1]?.id ?? null
+      // Ask the merge what actually arrived. Diffing list lengths silently
+      // reported nothing once the window hit MAX_MESSAGES_PER_CHAT, because the
+      // arrival evicts the oldest and the length never moves — which killed the
+      // reading-position hold, the new-messages affordance and cursor-follow on
+      // every busy chat with a full window.
+      const merged = mergeMessages(state.messagesByChat[chatId], [toEntity(event.message)], 'newer')
+      const next = withChatMessages(state, chatId, () => merged.window)
+      if (chatId === state.selectedChatId && merged.addedIds.length > 0) {
         if (state.conversationOffset > 0) {
           // Scrolled up (the newest is below the fold): keep the reading position
           // — bump the offset by the *rows* the arrivals added, not the message
@@ -252,7 +287,7 @@ export function reduce(state: AppState, event: AppEvent): AppState {
           // and flag new-below.
           const grew = measured(state)
             ? totalRows(activeLayouts(next)) - totalRows(activeLayouts(state))
-            : added
+            : merged.addedIds.length
           return {
             ...next,
             conversationOffset: state.conversationOffset + Math.max(0, grew),
@@ -382,8 +417,10 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       }
       // The reply is consumed by this send — clear the pending reply context.
       const next = event.replyToId !== undefined ? { ...state, replyTo: null } : state
-      return withChatMessages(next, event.chatId, (window) =>
-        mergeMessages(window, [pending], 'newer')
+      return withChatMessages(
+        next,
+        event.chatId,
+        (window) => mergeMessages(window, [pending], 'newer').window
       )
     }
 

@@ -1,6 +1,6 @@
 ---
 title: live arrivals are ignored once the message window is full
-status: planned
+status: done
 created: 2026-08-04
 updated: 2026-08-04
 links:
@@ -57,29 +57,51 @@ runs.
 
 ## Steps
 
-- [ ] Failing reducer test first, one per symptom, with the window pre-filled to
+- [x] Failing reducer test first, one per symptom, with the window pre-filled to
       `MAX_MESSAGES_PER_CHAT`: reading position holds, `newMessagesBelow` is raised, cursor follows.
-- [ ] Change `mergeMessages` to report the merge outcome (e.g. `{ window, addedIds }` or an
+- [x] Change `mergeMessages` to report the merge outcome (e.g. `{ window, addedIds }` or an
       `appended: boolean`), rather than the caller diffing lengths.
-- [ ] Rewire `message/received` onto that signal; leave the offset arithmetic alone.
-- [ ] Check the other `mergeMessages` callers (`messages/loaded` paths) still behave — the older/
+- [x] Rewire `message/received` onto that signal; leave the offset arithmetic alone.
+- [x] Check the other `mergeMessages` callers (`messages/loaded` paths) still behave — the older/
       newer paging paths must not start raising the affordance.
-- [ ] Un-skew the perf benchmark: the `scrolled-up arrival` case currently loads
+- [x] Un-skew the perf benchmark: the `scrolled-up arrival` case currently loads
       `MAX_MESSAGES_PER_CHAT - 1` to dodge this bug. Put it back to a genuinely full window.
 
 ## Acceptance criteria
 
-- [ ] With a full window and the view scrolled up, an arrival holds the reading position and raises
+- [x] With a full window and the view scrolled up, an arrival holds the reading position and raises
       the new-messages affordance.
-- [ ] With a full window and the view pinned at the bottom with the cursor on the newest, the cursor
+- [x] With a full window and the view pinned at the bottom with the cursor on the newest, the cursor
       follows to the new newest.
-- [ ] Paging older history still does **not** raise the affordance.
-- [ ] `bun run typecheck`, `bun run lint`, `bun test` green.
+- [x] Paging older history still does **not** raise the affordance.
+- [x] `bun run typecheck`, `bun run lint`, `bun test` green.
 
 ## Out of scope
 
 - Changing `MAX_MESSAGES_PER_CHAT` or the eviction policy — bounded memory is an invariant.
 - The unrelated question of whether 200 is the right cap.
+
+## Outcome
+
+Done. `mergeMessages` now returns `{ window, addedIds }` and `message/received` branches on
+`addedIds.length > 0` instead of a length diff. The offset arithmetic inside the branch needed no
+change, as expected — it was already row-based and nets added rows against evicted ones.
+
+Two things the plan did not call out:
+
+- **Two of the three symptom tests passed before the fix, vacuously.** At a full window the evicted
+  message and the arrival happened to be the same height, so the reading-position assertion held at
+  zero drift. The test only became real once the arrival was made taller than what it evicts. Worth
+  remembering: a regression test for "position is preserved" proves nothing unless the position
+  would actually have moved.
+- **The naive detection cost more than the bug.** Snapshotting the window's ids on every merge
+  doubled the live-message benchmark (8 → 17µs/event). Checking incoming ids against the map as
+  they arrive, and building the survived-the-cap set only when there is a candidate, brought it to
+  11.5µs. The residual increase over the original 8µs is real work that previously was not
+  happening, because the branch was being skipped.
+
+The perf benchmark's `scrolled-up arrival` case loaded `MAX_MESSAGES_PER_CHAT - 1` specifically to
+dodge this bug; it is back to a genuinely full window.
 
 ## Risks / open questions
 
