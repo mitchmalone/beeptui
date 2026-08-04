@@ -1,6 +1,6 @@
 ---
 title: live arrivals are ignored once the message window is full
-status: planned
+status: active
 created: 2026-08-04
 updated: 2026-08-04
 links:

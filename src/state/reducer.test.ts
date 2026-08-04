@@ -1013,3 +1013,93 @@ describe('action menu + emoji picker overlays', () => {
     expect(s.actionCursor).toBe(CONVERSATION_ACTIONS.length - 1)
   })
 })
+
+describe('live arrivals at a full message window', () => {
+  // Once the window is capped, an arrival evicts the oldest, so the list length
+  // is unchanged. Everything below used to be skipped because the reducer
+  // inferred "did anything arrive" from that length.
+  function full(): AppState {
+    const seed = run([
+      { type: 'chats/loaded', chats: [chat('c1')] },
+      { type: 'chat/selected', chatId: 'c1' },
+      {
+        type: 'messages/loaded',
+        chatId: 'c1',
+        page: 'initial',
+        messages: Array.from({ length: MAX_MESSAGES_PER_CHAT }, (_, i) =>
+          msg(`m${i}`, String(i).padStart(5, '0'))
+        ),
+      },
+      { type: 'viewport/measured', rows: 20, cols: 120 },
+    ])
+    expect(seed.messagesByChat['c1']?.items).toHaveLength(MAX_MESSAGES_PER_CHAT)
+    return seed
+  }
+
+  const inbound = (id: string) => msg(id, '99999')
+
+  test('holds the reading position when scrolled up', () => {
+    const parked = reduce(full(), { type: 'conversation/scrolled', delta: 6 })
+    expect(parked.conversationOffset).toBe(6)
+    // The arrival must be *taller* than the message it evicts, or the row delta
+    // is zero and this asserts nothing.
+    const tall = msg('live', '99999', { text: 'lorem ipsum dolor sit amet '.repeat(10) })
+    const after = reduce(parked, { type: 'message/received', message: tall })
+    const grew =
+      totalRows(layOutMessages(after.messagesByChat['c1']?.items ?? [], CONTENT_WIDTH)) -
+      totalRows(layOutMessages(parked.messagesByChat['c1']?.items ?? [], CONTENT_WIDTH))
+    expect(grew).toBeGreaterThan(0)
+    expect(after.conversationOffset).toBe(6 + grew)
+  })
+
+  test('raises the new-messages affordance when scrolled up', () => {
+    const parked = reduce(full(), { type: 'conversation/scrolled', delta: 6 })
+    const after = reduce(parked, { type: 'message/received', message: inbound('live') })
+    expect(after.newMessagesBelow).toBe(true)
+  })
+
+  test('follows the cursor to the new newest when pinned at the bottom', () => {
+    const focused = reduce(full(), { type: 'focus/changed', focus: 'conversation' })
+    expect(focused.selectedMessageId).toBe(`m${MAX_MESSAGES_PER_CHAT - 1}`)
+    const after = reduce(focused, { type: 'message/received', message: inbound('live') })
+    expect(after.selectedMessageId).toBe('live')
+  })
+
+  test('our own echo replacing a pending send is not an arrival', () => {
+    // The echo carries a new server id but consumes the optimistic placeholder,
+    // so nothing new appears to the user — no affordance.
+    const parked = run(
+      [
+        { type: 'send/requested', chatId: 'c1', clientId: 'cid-1', text: 'hi', timestamp: 'x' },
+        { type: 'conversation/scrolled', delta: 6 },
+      ],
+      full()
+    )
+    const echo = msg('server-1', '99999', { text: 'hi', isSender: true })
+    const after = reduce(parked, { type: 'message/received', message: echo })
+    expect(after.newMessagesBelow).toBe(false)
+    expect(after.conversationOffset).toBe(parked.conversationOffset)
+  })
+
+  test('a replayed duplicate is not an arrival', () => {
+    const parked = reduce(full(), { type: 'conversation/scrolled', delta: 6 })
+    const replay = msg(
+      `m${MAX_MESSAGES_PER_CHAT - 1}`,
+      String(MAX_MESSAGES_PER_CHAT - 1).padStart(5, '0')
+    )
+    const after = reduce(parked, { type: 'message/received', message: replay })
+    expect(after.newMessagesBelow).toBe(false)
+    expect(after.conversationOffset).toBe(parked.conversationOffset)
+  })
+
+  test('paging older history never raises the affordance', () => {
+    const parked = reduce(full(), { type: 'conversation/scrolled', delta: 6 })
+    const after = reduce(parked, {
+      type: 'messages/loaded',
+      chatId: 'c1',
+      page: 'older',
+      messages: [msg('older-1', '00000')],
+    })
+    expect(after.newMessagesBelow).toBe(false)
+  })
+})

@@ -129,10 +129,9 @@ describe('state performance benchmark', () => {
     // window first so this measures the worst case, not an empty chat.
     let s = reduce(seeded, { type: 'chat/selected', chatId: 'c1' })
     s = reduce(s, { type: 'viewport/measured', rows: 40, cols: 120 })
-    // One short of the cap: at the cap an arrival evicts the oldest, the window
-    // length does not change, and the offset-bump branch is skipped entirely —
-    // which would make the arrival measurement below vacuous.
-    for (let n = 0; n < MAX_MESSAGES_PER_CHAT - 1; n++) {
+    // A genuinely full window — the worst case, and the one that used to skip the
+    // offset-bump branch entirely and make this measurement vacuous.
+    for (let n = 0; n < MAX_MESSAGES_PER_CHAT; n++) {
       s = reduce(s, { type: 'message/received', message: msg('c1', n) })
     }
     s = reduce(s, { type: 'conversation/scrolled', delta: 20 })
@@ -143,16 +142,14 @@ describe('state performance benchmark', () => {
       reduce(s, { type: 'message/received', message: msg('c1', 99_999) })
     })
     console.log(
-      `  [perf] scrolled-up arrival (${MAX_MESSAGES_PER_CHAT - 1} loaded): ${arrivalMs.toFixed(2)}ms`
+      `  [perf] scrolled-up arrival (${MAX_MESSAGES_PER_CHAT} loaded): ${arrivalMs.toFixed(2)}ms`
     )
 
     const withCursor = reduce(s, { type: 'messageSelection/started' })
     const moveMs = medianMs(20, () => {
       reduce(withCursor, { type: 'messageSelection/moved', delta: -1 })
     })
-    console.log(
-      `  [perf] cursor move (${MAX_MESSAGES_PER_CHAT - 1} loaded): ${moveMs.toFixed(2)}ms`
-    )
+    console.log(`  [perf] cursor move (${MAX_MESSAGES_PER_CHAT} loaded): ${moveMs.toFixed(2)}ms`)
 
     // A keypress must feel instant; the PRD's budget is 2s and these are the
     // reducer's heaviest events.
