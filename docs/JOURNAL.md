@@ -5,6 +5,23 @@
 
 ---
 
+### 2026-08-04 — The bare `↩` messages were media, not broken replies
+
+- **Diagnosed rather than guessed, and it was not what it looked like.** The messages rendering as
+  `↩ ✓✓` with no body are `type: IMAGE` (and one `VIDEO`) — 21 of 22 image messages across ten real
+  chats. Beeper's message list returns them with **no `text` field and no `attachments` array at
+  all**, so a body composed from those two alone came out empty. The reply marker was correct:
+  `linkedMessageID` really does mean reply-to per the SDK, and these are images sent as replies.
+- **Naming the kind is the least we can honestly say.** `MessageSummary` now carries Beeper's
+  `type`, and the layout falls back to `[image]` / `[video]` / … when there is neither text nor
+  attachment metadata. Real attachment labels and real text both still win — the placeholder is
+  only a fallback, with tests pinning that precedence.
+- **The reply marker carries its own trailing space**, so joining decorations onto it doubled up
+  (`↩  [image]`). Body assembly now joins phrases with a single space unless the line already ends
+  in one — the sort of thing that only shows up once two optional pieces meet.
+
+---
+
 ### 2026-08-04 — Removing the dead scroll event made the tests honest
 
 - **Fifteen tests reached "scrolled up" through an event no key could produce.** `conversation/

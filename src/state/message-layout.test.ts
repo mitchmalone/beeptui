@@ -187,3 +187,47 @@ describe('layOutMessages', () => {
     expect(totalRows([])).toBe(0)
   })
 })
+
+describe('media messages that arrive with no attachment metadata', () => {
+  // Beeper's message list returns IMAGE/VIDEO messages that carry neither text
+  // nor an attachments array — 21 of 22 image messages across ten real chats.
+  // Rendered from text and attachments alone they came out as an empty line
+  // (just the reply marker and read receipt), which tells the user nothing.
+  test('an image with no text and no attachments still says it is an image', () => {
+    const m = message({ senderName: 'Ada', kind: 'IMAGE' })
+    expect(bodyText(layOutMessage(m, 80).rows)).toEqual(['[image]'])
+  })
+
+  test('the same for the other media kinds', () => {
+    const kinds = [
+      ['VIDEO', '[video]'],
+      ['VOICE', '[voice message]'],
+      ['AUDIO', '[audio]'],
+      ['FILE', '[file]'],
+      ['STICKER', '[sticker]'],
+      ['LOCATION', '[location]'],
+    ] as const
+    for (const [kind, expected] of kinds) {
+      expect(bodyText(layOutMessage(message({ kind }), 80).rows)).toEqual([expected])
+    }
+  })
+
+  test('real attachment metadata still wins — the placeholder is only a fallback', () => {
+    const m = message({ kind: 'IMAGE', attachments: [{ kind: 'image', fileName: 'a.png' }] })
+    expect(bodyText(layOutMessage(m, 80).rows)).toEqual(['[image: a.png]'])
+  })
+
+  test('text wins too — a captioned image is not replaced by a placeholder', () => {
+    const m = message({ kind: 'IMAGE', text: 'look at this' })
+    expect(bodyText(layOutMessage(m, 80).rows)).toEqual(['look at this'])
+  })
+
+  test('a reply carrying only an image keeps its marker and gains a body', () => {
+    const m = message({ kind: 'IMAGE', replyToId: 'm0', isSender: true, isSeen: true })
+    expect(bodyText(layOutMessage(m, 80).rows)).toEqual(['↩ [image] ✓✓'])
+  })
+
+  test('a text message with no text still says (no content), not a media label', () => {
+    expect(bodyText(layOutMessage(message({ kind: 'TEXT' }), 80).rows)).toEqual(['(no content)'])
+  })
+})

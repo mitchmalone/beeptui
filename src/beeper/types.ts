@@ -110,6 +110,10 @@ export interface MessageSummary {
   /** True when a read receipt reports this message as seen (read-only).
    *  Only meaningful on our own sent messages. */
   isSeen?: boolean
+  /** What Beeper says the message is. Carried through because media messages can
+   *  arrive with neither text nor attachment metadata, and without this the view
+   *  has nothing to say about them at all. */
+  kind?: MessageKind
 }
 
 export interface SendResult {
@@ -215,6 +219,19 @@ function mapSeen(seen: BeeperDesktop.Message['seen']): boolean {
   return Object.values(seen).some((v) => v === true || (typeof v === 'string' && v.length > 0))
 }
 
+/** Beeper's message types, as reported by the API. */
+export type MessageKind =
+  | 'TEXT'
+  | 'NOTICE'
+  | 'IMAGE'
+  | 'VIDEO'
+  | 'VOICE'
+  | 'AUDIO'
+  | 'FILE'
+  | 'STICKER'
+  | 'LOCATION'
+  | 'REACTION'
+
 export function mapMessage(message: BeeperDesktop.Message): MessageSummary {
   const attachments = mapAttachments(message.attachments)
   const reactions = mapReactions(message.reactions)
@@ -234,6 +251,7 @@ export function mapMessage(message: BeeperDesktop.Message): MessageSummary {
     ...(attachments !== undefined ? { attachments } : {}),
     ...(reactions !== undefined ? { reactions } : {}),
     ...(mapSeen(message.seen) ? { isSeen: true } : {}),
+    ...(message.type !== undefined ? { kind: message.type } : {}),
   }
 }
 
