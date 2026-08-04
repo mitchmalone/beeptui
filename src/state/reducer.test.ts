@@ -556,7 +556,7 @@ describe('inbox filter (network rail)', () => {
     expect(reduce(withAccounts, { type: 'filter/scopeCycled', direction: 1 }).railCursor).toBe('wa')
   })
 
-  test('rail/cursorMoved walks scopes then the Archived toggle, wrapping', () => {
+  test('rail/cursorMoved walks scopes, then Archived, then Settings, wrapping', () => {
     let s = reduce(withAccounts, { type: 'rail/cursorMoved', direction: 1 })
     expect(s.railCursor).toBe('wa')
     expect(s.filter.scope).toBe('wa') // landing on a scope live-selects it
@@ -564,6 +564,9 @@ describe('inbox filter (network rail)', () => {
     expect(s.railCursor).toBe('fb')
     s = reduce(s, { type: 'rail/cursorMoved', direction: 1 })
     expect(s.railCursor).toBe('archived') // after the last account
+    s = reduce(s, { type: 'rail/cursorMoved', direction: 1 })
+    expect(s.railCursor).toBe('settings') // pinned at the foot
+    expect(s.filter.scope).toBe('fb') // neither a scope nor a toggle: scope untouched
     s = reduce(s, { type: 'rail/cursorMoved', direction: 1 })
     expect(s.railCursor).toBe('all') // wraps
   })

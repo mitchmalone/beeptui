@@ -21,3 +21,13 @@ export const CONVERSATION_ACTIONS: readonly ConversationAction[] = [
   { id: 'reply', label: 'Reply' },
   { id: 'react', label: 'React…' },
 ]
+
+/** An entry in the Settings flyout (Net rail → Settings). */
+export interface SettingsItem {
+  id: 'theme'
+  label: string
+}
+
+/** Settings the menu offers today. Density, network colours and keymap are the
+ *  obvious next ones — the menu is built to take them. */
+export const SETTINGS_ITEMS: readonly SettingsItem[] = [{ id: 'theme', label: 'Theme…' }]

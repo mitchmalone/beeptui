@@ -5,6 +5,26 @@
 
 ---
 
+### 2026-08-04 — A narrow box clips its own flyout, and a memo froze the rail caret
+
+- **`position: 'absolute'` children are clipped by their positioned ancestor.** The conversation
+  action menu overflows its pane happily, which read as "OpenTUI lets dropdowns overflow". It does
+  not — that pane is just wide enough. Anchored inside the 8-column Net rail, the same pattern
+  rendered a 4-column stub with every label cut off. Anchor a flyout on a container at least as wide
+  as the flyout; for rail menus that means the app root.
+- **A `useMemo` over a selector must list every slice the selector reads.** The App memoized
+  `selectNetworkRail` on chats/accounts/filter but not `state.railCursor` — and every rail entry
+  carries `isCursor`. The cursor moved in state while the rail kept drawing the stale caret, so
+  `j`/`k` looked completely dead. It survived this long because every _other_ rail entry also changes
+  the scope, which invalidated the memo by a side door; Settings is the first entry that does not.
+- **Test-harness key tokens are uppercase constants, not key names.** `pressKey('escape')` /
+  `pressKey('up')` send the literal strings; the real tokens are `ESCAPE`, `ARROW_UP`, `ARROW_DOWN`.
+  A test written with the lowercase form passes or fails for reasons unrelated to what it claims to
+  check — one of mine "passed" only because the cursor it failed to move was already on the right
+  item. Bare `ESCAPE` still is not delivered as an escape event, so that path is verified live.
+
+---
+
 ### 2026-08-04 — A false alarm about history paging, and how it happened
 
 - **A negative result from synthetic input needs a positive control.** Driving the TUI with

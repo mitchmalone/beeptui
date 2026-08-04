@@ -110,13 +110,22 @@ describe('selectNetworkRail', () => {
     },
   ])
 
-  test('All first, then accounts in order, then the Archived toggle', () => {
+  test('All first, then accounts in order, then Archived, then Settings', () => {
     const rail = selectNetworkRail(base)
-    expect(rail.map((e) => e.id)).toEqual(['all', 'wa', 'fb', 'archived'])
-    expect(rail.map((e) => e.label)).toEqual(['All', 'WhatsApp', 'Facebook', 'Archived'])
+    expect(rail.map((e) => e.id)).toEqual(['all', 'wa', 'fb', 'archived', 'settings'])
+    expect(rail.map((e) => e.label)).toEqual([
+      'All',
+      'WhatsApp',
+      'Facebook',
+      'Archived',
+      'Settings',
+    ])
     const archived = rail.find((e) => e.id === 'archived')
     expect(archived?.kind).toBe('archived')
     expect(archived?.isSelected).toBe(false) // a toggle, never the active scope
+    const settings = rail.find((e) => e.id === 'settings')
+    expect(settings?.kind).toBe('settings')
+    expect(settings?.isSelected).toBe(false) // opens a flyout; not a scope
   })
 
   test('per-scope unread counts honor the active view', () => {

@@ -136,7 +136,9 @@ describe('App shell', () => {
     const { renderOnce, mockInput } = await renderApp(store)
     await renderOnce()
     expect(store.getState().railCursor).toBe('all')
-    await mockInput.pressKey('k') // up from 'all' wraps to the Archived entry (last)
+    await mockInput.pressKey('k') // up from 'all' wraps to Settings (now last)
+    expect(store.getState().railCursor).toBe('settings')
+    await mockInput.pressKey('k') // and once more to Archived
     expect(store.getState().railCursor).toBe('archived')
     expect(store.getState().filter.scope).toBe('all') // scope untouched by resting on Archived
     await mockInput.pressKey('RETURN') // Enter toggles the archived view
@@ -239,9 +241,8 @@ describe('App shell', () => {
     })
     await renderOnce()
     // The cursor is already on the only (and therefore oldest) message; one more
-    // step up is the request. `k` and `↑` are the same binding — the mock input
-    // does not synthesise arrow keys, so the arrow is covered live instead.
-    await mockInput.pressKey('k')
+    // step up is the request.
+    await mockInput.pressKey('ARROW_UP')
     // The reducer records the request; the fetch happens in an effect on the
     // next commit, so let React settle before asserting.
     await Promise.resolve()
@@ -582,5 +583,54 @@ describe('first load', () => {
     // than claiming it has no messages.
     expect(frame).toContain('Press ⏎ to open')
     expect(frame).not.toContain('No messages yet')
+  })
+})
+
+describe('settings flyout', () => {
+  test('⏎ on the rail Settings entry opens a flyout, and Theme opens the list', async () => {
+    const store = seededStore()
+    store.dispatch({ type: 'focus/changed', focus: 'rail' })
+    const { renderOnce, captureCharFrame, mockInput } = await renderApp(store)
+    await renderOnce()
+
+    await mockInput.pressKey('k') // wraps up onto Settings, pinned at the foot
+    expect(store.getState().railCursor).toBe('settings')
+    await mockInput.pressKey('RETURN')
+    await renderOnce()
+    expect(store.getState().overlay).toBe('settingsMenu')
+    expect(captureCharFrame()).toContain('Theme')
+
+    await mockInput.pressKey('RETURN')
+    await renderOnce()
+    expect(store.getState().overlay).toBe('themePicker')
+    const frame = captureCharFrame()
+    expect(frame).toContain('default')
+    expect(frame).toContain('dracula')
+  })
+
+  test('choosing a theme applies it and closes', async () => {
+    const store = seededStore()
+    store.dispatch({ type: 'overlay/opened', overlay: 'themePicker' })
+    const before = store.getState().themeName
+    const { renderOnce, mockInput } = await renderApp(store)
+    await renderOnce()
+    await mockInput.pressKey('ARROW_DOWN')
+    await mockInput.pressKey('RETURN')
+    expect(store.getState().themeName).not.toBe(before)
+    expect(store.getState().overlay).toBe('none')
+  })
+
+  // Esc stepping back one level (themePicker → settingsMenu → none) is verified
+  // live rather than here: the mock input does not deliver a bare ESC as an
+  // escape key event, so asserting it in this harness would test nothing.
+
+  test('the panes stay mounted under the flyout — it is not a full-screen overlay', async () => {
+    const store = seededStore()
+    store.dispatch({ type: 'overlay/opened', overlay: 'settingsMenu' })
+    const { renderOnce, captureCharFrame } = await renderApp(store)
+    await renderOnce()
+    const frame = captureCharFrame()
+    expect(frame).toContain('Chats')
+    expect(frame).toContain('Grace Hopper')
   })
 })

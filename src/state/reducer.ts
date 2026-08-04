@@ -4,13 +4,14 @@ import {
   MAX_MESSAGES_PER_CHAT,
   PENDING_SORT_PREFIX,
   RAIL_ARCHIVED_ID,
+  RAIL_SETTINGS_ID,
   type AppEvent,
   type AppState,
   type ChatMessages,
   type MessageEntity,
   type MessagePage,
 } from '@/state/types.ts'
-import { CONVERSATION_ACTIONS, QUICK_REACTIONS } from '@/state/reactions.ts'
+import { CONVERSATION_ACTIONS, QUICK_REACTIONS, SETTINGS_ITEMS } from '@/state/reactions.ts'
 import {
   conversationContentWidth,
   maxScrollOffset,
@@ -543,7 +544,15 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     case 'overlay/opened':
       // Opening search starts from an empty query; the action menu and emoji
       // picker start from their first item.
-      return { ...state, overlay: event.overlay, searchQuery: '', actionCursor: 0, emojiCursor: 0 }
+      return {
+        ...state,
+        overlay: event.overlay,
+        searchQuery: '',
+        actionCursor: 0,
+        emojiCursor: 0,
+        settingsCursor: 0,
+        themeCursor: 0,
+      }
 
     case 'overlay/closed':
       return { ...state, overlay: 'none', searchQuery: '' }
@@ -556,6 +565,21 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       const max = CONVERSATION_ACTIONS.length - 1
       const next = Math.min(max, Math.max(0, state.actionCursor + event.delta))
       return { ...state, actionCursor: next }
+    }
+
+    case 'settingsMenu/moved': {
+      const max = Math.max(0, SETTINGS_ITEMS.length - 1)
+      return {
+        ...state,
+        settingsCursor: Math.min(max, Math.max(0, state.settingsCursor + event.delta)),
+      }
+    }
+
+    case 'themePicker/moved': {
+      // The App owns the theme registry, so it tells the reducer how long the
+      // list is rather than the reducer importing the view's data.
+      const max = Math.max(0, event.count - 1)
+      return { ...state, themeCursor: Math.min(max, Math.max(0, state.themeCursor + event.delta)) }
     }
 
     case 'emojiPicker/moved': {
@@ -586,7 +610,7 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     case 'rail/cursorMoved': {
       // The rail cursor walks scopes plus the Archived toggle. Landing on a scope
       // live-selects it (current behaviour); landing on Archived leaves the scope.
-      const order = ['all', ...state.accountOrder, RAIL_ARCHIVED_ID]
+      const order = ['all', ...state.accountOrder, RAIL_ARCHIVED_ID, RAIL_SETTINGS_ID]
       const current = order.indexOf(state.railCursor)
       const from = current === -1 ? 0 : current
       const next = order[(from + event.direction + order.length) % order.length] ?? 'all'
@@ -597,7 +621,10 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       return withSeededChat({
         ...state,
         railCursor: next,
-        filter: next === RAIL_ARCHIVED_ID ? state.filter : { ...state.filter, scope: next },
+        filter:
+          next === RAIL_ARCHIVED_ID || next === RAIL_SETTINGS_ID
+            ? state.filter
+            : { ...state.filter, scope: next },
       })
     }
 
