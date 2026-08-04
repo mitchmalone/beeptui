@@ -1,8 +1,8 @@
 ---
 title: v1 polish — optional follow-ups
-status: backlog
+status: done
 created: 2026-08-01
-updated: 2026-08-03
+updated: 2026-08-04
 links:
   - ../done/PLAN-slice-14-polish-packaging.md
   - ../../PRD.md § Phased delivery (Phase 3)
@@ -60,3 +60,14 @@ Each is a standalone plan, ordered roughly by value/effort:
 - Anything already shipped in Slice 14 (reactions, receipts, notify hooks, keymap/colour config,
   standalone binary + release workflow).
 - Production live-validation runs — those are tracked in `TODO.md`, not here.
+
+## Closed 2026-08-04
+
+Nothing open remains here. Every carried item became its own plan and has since been resolved:
+
+- **Release hygiene / versioning** — done; the binary is stamped from the git tag.
+- **Login guard** — done in the v0.3 ladder (`plans/done/PLAN-login-guard-local-endpoint.md`).
+- **Inline image rendering** — deliberately deferred past 0.3 (Mitch, 2026-08-04). Its plan stays in
+  `backlog/` as the first item for 0.4.
+
+This file is retired as an index; it records what Slice 14 carried and where each piece went.
