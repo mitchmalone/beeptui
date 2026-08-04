@@ -5,6 +5,22 @@
 
 ---
 
+### 2026-08-04 — `login` guards on `remote_access`, not on locality
+
+- **The gate is `server.remote_access`, not whether the endpoint is localhost.** The plan proposed
+  refusing a browser login when the endpoint is local _or_ remote access is off. Shipped narrower:
+  refuse iff `remote_access` is off. That flag is what says the advertised OAuth endpoints are
+  real — a local endpoint with remote access switched **on** serves a genuine authorization page,
+  which is how you would pair a remote client. Refusing on locality alone would block a working
+  flow on no evidence. The reported bug (local + access off) is caught either way, and the endpoint
+  kind still picks which way out the message points at.
+- **A refusal is only useful if it says what to do instead.** The local message names the situation
+  and sends the user to `beeptui` (local auth is a token they already have if `doctor` is green);
+  the remote one says to turn remote access on. Asserted in tests, so the guidance can't rot into a
+  bare error string.
+
+---
+
 ### 2026-08-04 — PR #36 swept in two unrelated commits that were parked on local `main`
 
 - **A feature branch inherits whatever is unpushed on the branch it is cut from.** `main` was two
