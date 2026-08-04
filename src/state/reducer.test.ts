@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { reduce } from '@/state/reducer.ts'
 import { initialState, MAX_MESSAGES_PER_CHAT, type AppEvent, type AppState } from '@/state/types.ts'
 import { CONVERSATION_ACTIONS, QUICK_REACTIONS } from '@/state/reactions.ts'
+import { RAIL_ARCHIVED_ID } from '@/state/types.ts'
 import { conversationContentWidth, visibleRows } from '@/state/conversation-scroll.ts'
 import { layOutMessages, totalRows } from '@/state/message-layout.ts'
 
@@ -1294,5 +1295,100 @@ describe('going to the newest message pins to the bottom', () => {
     )
     expect(rows[0]?.messageId).toBe('m1')
     expect(rows[0]?.first).toBe(true)
+  })
+})
+
+describe('moving the rail cursor keeps the Chats column highlighted', () => {
+  // Reported live: All → open a chat → Esc to the rail → change network → the
+  // Chats column had no highlight, because the previously selected chat belongs
+  // to the network you just left and is filtered out.
+  function twoNetworks(): AppState {
+    return run([
+      {
+        type: 'accounts/loaded',
+        accounts: [
+          {
+            id: 'a',
+            network: 'WhatsApp',
+            bridgeType: 'whatsapp',
+            provider: 'local',
+            displayName: 'A',
+          },
+          { id: 'b', network: 'Slack', bridgeType: 'slackgo', provider: 'cloud', displayName: 'B' },
+        ],
+      },
+      {
+        type: 'chats/loaded',
+        chats: [
+          chat('a1', { accountId: 'a', lastActivity: '2026-07-30T03:00:00.000Z' }),
+          chat('b1', { accountId: 'b', lastActivity: '2026-07-30T02:00:00.000Z' }),
+        ],
+      },
+    ])
+  }
+
+  test('walking the rail onto another network re-seeds onto a chat you can see', () => {
+    const start = twoNetworks()
+    expect(start.selectedChatId).toBe('a1')
+    // all → a: a1 is still visible, so the cursor stays put.
+    const onA = reduce(start, { type: 'rail/cursorMoved', direction: 1 })
+    expect(onA.filter.scope).toBe('a')
+    expect(onA.selectedChatId).toBe('a1')
+    // a → b: a1 is now hidden; the column must not be left cursorless.
+    const onB = reduce(onA, { type: 'rail/cursorMoved', direction: 1 })
+    expect(onB.filter.scope).toBe('b')
+    expect(onB.selectedChatId).toBe('b1')
+  })
+
+  test('landing on the Archived toggle leaves the scope and the selection alone', () => {
+    const onB = run(
+      [
+        { type: 'rail/cursorMoved', direction: 1 },
+        { type: 'rail/cursorMoved', direction: 1 },
+      ],
+      twoNetworks()
+    )
+    const onArchived = reduce(onB, { type: 'rail/cursorMoved', direction: 1 })
+    expect(onArchived.railCursor).toBe(RAIL_ARCHIVED_ID)
+    expect(onArchived.filter.scope).toBe('b')
+    expect(onArchived.selectedChatId).toBe('b1')
+  })
+
+  test('a network with no chats leaves nothing selected rather than a hidden one', () => {
+    const empty = run(
+      [
+        {
+          type: 'chats/loaded',
+          chats: [chat('a1', { accountId: 'a' })],
+        },
+        { type: 'rail/cursorMoved', direction: 1 },
+        { type: 'rail/cursorMoved', direction: 1 },
+      ],
+      twoNetworks()
+    )
+    expect(empty.filter.scope).toBe('b')
+    expect(empty.selectedChatId).toBeNull()
+  })
+})
+
+describe('a chat update that hides the selection re-seeds too', () => {
+  test('archiving the selected chat leaves the cursor on a visible one', () => {
+    const s = run([
+      {
+        type: 'chats/loaded',
+        chats: [
+          chat('a', { lastActivity: '2026-07-30T03:00:00.000Z' }),
+          chat('b', { lastActivity: '2026-07-30T02:00:00.000Z' }),
+        ],
+      },
+    ])
+    expect(s.selectedChatId).toBe('a')
+    // Beeper reports it archived; the active (non-archived) view no longer shows
+    // it, so the cursor must move rather than point at something invisible.
+    const archived = reduce(s, {
+      type: 'chats/upserted',
+      chat: chat('a', { isArchived: true, lastActivity: '2026-07-30T03:00:00.000Z' }),
+    })
+    expect(archived.selectedChatId).toBe('b')
   })
 })

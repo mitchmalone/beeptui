@@ -119,6 +119,20 @@ The open question about filter changes is resolved as the plan preferred: every 
 re-seeds the cursor onto the first visible chat, and an empty filter view leaves it null rather than
 inventing a selection.
 
+**Two re-seed paths were missed on the first pass** (found by Mitch, testing: All → open a chat →
+Esc to the rail → change network → the Chats column had no highlight at all).
+
+- `rail/cursorMoved` changes `filter.scope` when the cursor lands on a network, but it writes the
+  filter as `next === RAIL_ARCHIVED_ID ? state.filter : {...}` rather than the `filter: { ... }`
+  shape the other cases use — so it did not look like a filter change when auditing, and it is the
+  path `j`/`k` in the Net column actually takes.
+- `chats/upserted` can hide the selection too: archiving the selected chat drops it out of the
+  active view. Same class, found by looking for the rest of the family rather than stopping at the
+  reported symptom.
+
+Lesson recorded: "every filter change re-seeds" is only true if you can enumerate every filter
+change, and grepping for one syntactic shape will not do that.
+
 The smoke scenarios each opened with a `j` that existed only to wake the column up; those are gone,
 which is the improvement made visible.
 

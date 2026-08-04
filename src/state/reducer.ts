@@ -287,8 +287,11 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     }
 
     case 'chats/upserted': {
+      // An update can hide the selected chat — archiving it is the obvious case
+      // — so the cursor is re-seeded here for the same reason as on a filter
+      // change: a highlighted chat that isn't in the list is no highlight.
       const chats = { ...state.chats, [event.chat.id]: event.chat }
-      return { ...state, chats, chatOrder: orderChats(chats) }
+      return withSeededChat({ ...state, chats, chatOrder: orderChats(chats) })
     }
 
     case 'messages/loaded': {
@@ -555,11 +558,15 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       const current = order.indexOf(state.railCursor)
       const from = current === -1 ? 0 : current
       const next = order[(from + event.direction + order.length) % order.length] ?? 'all'
-      return {
+      // Landing on a scope changes what the Chats column shows, so the chat
+      // cursor has to be re-seeded like any other filter change — otherwise it
+      // stays on a chat belonging to the network you just left, which is
+      // filtered out, and the column renders with no highlight at all.
+      return withSeededChat({
         ...state,
         railCursor: next,
         filter: next === RAIL_ARCHIVED_ID ? state.filter : { ...state.filter, scope: next },
-      }
+      })
     }
 
     case 'filter/archivedToggled':
