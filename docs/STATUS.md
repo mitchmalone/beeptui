@@ -51,9 +51,10 @@ moves focus to compose and clears the cursor. Compose retitles to `Replying in t
 `↑` again requests the next page; the cursor lands on the newest message of the arriving batch, so
 one keypress moves by one message the way it does anywhere else. A pending marker stops a held key
 stacking requests, an error clears it rather than leaving a permanent "loading", and `g` still jumps
-to the oldest _loaded_ without paging. The dead `conversation/scrolled` event is deferred to its own
-change — 15 tests reach a "scrolled up" state through it. Verified live: holding `↑` walks
-continuously back through history, `G` returns to the newest.
+to the oldest _loaded_ without paging. Verified live: holding `↑` walks continuously back through
+history, `G` returns to the newest. The dead `conversation/scrolled` event has since been removed;
+the tests that used it to fake a scrolled-up state now scroll by moving the cursor, which is the
+only scroll there is.
 
 **Step 3 — selection & focus.** The active column always has a cursor: the first _visible_ chat is
 highlighted when the list loads (highlight only — opening stays `⏎`), the newest message is seated

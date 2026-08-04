@@ -249,7 +249,6 @@ export type AppEvent =
   | { type: 'reply/started'; messageId: string }
   | { type: 'reply/cancelled' }
   | { type: 'focus/changed'; focus: FocusTarget }
-  | { type: 'conversation/scrolled'; delta: number }
   | { type: 'overlay/opened'; overlay: Exclude<Overlay, 'none'> }
   | { type: 'overlay/closed' }
   /** The conversation viewport measured `rows` tall and the terminal `cols`

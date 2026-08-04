@@ -12,11 +12,7 @@ import {
   type MessagePage,
 } from '@/state/types.ts'
 import { CONVERSATION_ACTIONS, QUICK_REACTIONS, SETTINGS_ITEMS } from '@/state/reactions.ts'
-import {
-  conversationContentWidth,
-  maxScrollOffset,
-  offsetToShowMessage,
-} from '@/state/conversation-scroll.ts'
+import { conversationContentWidth, offsetToShowMessage } from '@/state/conversation-scroll.ts'
 import { layOutMessages, totalRows, type MessageLayout } from '@/state/message-layout.ts'
 import { matchesFilter } from '@/state/selectors.ts'
 
@@ -465,22 +461,6 @@ export function reduce(state: AppState, event: AppEvent): AppState {
         return { ...state, focus: event.focus, railCursor: state.filter.scope }
       }
       return { ...state, focus: event.focus }
-    }
-
-    case 'conversation/scrolled': {
-      // The offset is a row count, so the ceiling is total laid-out rows minus
-      // the viewport — not the message count, which stops far short of the top
-      // once messages wrap onto several rows.
-      const max = measured(state)
-        ? maxScrollOffset(totalRows(activeLayouts(state)), state.viewportRows)
-        : Math.max(0, activeItems(state).length - 1)
-      const offset = Math.min(max, Math.max(0, state.conversationOffset + event.delta))
-      // Reaching the bottom (offset 0) dismisses the new-messages affordance.
-      return {
-        ...state,
-        conversationOffset: offset,
-        newMessagesBelow: offset === 0 ? false : state.newMessagesBelow,
-      }
     }
 
     case 'draft/changed': {

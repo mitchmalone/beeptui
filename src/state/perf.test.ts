@@ -134,7 +134,11 @@ describe('state performance benchmark', () => {
     for (let n = 0; n < MAX_MESSAGES_PER_CHAT; n++) {
       s = reduce(s, { type: 'message/received', message: msg('c1', n) })
     }
-    s = reduce(s, { type: 'conversation/scrolled', delta: 20 })
+    // Off the floor, by walking the cursor back the way a user scrolls.
+    for (let n = 0; n < 60 && s.conversationOffset === 0; n++) {
+      s = reduce(s, { type: 'messageSelection/moved', delta: -1 })
+    }
+    expect(s.conversationOffset).toBeGreaterThan(0)
 
     // Arrival while scrolled up: lays out before and after to bump the offset
     // by the rows that were added.

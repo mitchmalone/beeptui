@@ -5,6 +5,20 @@
 
 ---
 
+### 2026-08-04 — Removing the dead scroll event made the tests honest
+
+- **Fifteen tests reached "scrolled up" through an event no key could produce.** `conversation/
+scrolled` had been dead since the message cursor arrived, but the affordance and eviction tests
+  still used it to set up their state — so they were exercising a path a user cannot reach, and the
+  offsets they asserted (`delta: 6` → `offset 6`) were not offsets any real interaction produces.
+- **The replacement is a loop, not a constant.** How far the cursor must walk before the window
+  moves depends on message heights and viewport size, so `scrolledUp()` walks until the offset
+  leaves the floor and asserts that it did. Hard-coded step counts would silently stop testing
+  anything the first time a message wrapped differently.
+- Removing dead code is cheap; removing the _fiction it supported_ is where the value was.
+
+---
+
 ### 2026-08-04 — A narrow box clips its own flyout, and a memo froze the rail caret
 
 - **`position: 'absolute'` children are clipped by their positioned ancestor.** The conversation
