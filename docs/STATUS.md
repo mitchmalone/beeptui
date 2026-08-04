@@ -7,6 +7,15 @@
 
 ## Where we are
 
+**Next up — the v0.3 ladder** (planned 2026-08-04). Seven slices, each its own plan and its own PR,
+laddering to a `v0.3.0` release; index and release checklist in
+`docs/plans/backlog/PLAN-v03-release.md`. In order: **login guard** (dead browser tab on a local
+endpoint) → **full-window eviction** (live arrivals ignored once 200 messages are loaded) →
+**selection & focus** (always a visible cursor) → **history paging on scroll** (drop `u`; `↑` pages)
+→ **reply from the action menu** → **settings menu** in the Net rail → **inline image rendering**.
+Steps 4 and 5 depend on 3 and must not start before it lands; step 7 is last because its emit-point
+spike is the only unresolved feasibility question in the set.
+
 **Conversation block layout + row-exact viewport** — on `feat/conversation-message-layout`
 (2026-08-04). Each message now reads as a block: **sender left / timestamp right on its own line,
 body beneath, a blank line of relief between messages** (dropped at compact density). The caret
