@@ -2,8 +2,9 @@
 title: login — guard against local / remote-access-off endpoints
 status: planned
 created: 2026-08-03
-updated: 2026-08-03
+updated: 2026-08-04
 links:
+  - PLAN-v03-release.md # step 1 of the 0.3 ladder
   - ../../PRD.md § Auth
   - ../../JOURNAL.md 2026-08-03 (login opens a dead page on a local endpoint)
   - src/cli/index.ts (login handler)

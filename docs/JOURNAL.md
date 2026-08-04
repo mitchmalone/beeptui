@@ -5,6 +5,24 @@
 
 ---
 
+### 2026-08-04 — PR #36 swept in two unrelated commits that were parked on local `main`
+
+- **A feature branch inherits whatever is unpushed on the branch it is cut from.** `main` was two
+  commits ahead of `origin/main` (the website version-stamp workflow, parked because the `gh` token
+  lacks the `workflow` scope). Branching from it put both commits in the PR, and the squash merge
+  landed them on `main` under a title that describes neither. Check `git rev-list --count
+origin/main..main` before branching, and rebase or stash anything that isn't yours.
+- **Pushing over SSH sidesteps the `workflow` OAuth scope.** The parked commit pushed without
+  complaint as part of the feature branch — the remote is `git@github.com:…`, and the scope check
+  only applies to HTTPS pushes with a `gh` token. The commit had been sitting unpushed for a day
+  for no reason.
+- **`gh pr merge --delete-branch` moves your working tree.** It checks out the default branch and
+  tries to fast-forward it. With a diverged local `main` the pull fails, leaving you on a stale
+  `main` — which reads exactly like the merge failed. It hadn't; check the PR state before
+  reacting to the local error.
+
+---
+
 ### 2026-08-04 — Conversation block layout; the viewport now counts rows, not messages
 
 - **The 2-column drift was structural, not a padding bug.** The caret lived _inside_ the message
@@ -40,8 +58,10 @@
 - **The website's version string is now stamped by the release workflow**, not hand-edited: a new
   gated `website` job in `release.yml` pushes `src/data/release.json` to the web repo on each `v*`
   tag (mirroring the tap job). Motivation: the site still said "v0.x" at `v0.2.0` — any value a
-  human must remember to update will drift. Blocked on push at time of writing (`gh` token lacks
-  the `workflow` scope — see `LEARNINGS.md`); setup steps in `STATUS.md`.
+  human must remember to update will drift. Was blocked on push at time of writing (`gh` token
+  lacks the `workflow` scope); it landed on `main` in PR #36 — pushing over SSH sidesteps the scope
+  entirely (`LEARNINGS.md`). Remaining setup (`WEB_REPO` variable, `WEB_REPO_TOKEN` secret) in
+  `STATUS.md`.
 - **README restructured installs-first** (Homebrew default → binary → source) after it was caught
   walking new users through the contributor `bun install` flow; OSS badges added. Both pushed.
 
