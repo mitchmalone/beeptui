@@ -1,6 +1,6 @@
 ---
 title: selection and focus — what is highlighted, and when
-status: planned
+status: done
 created: 2026-08-04
 updated: 2026-08-04
 links:
@@ -68,33 +68,73 @@ other.
 
 ## Steps
 
-- [ ] Reducer tests first for each case below, then the changes.
-- [ ] `chats/loaded`: when no chat is selected, select the first row of the current filter view.
+- [x] Reducer tests first for each case below, then the changes.
+- [x] `chats/loaded`: when no chat is selected, select the first row of the current filter view.
       Respect the active scope/archived filter — select the first _visible_ chat, not
       `chatOrder[0]`.
-- [ ] `messages/loaded`: when `focus === 'conversation'` and `selectedMessageId === null`, select
+- [x] `messages/loaded`: when `focus === 'conversation'` and `selectedMessageId === null`, select
       the newest, reusing the same helper `focus/changed` uses.
-- [ ] `focus/changed → compose`: clear `selectedMessageId` (leave `replyTo` untouched).
-- [ ] `focus/changed → conversation` from compose: re-select the newest if nothing is selected —
+- [x] `focus/changed → compose`: clear `selectedMessageId` (leave `replyTo` untouched).
+- [x] `focus/changed → conversation` from compose: re-select the newest if nothing is selected —
       already the current behaviour; add the test that pins it.
-- [ ] Component test on the real render: after load, the first chat row carries the highlight; after
+- [x] Component test on the real render: after load, the first chat row carries the highlight; after
       `⏎`, the newest message carries the `›`; after Tab to compose, no message carries it.
-- [ ] Check the status-bar hint and `MESSAGE_SELECT_HELP` still describe reality.
+- [x] Check the status-bar hint and `MESSAGE_SELECT_HELP` still describe reality.
 
 ## Acceptance criteria
 
-- [ ] On launch with chats loaded: "All" is the active scope, the first chat is highlighted, Chats
+- [x] On launch with chats loaded: "All" is the active scope, the first chat is highlighted, Chats
       is the focused column, and the conversation pane is empty (nothing opened without `⏎`).
-- [ ] Pressing `⏎` on a chat lands the `›` cursor on the newest message once history arrives,
+- [x] Pressing `⏎` on a chat lands the `›` cursor on the newest message once history arrives,
       whichever order the events land in.
-- [ ] Tabbing to compose removes the message highlight; tabbing back restores it.
-- [ ] `bun run typecheck`, `bun run lint`, `bun test` green; verified live in `--demo`.
+- [x] Tabbing to compose removes the message highlight; tabbing back restores it.
+- [x] `bun run typecheck`, `bun run lint`, `bun test` green; verified live in `--demo`.
 
 ## Out of scope
 
 - The reply marker on the target message (`PLAN-v03-5-...`).
 - Any change to how the highlight _looks_ — colours and the caret column are settled.
 - Auto-opening a chat on launch. First load highlights; it does not open.
+
+## Outcome
+
+Done, plus two defects the slice surfaced that would have shipped broken.
+
+**Going to the newest message now pins to the bottom.** Seating the cursor on the newest message ran
+through `offsetToShowMessage`, which anchors a message taller than the viewport by its _top_ — right
+when you navigate up into a long message, wrong here. The resulting non-zero `conversationOffset` is
+exactly what the rest of the reducer reads as "the user has scrolled up", so opening a chat whose
+newest message overflowed the viewport raised a **false new-messages affordance** and held the
+reading position instead of following. `offsetForSelection` now returns 0 when the target is the
+newest message, which fixes it for every path at once — open, `messages/loaded`, `v`, `G`, and
+arrowing back down. Navigating _up_ to a tall message still top-anchors, with a test pinning both.
+
+**"No messages yet." was a lie on an unopened chat.** Highlighting a chat makes the conversation
+pane render it, and with no history fetched the pane claimed the chat was empty. Pre-existing —
+pressing `j` always did this — but seeding made it the first thing you see at launch.
+`ActiveConversation` now carries `loaded`, and an unopened chat says "Press ⏎ to open this chat."
+(invariant 8: never a fake state).
+
+The open question about filter changes is resolved as the plan preferred: every filter event
+re-seeds the cursor onto the first visible chat, and an empty filter view leaves it null rather than
+inventing a selection.
+
+**Two re-seed paths were missed on the first pass** (found by Mitch, testing: All → open a chat →
+Esc to the rail → change network → the Chats column had no highlight at all).
+
+- `rail/cursorMoved` changes `filter.scope` when the cursor lands on a network, but it writes the
+  filter as `next === RAIL_ARCHIVED_ID ? state.filter : {...}` rather than the `filter: { ... }`
+  shape the other cases use — so it did not look like a filter change when auditing, and it is the
+  path `j`/`k` in the Net column actually takes.
+- `chats/upserted` can hide the selection too: archiving the selected chat drops it out of the
+  active view. Same class, found by looking for the rest of the family rather than stopping at the
+  reported symptom.
+
+Lesson recorded: "every filter change re-seeds" is only true if you can enumerate every filter
+change, and grepping for one syntactic shape will not do that.
+
+The smoke scenarios each opened with a `j` that existed only to wake the column up; those are gone,
+which is the improvement made visible.
 
 ## Risks / open questions
 

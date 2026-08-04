@@ -206,7 +206,6 @@ describe('golden-path smoke', () => {
 
   test('scenario 2: open a chat, read history, then compose + send (optimistic pending)', async () => {
     const h = await harness()
-    await h.mockInput.pressKey('j') // select first chat
     await h.mockInput.pressKey('RETURN') // open it
     await h.settle()
     expect(h.captureCharFrame()).toContain('Ship it.')
@@ -226,7 +225,6 @@ describe('golden-path smoke', () => {
   test('scenario 3: a live inbound message renders; scrolled-up shows the affordance', async () => {
     // Short viewport so a few messages overflow it and scrolling is real.
     const h = await harness(12)
-    await h.mockInput.pressKey('j')
     await h.mockInput.pressKey('RETURN')
     await h.settle()
 
@@ -266,7 +264,6 @@ describe('golden-path smoke', () => {
 
   test('scenario 3b: a burst of live inbound messages while scrolled up keeps reading position', async () => {
     const h = await harness(12)
-    await h.mockInput.pressKey('j')
     await h.mockInput.pressKey('RETURN')
     await h.settle()
 
@@ -311,7 +308,6 @@ describe('golden-path smoke', () => {
 
   test('scenario 4: disconnect keeps the draft and degrades visibly; reconnect recovers', async () => {
     const h = await harness()
-    await h.mockInput.pressKey('j')
     await h.mockInput.pressKey('RETURN')
     await h.settle()
     await h.mockInput.pressKey('TAB')
@@ -385,7 +381,6 @@ describe('golden-path smoke', () => {
 
   test('scenario 7: archiving the open chat moves it out of the active view, visibly', async () => {
     const h = await harness()
-    await h.mockInput.pressKey('j') // select Grace Hopper (WhatsApp)
     await h.mockInput.pressKey('RETURN') // open it
     await h.settle()
     expect(h.captureCharFrame()).toContain('Grace Hopper')
@@ -409,7 +404,6 @@ describe('golden-path smoke', () => {
 
   test('scenario 8: reply on a supporting network quotes the message and threads the send', async () => {
     const h = await harness()
-    await h.mockInput.pressKey('j') // Grace Hopper (WhatsApp, canReply)
     await h.mockInput.pressKey('RETURN')
     await h.settle()
 
@@ -435,7 +429,6 @@ describe('golden-path smoke', () => {
 
   test('scenario 8b: a non-supporting network names the missing reply capability', async () => {
     const h = await harness()
-    await h.mockInput.pressKey('j')
     await h.mockInput.pressKey('j') // engineering (Slack, canReply: false)
     await h.mockInput.pressKey('RETURN')
     await h.settle()
@@ -453,7 +446,6 @@ describe('golden-path smoke', () => {
 
   test('scenario 9: open + save an attachment; the notice names the file, never the path', async () => {
     const h = await harness()
-    await h.mockInput.pressKey('j') // Grace Hopper
     await h.mockInput.pressKey('RETURN')
     await h.settle()
 
@@ -482,7 +474,6 @@ describe('golden-path smoke', () => {
     // bottom, an under-count wastes history. Pin it here.
     for (const height of [20, 24, 30]) {
       const h = await harness(height)
-      await h.mockInput.pressKey('j')
       await h.mockInput.pressKey('RETURN')
       await h.settle()
 

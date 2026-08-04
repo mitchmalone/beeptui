@@ -17,12 +17,45 @@ import {
   offsetToShowMessage,
 } from '@/state/conversation-scroll.ts'
 import { layOutMessages, totalRows, type MessageLayout } from '@/state/message-layout.ts'
+import { matchesFilter } from '@/state/selectors.ts'
 
 /** Loaded messages of the active chat, or [] when none is selected. */
 function activeItems(state: AppState): readonly MessageEntity[] {
   return state.selectedChatId === null
     ? []
     : (state.messagesByChat[state.selectedChatId]?.items ?? [])
+}
+
+/** The first chat the current filter actually shows, or null when it shows none. */
+function firstVisibleChatId(state: AppState): string | null {
+  for (const id of state.chatOrder) {
+    const chat = state.chats[id]
+    if (chat !== undefined && matchesFilter(chat, state.filter)) return chat.id
+  }
+  return null
+}
+
+/**
+ * Keep the inbox cursor on a chat the user can see. The active column having no
+ * cursor is a dead-looking UI: nothing responds until the user guesses that
+ * `j` will wake it up. Re-seeds when the list first arrives and whenever a
+ * filter change hides whatever was selected.
+ */
+function withSeededChat(state: AppState): AppState {
+  const current = state.selectedChatId
+  const chat = current === null ? undefined : state.chats[current]
+  if (chat !== undefined && matchesFilter(chat, state.filter)) return state
+  const next = firstVisibleChatId(state)
+  if (next === current) return state
+  // Only the highlight moves — opening a chat stays an explicit ⏎, so the
+  // conversation pane is not populated behind the user's back.
+  return { ...state, selectedChatId: next }
+}
+
+/** The newest loaded message of the active chat, for cursor seeding. */
+function newestMessageId(state: AppState): string | null {
+  const items = activeItems(state)
+  return items[items.length - 1]?.id ?? null
 }
 
 /** The active chat's messages laid out into rows at the measured width. Scroll
@@ -47,6 +80,14 @@ function measured(state: AppState): boolean {
  *  falling back to the existing offset when the id or viewport is unknown. */
 function offsetForSelection(state: AppState, messageId: string | null): number {
   if (messageId === null || !measured(state)) return state.conversationOffset
+  // Landing on the newest message means "show me the latest", so pin to the
+  // floor. Left to `offsetToShowMessage`, a newest message taller than the
+  // viewport gets anchored by its *top* — right when you navigate up into a long
+  // message, wrong here, because the resulting non-zero offset is what the rest
+  // of the reducer reads as "the user has scrolled up". That mis-fires the
+  // new-messages affordance and holds the reading position on a chat that was
+  // only just opened.
+  if (messageId === newestMessageId(state)) return 0
   return offsetToShowMessage(
     activeLayouts(state),
     messageId,
@@ -242,16 +283,19 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     case 'chats/loaded': {
       const chats: Record<string, ChatSummary> = {}
       for (const c of event.chats) chats[c.id] = c
-      return { ...state, chats, chatOrder: orderChats(chats) }
+      return withSeededChat({ ...state, chats, chatOrder: orderChats(chats) })
     }
 
     case 'chats/upserted': {
+      // An update can hide the selected chat — archiving it is the obvious case
+      // — so the cursor is re-seeded here for the same reason as on a filter
+      // change: a highlighted chat that isn't in the list is no highlight.
       const chats = { ...state.chats, [event.chat.id]: event.chat }
-      return { ...state, chats, chatOrder: orderChats(chats) }
+      return withSeededChat({ ...state, chats, chatOrder: orderChats(chats) })
     }
 
-    case 'messages/loaded':
-      return withChatMessages(state, event.chatId, (window) => {
+    case 'messages/loaded': {
+      const loaded = withChatMessages(state, event.chatId, (window) => {
         const merged = mergeMessages(window, event.messages.map(toEntity), event.page).window
         return {
           ...merged,
@@ -259,6 +303,15 @@ export function reduce(state: AppState, event: AppEvent): AppState {
           ...(event.olderCursor !== undefined ? { olderCursor: event.olderCursor } : {}),
         }
       })
+      // Opening a chat focuses the conversation *before* its history arrives, so
+      // `focus/changed` looks at an empty list and selects nothing. Whichever of
+      // the two finishes last has to seat the cursor — otherwise the pane renders
+      // populated with no cursor in it, and the arrow keys look broken.
+      if (loaded.focus !== 'conversation' || loaded.selectedMessageId !== null) return loaded
+      const newest = newestMessageId(loaded)
+      if (newest === null) return loaded
+      return { ...loaded, selectedMessageId: newest, ...scrollForSelection(loaded, newest) }
+    }
 
     case 'message/received': {
       const chatId = event.message.chatId
@@ -366,6 +419,12 @@ export function reduce(state: AppState, event: AppEvent): AppState {
             ...scrollForSelection(state, newest.id),
           }
         }
+      }
+      // Composing is elsewhere: drop the message cursor so two columns don't
+      // both look active. `replyTo` is a different thing — what the draft
+      // answers — and must survive, or starting a reply would cancel itself.
+      if (event.focus === 'compose') {
+        return { ...state, focus: event.focus, selectedMessageId: null }
       }
       // Entering the rail puts the cursor on the active scope (never left stale
       // on the Archived toggle).
@@ -482,11 +541,15 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       const current = order.indexOf(state.filter.scope)
       const from = current === -1 ? 0 : current
       const scope = order[(from + event.direction + order.length) % order.length] ?? 'all'
-      return { ...state, filter: { ...state.filter, scope }, railCursor: scope }
+      return withSeededChat({ ...state, filter: { ...state.filter, scope }, railCursor: scope })
     }
 
     case 'filter/scopeSelected':
-      return { ...state, filter: { ...state.filter, scope: event.scope }, railCursor: event.scope }
+      return withSeededChat({
+        ...state,
+        filter: { ...state.filter, scope: event.scope },
+        railCursor: event.scope,
+      })
 
     case 'rail/cursorMoved': {
       // The rail cursor walks scopes plus the Archived toggle. Landing on a scope
@@ -495,18 +558,28 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       const current = order.indexOf(state.railCursor)
       const from = current === -1 ? 0 : current
       const next = order[(from + event.direction + order.length) % order.length] ?? 'all'
-      return {
+      // Landing on a scope changes what the Chats column shows, so the chat
+      // cursor has to be re-seeded like any other filter change — otherwise it
+      // stays on a chat belonging to the network you just left, which is
+      // filtered out, and the column renders with no highlight at all.
+      return withSeededChat({
         ...state,
         railCursor: next,
         filter: next === RAIL_ARCHIVED_ID ? state.filter : { ...state.filter, scope: next },
-      }
+      })
     }
 
     case 'filter/archivedToggled':
-      return { ...state, filter: { ...state.filter, archived: !state.filter.archived } }
+      return withSeededChat({
+        ...state,
+        filter: { ...state.filter, archived: !state.filter.archived },
+      })
 
     case 'filter/unreadToggled':
-      return { ...state, filter: { ...state.filter, unreadOnly: !state.filter.unreadOnly } }
+      return withSeededChat({
+        ...state,
+        filter: { ...state.filter, unreadOnly: !state.filter.unreadOnly },
+      })
 
     case 'density/toggled':
       return { ...state, density: state.density === 'comfortable' ? 'compact' : 'comfortable' }

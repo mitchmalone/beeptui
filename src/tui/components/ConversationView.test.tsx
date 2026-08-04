@@ -42,6 +42,7 @@ function conv(over: Partial<ActiveConversation> = {}): ActiveConversation {
     scrollOffset: 0,
     newMessagesBelow: false,
     selectedMessageId: null,
+    loaded: true,
     ...over,
   }
 }
@@ -96,6 +97,12 @@ describe('ConversationView', () => {
     expect(frame).toContain('WhatsApp')
     expect(frame).toContain('start of history')
     expect(frame).toContain('No messages yet')
+  })
+
+  test('a highlighted but unopened chat says so, rather than claiming it is empty', async () => {
+    const frame = await frameOf(conv({ loaded: false }))
+    expect(frame).toContain('Press ⏎ to open')
+    expect(frame).not.toContain('No messages yet')
   })
 
   test('load-older hint when more history exists', async () => {

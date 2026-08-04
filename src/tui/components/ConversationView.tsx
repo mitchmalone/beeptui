@@ -108,8 +108,15 @@ export const ConversationView = memo(function ConversationView({
 }: ConversationViewProps) {
   const theme = useTheme()
   const { height, width } = useTerminalDimensions()
-  const { chat, messages, hasMoreOlder, scrollOffset, newMessagesBelow, selectedMessageId } =
-    conversation
+  const {
+    chat,
+    messages,
+    hasMoreOlder,
+    scrollOffset,
+    newMessagesBelow,
+    selectedMessageId,
+    loaded,
+  } = conversation
   const pad = density === 'compact' ? 0 : 1
   const borderColor = focused ? theme.borderFocused : theme.border
 
@@ -170,7 +177,10 @@ export const ConversationView = memo(function ConversationView({
       <text style={{ flexShrink: 0, fg: theme.muted }}>{topHint}</text>
       <box style={{ flexGrow: 1, flexDirection: 'column', position: 'relative' }}>
         {visible.length === 0 ? (
-          <text>No messages yet.</text>
+          // Highlighted but never opened is not the same as opened and empty.
+          <text style={{ fg: theme.muted }}>
+            {loaded ? 'No messages yet.' : 'Press ⏎ to open this chat.'}
+          </text>
         ) : (
           visible.map((vr, i) => {
             const selected = vr.messageId === selectedMessageId

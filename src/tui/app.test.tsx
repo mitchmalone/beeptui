@@ -105,10 +105,14 @@ describe('App shell', () => {
       onOpenChat: (id) => opened.push(id),
     })
     await renderOnce()
-    await mockInput.pressKey('j')
+    // The first chat is already highlighted when the list loads — `j` moves off
+    // it rather than waking the column up.
     expect(store.getState().selectedChatId).toBe('c1')
     await mockInput.pressKey('j')
     expect(store.getState().selectedChatId).toBe('c2')
+    await mockInput.pressKey('k')
+    expect(store.getState().selectedChatId).toBe('c1')
+    await mockInput.pressKey('j')
     await mockInput.pressKey('RETURN')
     expect(opened).toEqual(['c2'])
   })
@@ -162,7 +166,7 @@ describe('App shell', () => {
       onArchiveChat: (id) => archived.push(id),
     })
     await renderOnce()
-    await mockInput.pressKey('j') // highlight the first chat, still in the inbox
+    // The first chat is highlighted from the load; no keypress needed.
     expect(store.getState().focus).toBe('inbox')
     expect(store.getState().selectedChatId).toBe('c1')
     await mockInput.pressKey('A', { shift: true })
@@ -516,5 +520,28 @@ describe('App shell', () => {
     await renderOnce()
     await mockInput.pressKey('q')
     expect(quit).toBe(1)
+  })
+})
+
+describe('first load', () => {
+  test('opens with All scope, the first chat highlighted, and Chats focused', async () => {
+    const store = seededStore()
+    const { renderOnce, captureCharFrame } = await renderApp(store)
+    await renderOnce()
+    const frame = captureCharFrame()
+
+    // Chats owns the focus dot; Net and Conversation do not.
+    expect(frame).toContain('Chats ●')
+    expect(frame).not.toContain('Conversation ●')
+    expect(frame).not.toContain('Net●')
+    // The first chat carries the cursor without a keypress.
+    expect(store.getState().selectedChatId).toBe('c1')
+    expect(store.getState().focus).toBe('inbox')
+    // All is the active scope.
+    expect(store.getState().filter.scope).toBe('all')
+    // Highlighting is not opening: the pane invites you to open the chat rather
+    // than claiming it has no messages.
+    expect(frame).toContain('Press ⏎ to open')
+    expect(frame).not.toContain('No messages yet')
   })
 })
