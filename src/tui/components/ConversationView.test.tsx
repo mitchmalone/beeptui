@@ -105,8 +105,23 @@ describe('ConversationView', () => {
     expect(frame).not.toContain('No messages yet')
   })
 
-  test('load-older hint when more history exists', async () => {
-    expect(await frameOf(conv({ hasMoreOlder: true, olderCursor: 'x' }))).toContain('load older')
+  test('more-history hint points at the arrow key, not a separate one', async () => {
+    expect(await frameOf(conv({ hasMoreOlder: true, olderCursor: 'x' }))).toContain('↑ for older')
+  })
+
+  test('a page in flight says so rather than looking like it ignored the key', async () => {
+    const { renderOnce, captureCharFrame } = await testRender(
+      <ConversationView
+        conversation={conv({ hasMoreOlder: true, olderCursor: 'x' })}
+        focused
+        capacityOverride={10}
+        widthOverride={40}
+        loadingOlder
+      />,
+      { width: 80, height: 20 }
+    )
+    await renderOnce()
+    expect(captureCharFrame()).toContain('loading older')
   })
 
   test('renders message lines and a failed-send marker', async () => {

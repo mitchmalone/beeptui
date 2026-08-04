@@ -37,6 +37,9 @@ export interface ConversationViewProps {
   networkColors?: NetworkColors | undefined
   /** Layout density; `compact` strips pane padding and the message separator. */
   density?: Density | undefined
+  /** An older page has been asked for and hasn't arrived — the top hint says so
+   *  rather than leaving the pane looking like it ignored the keypress. */
+  loadingOlder?: boolean
 }
 
 /** Rows a floating menu occupies (border + rows + hint), for open-up/down choice. */
@@ -105,6 +108,7 @@ export const ConversationView = memo(function ConversationView({
   widthOverride,
   networkColors,
   density = 'comfortable',
+  loadingOlder = false,
 }: ConversationViewProps) {
   const theme = useTheme()
   const { height, width } = useTerminalDimensions()
@@ -141,11 +145,13 @@ export const ConversationView = memo(function ConversationView({
 
   const atOldestLoaded =
     clampOffset(scrollOffset, total, capacity) >= maxScrollOffset(total, capacity)
-  const topHint = atOldestLoaded
-    ? hasMoreOlder
-      ? '— press u to load older —'
-      : '— start of history —'
-    : '— ↑ older —'
+  const topHint = loadingOlder
+    ? '— loading older… —'
+    : atOldestLoaded
+      ? hasMoreOlder
+        ? '— ↑ for older —'
+        : '— start of history —'
+      : '— ↑ older —'
 
   // Anchor the floating menu on the selected message's *first* row within the
   // visible window: open downward just under it, or upward when it would
