@@ -5,6 +5,69 @@
 
 ---
 
+### 2026-08-04 — Selection seeding, and the two lies it exposed
+
+- **"Go to the newest message" and "keep this message visible" are different requests.**
+  `offsetToShowMessage` anchors a message taller than the viewport by its _top_ — correct when you
+  navigate up into a long message, wrong when you are jumping to the latest. The non-zero offset it
+  leaves behind is what the reducer reads as "the user has scrolled up", so opening a chat whose
+  newest message overflowed the viewport raised a **false new-messages affordance** on a chat you
+  had only just opened. `offsetForSelection` now short-circuits to 0 when the target is the newest,
+  fixing open / `v` / `G` / arrow-back-down in one place.
+- **A highlighted chat is not an opened chat, and the pane must not pretend otherwise.** Seeding the
+  inbox cursor made the conversation render a chat with no fetched history, which said "No messages
+  yet." — a claim about the chat rather than about our own state. `ActiveConversation` now carries
+  `loaded` so an unopened chat says "Press ⏎ to open this chat." Pre-existing (pressing `j` always
+  did it); seeding just moved it to the first thing you see.
+- **Auto-selection has to fire on whichever event finishes last.** `⏎` dispatches `chat/selected` +
+  `focus/changed` and _then_ fetches history, so `focus/changed` looks at an empty list and seats
+  nothing. `messages/loaded` needed the mirror of the same rule. A cursor seeded on one of two
+  racing events is seeded on neither.
+- **"Every filter change re-seeds the cursor" is only true if you can enumerate every filter
+  change.** Two were missed because they do not look like filter changes: `rail/cursorMoved` writes
+  `filter: cond ? state.filter : {...}` rather than the `filter: { ... }` shape a grep finds, and it
+  is the path `j`/`k` in the Net column takes — so changing network left the Chats column with no
+  highlight at all. `chats/upserted` is the same class: archiving the selected chat hides it. Audit
+  by asking "what else can change what this list shows", not by pattern-matching source.
+- **Ten smoke assertions started with a `j` that only existed to wake the column up.** Deleting them
+  is the clearest measure of what this changed.
+
+---
+
+### 2026-08-04 — Live arrivals were invisible once the message window filled up
+
+- **Never infer "did something arrive" from a list's length when that list is capped.**
+  `message/received` diffed `items.length` either side of the merge. At `MAX_MESSAGES_PER_CHAT` an
+  arrival evicts the oldest, so the length is identical across a real arrival and the whole branch
+  was skipped — killing the reading-position hold, the new-messages affordance and cursor-follow on
+  exactly the busy chats where they matter. The merge knows what it merged; ask it.
+- **A self-echo is not an arrival.** The reconciliation path drops an optimistic placeholder when
+  our own message echoes back under a new server id. That is a replacement, not an addition —
+  counting it would raise "new messages below" for your own send.
+- **Two of the three regression tests passed before the fix, vacuously.** At a full window the
+  evicted message and the arrival were the same height, so "the reading position is preserved" held
+  at zero drift. It only tested anything once the arrival was made taller than what it evicts. A
+  preservation test proves nothing unless the thing would otherwise have moved.
+- **The obvious detection cost more than the bug.** Snapshotting the window's 200 ids per merge
+  doubled the live-message benchmark (8 → 17µs/event). Checking incoming ids against the map as
+  they arrive is O(the arrival), not O(the window).
+
+---
+
+### 2026-08-04 — Doc updates can fail silently, and did — three times
+
+- **A `str.replace` whose anchor is missing is a no-op, not an error.** Scripted STATUS and JOURNAL
+  edits anchored on the _previous_ slice's entry. Each slice was on its own branch cut from `main`,
+  so the previous entry was not there yet, and three STATUS entries plus two JOURNAL entries wrote
+  nothing while the script printed `ok`. Three PRs claimed "docs updated" and shipped without them.
+- **The edits that used `assert old in s` all worked**, and the one that failed said so loudly. The
+  difference between the two groups was entirely whether failure was allowed to be silent.
+- Anchor doc inserts on something stable — the section heading, the `---` under the intro — not on
+  the previous entry. And verify the file after writing rather than trusting the exit status of a
+  string operation.
+
+---
+
 ### 2026-08-04 — `login` guards on `remote_access`, not on locality
 
 - **The gate is `server.remote_access`, not whether the endpoint is localhost.** The plan proposed

@@ -7,17 +7,47 @@
 
 ## Where we are
 
-**Next up — the v0.3 ladder** (planned 2026-08-04). Seven slices, each its own plan and its own PR,
+**The v0.3 ladder — 3 of 7 done** (2026-08-04). Seven slices, each its own plan and its own PR,
 laddering to a `v0.3.0` release; index and release checklist in
-`docs/plans/backlog/PLAN-v03-release.md`. In order: **login guard** (dead browser tab on a local
-endpoint) → **full-window eviction** (live arrivals ignored once 200 messages are loaded) →
-**selection & focus** (always a visible cursor) → **history paging on scroll** (drop `u`; `↑` pages)
-→ **reply from the action menu** → **settings menu** in the Net rail → **inline image rendering**.
-Steps 4 and 5 depend on 3 and must not start before it lands; step 7 is last because its emit-point
-spike is the only unresolved feasibility question in the set.
+`docs/plans/backlog/PLAN-v03-release.md`.
 
-**Conversation block layout + row-exact viewport** — on `feat/conversation-message-layout`
-(2026-08-04). Each message now reads as a block: **sender left / timestamp right on its own line,
+| #   | Slice                                                                         | State              |
+| --- | ----------------------------------------------------------------------------- | ------------------ |
+| 1   | **Login guard** — `login` refuses instead of opening a dead browser tab       | done, merged (#39) |
+| 2   | **Full-window eviction** — live arrivals ignored once 200 messages are loaded | done, merged (#40) |
+| 3   | **Selection & focus** — the active column always has a cursor                 | done (#41)         |
+| 4   | **History paging on scroll** — drop `u`; `↑` at the top pages history         | not started        |
+| 5   | **Reply from the action menu** — `Replying in thread ●`, mark the target      | not started        |
+| 6   | **Settings menu** in the Net rail → Theme                                     | not started        |
+| 7   | **Inline image rendering**                                                    | not started        |
+
+Steps 4 and 5 both build on 3 and must land in order — all three move selection state in the
+reducer. Step 7 is last because its emit-point spike is the only unresolved feasibility question in
+the set; an unhappy result there costs the release nothing but images.
+
+**Step 1 — login guard.** `beeptui login` no longer opens a dead browser tab and hangs on a callback
+that never comes: it refuses up front when the endpoint reports `remote_access` off, naming the
+situation and pointing at the token path (local) or at enabling remote access (remote). Gated on
+`remote_access` rather than locality — narrower than the plan proposed, see `JOURNAL.md`.
+
+**Step 2 — full-window eviction.** Live arrivals are detected from what the merge actually added,
+not from the message list's length. At `MAX_MESSAGES_PER_CHAT` an arrival evicts the oldest so the
+length never moves, which had silently disabled the reading-position hold, the new-messages
+affordance and cursor-follow on any busy chat with a full window. A self-echo that consumes an
+optimistic placeholder is deliberately not an arrival.
+
+**Step 3 — selection & focus.** The active column always has a cursor: the first _visible_ chat is
+highlighted when the list loads (highlight only — opening stays `⏎`), the newest message is seated
+when a chat's history arrives (not just on focus, which races the fetch), and the message cursor
+clears while composing without touching an in-progress reply. Every filter change re-seeds — including
+`rail/cursorMoved` and `chats/upserted`, both missed on the first pass and caught by Mitch testing.
+Two defects surfaced and fixed on the way: jumping to the newest message now pins to the bottom
+instead of top-anchoring a tall one (which left a non-zero offset the reducer read as "scrolled up",
+raising a false new-messages affordance on a freshly opened chat), and an unopened chat now says
+"Press ⏎ to open this chat." instead of claiming it has no messages.
+
+**Conversation block layout + row-exact viewport** — merged to `main` (2026-08-04, PR #36),
+released as `0.2.1`. Each message now reads as a block: **sender left / timestamp right on its own line,
 body beneath, a blank line of relief between messages** (dropped at compact density). The caret
 moved out of the message string into its own layout column, which fixes the reported **2-character
 drift** — every line after the first, wrapped or `<br>`-broken, now starts in the same column as
