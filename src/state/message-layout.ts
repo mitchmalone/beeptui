@@ -9,6 +9,7 @@
  * Pure: no I/O, no rendering, testable without a terminal.
  */
 
+import type { MessageKind } from '@/beeper/types.ts'
 import type { MessageEntity } from '@/state/types.ts'
 import { attachmentLabel, formatTime, messageStatusMarker } from '@/state/message-format.ts'
 import {
@@ -134,10 +135,31 @@ function wrapAtoms(atoms: readonly Atom[], width: number): Atom[][] {
   return lines.length > 0 ? lines : [[]]
 }
 
+/** What to call a media message that arrived with no attachment metadata at
+ *  all. Beeper's list endpoint returns IMAGE/VIDEO messages carrying neither
+ *  text nor an `attachments` array, and rendered from those two alone they came
+ *  out as an empty line — the reply marker and read receipt with nothing between
+ *  them. Naming the kind is the least we can honestly say (invariant 8). */
+const MEDIA_PLACEHOLDER: Partial<Record<MessageKind, string>> = {
+  IMAGE: '[image]',
+  VIDEO: '[video]',
+  VOICE: '[voice message]',
+  AUDIO: '[audio]',
+  FILE: '[file]',
+  STICKER: '[sticker]',
+  LOCATION: '[location]',
+}
+
 /** Attachment placeholders and the edited marker — the decorations that read as
  *  part of the body. Reactions and delivery status trail further behind. */
-function bodyDecorations(message: MessageEntity): string {
-  let out = (message.attachments ?? []).map((a) => `[${attachmentLabel(a)}]`).join(' ')
+function bodyDecorations(message: MessageEntity, hasText: boolean): string {
+  const labelled = (message.attachments ?? []).map((a) => `[${attachmentLabel(a)}]`)
+  // Only a fallback: real attachment metadata and real text both win.
+  const placeholder =
+    labelled.length === 0 && !hasText && message.kind !== undefined
+      ? MEDIA_PLACEHOLDER[message.kind]
+      : undefined
+  let out = (placeholder !== undefined ? [placeholder] : labelled).join(' ')
   if (message.isEdited === true) out = out.length > 0 ? `${out} (edited)` : '(edited)'
   return out
 }
@@ -161,6 +183,16 @@ function isEmpty(lines: readonly StyledLine[]): boolean {
   return lines.every((l) => l.runs.every((r) => r.text.length === 0))
 }
 
+/** Append `text` to the last line, separated by a single space — unless there is
+ *  nothing to separate from, or the line already ends in one. The reply marker
+ *  carries its own trailing space, so a blind join doubles it up. */
+function appendPhrase(lines: StyledLine[], text: string): void {
+  if (text.length === 0) return
+  const last = lines[Math.max(0, lines.length - 1)]?.runs.map((r) => r.text).join('') ?? ''
+  const gap = last.length === 0 || last.endsWith(' ') ? '' : ' '
+  appendToLast(lines, `${gap}${text}`)
+}
+
 /**
  * The message body as styled source lines, before wrapping. The order matters
  * and mirrors what the single-line renderer did: reply marker, text,
@@ -174,13 +206,17 @@ function sourceLines(message: MessageEntity): StyledLine[] {
     ? htmlToStyledLines(text)
     : [{ runs: text.length > 0 ? [{ text }] : [] }]
 
+  // Captured before the reply marker goes on: the marker is not body text, and
+  // treating it as such would suppress the media placeholder on exactly the
+  // messages that need it — an image sent as a reply.
+  const hasText = !isEmpty(lines)
+
   if (message.replyToId !== undefined) {
     const first = lines[0] ?? { runs: [] }
     lines[0] = { runs: [{ text: '↩ ' }, ...first.runs] }
   }
 
-  const decorations = bodyDecorations(message)
-  appendToLast(lines, isEmpty(lines) ? decorations : ` ${decorations}`.trimEnd())
+  appendPhrase(lines, bodyDecorations(message, hasText))
   if (isEmpty(lines)) lines = [{ runs: [{ text: '(no content)' }] }]
 
   const reactions = reactionSummary(message)
