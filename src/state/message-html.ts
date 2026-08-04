@@ -216,6 +216,15 @@ export function htmlToPlainText(input: string): string {
 
 /** True when the text contains any of the markup we translate — lets callers
  *  keep the cheap single-line path for ordinary messages. */
+/** The tags Matrix permits in formatted bodies — which is what the bridges
+ *  behind Beeper emit. Deliberately a list rather than "anything that looks like
+ *  a tag": prose containing `<flag>` or `<me@example.com>` must stay prose, and
+ *  losing a word to an over-eager matcher is worse than the markup it would
+ *  catch. Tags not listed here are still stripped by `htmlToStyledLines` once a
+ *  message is on the HTML path — this only decides whether it takes that path. */
+const HTML_TAGS =
+  'a|b|strong|i|em|u|s|del|br|p|div|span|code|pre|blockquote|ul|ol|li|h[1-6]|img|hr|table|thead|tbody|tr|th|td'
+
 export function hasHtml(text: string): boolean {
-  return /<\/?(b|strong|i|em|u|br|p|div|ul|ol|li)\b|&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/i.test(text)
+  return new RegExp(`</?(${HTML_TAGS})\\b|&(#x?[0-9a-fA-F]+|[a-zA-Z]+);`, 'i').test(text)
 }

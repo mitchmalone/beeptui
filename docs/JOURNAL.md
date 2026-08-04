@@ -5,6 +5,21 @@
 
 ---
 
+### 2026-08-04 — Raw `<a href=…>` was rendering, and the translator was innocent
+
+- **Found by doing the manual release pass, not by a test.** A real message containing a link
+  rendered its markup verbatim — `<a`, `href="…"`, `rel="noopener"` on separate wrapped lines.
+  `htmlToStyledLines` handled anchors correctly all along; `hasHtml` simply did not list `a`, so the
+  message never reached the HTML path. A whitelist used as a gate is only as good as its coverage,
+  and this one had been written from the tags the _formatter_ implements rather than the tags
+  bridges _send_.
+- **Widened to the Matrix-permitted set rather than to "anything tag-shaped".** Prose containing
+  `<flag>` or `<me@example.com>` has to stay prose — silently eating a word is worse than the markup
+  it would catch. Unlisted tags are still stripped once a message is on the HTML path; the gate only
+  decides whether it takes that path.
+
+---
+
 ### 2026-08-04 — The bare `↩` messages were media, not broken replies
 
 - **Diagnosed rather than guessed, and it was not what it looked like.** The messages rendering as

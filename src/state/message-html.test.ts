@@ -125,3 +125,27 @@ describe('htmlToStyledLines — the real-world example', () => {
     expect(header?.runs.every((r) => r.bold)).toBe(true)
   })
 })
+
+describe('hasHtml covers the tags bridges actually send', () => {
+  // Found in a real chat during the 0.3 release pass: a message containing an
+  // anchor rendered its raw markup, because `<a>` was not in the detection
+  // whitelist and so the message took the plain-text path. The translator
+  // itself handled it fine all along — only the detection was too narrow.
+  test('an anchor is HTML', () => {
+    expect(hasHtml('<a href="https://example.com" rel="noopener">click</a>')).toBe(true)
+  })
+
+  test('the rest of the Matrix-permitted set is HTML too', () => {
+    for (const tag of ['span', 'code', 'pre', 'blockquote', 's', 'del', 'h1', 'h6', 'img', 'hr']) {
+      expect(hasHtml(`<${tag}>x</${tag}>`)).toBe(true)
+    }
+  })
+
+  test('prose with angle brackets is still not HTML', () => {
+    // Losing a word to an over-eager matcher is worse than the bug being fixed.
+    expect(hasHtml('use the <flag> option')).toBe(false)
+    expect(hasHtml('a < b and c > d')).toBe(false)
+    expect(hasHtml('3 <4')).toBe(false)
+    expect(hasHtml('email me <me@example.com>')).toBe(false)
+  })
+})
