@@ -2,8 +2,14 @@ import { describe, expect, test } from 'bun:test'
 import { reduce } from '@/state/reducer.ts'
 import { initialState, MAX_MESSAGES_PER_CHAT, type AppEvent, type AppState } from '@/state/types.ts'
 import { CONVERSATION_ACTIONS, QUICK_REACTIONS } from '@/state/reactions.ts'
-import { visibleMessages } from '@/state/conversation-scroll.ts'
+import { conversationContentWidth, visibleRows } from '@/state/conversation-scroll.ts'
+import { layOutMessages, totalRows } from '@/state/message-layout.ts'
+
 import type { ChatSummary, MessageSummary } from '@/beeper/types.ts'
+
+/** Lay out at the same width the reducer derives from a 120-column terminal —
+ *  assert against a different width and the row counts silently disagree. */
+const CONTENT_WIDTH = conversationContentWidth(120, 'comfortable')
 
 function chat(id: string, over: Partial<ChatSummary> = {}): ChatSummary {
   return {
@@ -873,8 +879,10 @@ describe('conversation navigation cursor + viewport follow', () => {
     expect(s.selectedMessageId).toBeNull()
   })
 
-  test('viewport/measured records the row count', () => {
-    expect(reduce(initialState, { type: 'viewport/measured', rows: 12 }).viewportRows).toBe(12)
+  test('viewport/measured records both dimensions', () => {
+    const s = reduce(initialState, { type: 'viewport/measured', rows: 12, cols: 120 })
+    expect(s.viewportRows).toBe(12)
+    expect(s.viewportCols).toBe(120)
   })
 
   test('a live message pins the cursor to the new newest when following at the bottom', () => {
@@ -889,7 +897,7 @@ describe('conversation navigation cursor + viewport follow', () => {
   test('a live message leaves the cursor when parked on an older on-screen message', () => {
     const parked = run(
       [
-        { type: 'viewport/measured', rows: 20 }, // everything fits
+        { type: 'viewport/measured', rows: 40, cols: 120 }, // everything fits
         { type: 'focus/changed', focus: 'conversation' },
         { type: 'messageSelection/moved', delta: -3 },
       ],
@@ -902,22 +910,83 @@ describe('conversation navigation cursor + viewport follow', () => {
   })
 
   test('moving the cursor scrolls so the selection stays on screen', () => {
-    // Capacity 3; enter at newest (m9, offset 0 → shows m7,m8,m9).
+    // Six rows of viewport; each message is a header + one body row + a blank
+    // separator, so only two fit. Enter at the newest (m9), pinned at the floor.
     const start = run(
       [
-        { type: 'viewport/measured', rows: 3 },
+        { type: 'viewport/measured', rows: 6, cols: 120 },
         { type: 'focus/changed', focus: 'conversation' },
       ],
       seededTen()
     )
     expect(start.conversationOffset).toBe(0)
-    // Walk up to m5 (index 5) — it sits above the initial window, so the view
-    // must have scrolled to keep it visible.
+    // Walk up to m5 — well above the initial window, so the view must have
+    // scrolled to keep it on screen.
     const moved = run(Array(4).fill({ type: 'messageSelection/moved', delta: -1 }), start)
     expect(moved.selectedMessageId).toBe('m5')
-    const items = moved.messagesByChat['c1']?.items ?? []
-    const visible = visibleMessages(items, 3, moved.conversationOffset)
-    expect(visible.some((m) => m.id === 'm5')).toBe(true)
+    const layouts = layOutMessages(moved.messagesByChat['c1']?.items ?? [], CONTENT_WIDTH)
+    const visible = visibleRows(layouts, 6, moved.conversationOffset)
+    expect(visible.some((r) => r.messageId === 'm5')).toBe(true)
+  })
+
+  test('viewport-follow keeps the cursor visible when messages differ in height', () => {
+    // m0 is a wall of text that wraps onto many rows; the rest are one-liners.
+    // A message-counting model would think it occupies a single row and scroll
+    // too little, leaving the cursor off the top of the window.
+    const seeded = run([
+      { type: 'chats/loaded', chats: [chat('c1')] },
+      { type: 'chat/selected', chatId: 'c1' },
+      {
+        type: 'messages/loaded',
+        chatId: 'c1',
+        messages: [
+          msg('m0', '0', { text: 'lorem ipsum dolor sit amet '.repeat(12) }),
+          msg('m1', '1'),
+          msg('m2', '2'),
+        ],
+        page: 'initial',
+      },
+      { type: 'viewport/measured', rows: 8, cols: 120 },
+      { type: 'focus/changed', focus: 'conversation' },
+    ])
+    const moved = run(Array(2).fill({ type: 'messageSelection/moved', delta: -1 }), seeded)
+    expect(moved.selectedMessageId).toBe('m0')
+    const layouts = layOutMessages(moved.messagesByChat['c1']?.items ?? [], CONTENT_WIDTH)
+    const visible = visibleRows(layouts, 8, moved.conversationOffset)
+    // Bringing all seven of its rows into an eight-row window puts its header
+    // at the top — a scroll a message-counting model would never have made.
+    expect(visible[0]?.messageId).toBe('m0')
+    expect(visible[0]?.first).toBe(true)
+    expect(visible.filter((r) => r.messageId === 'm0')).toHaveLength(7)
+  })
+
+  test('scrolling up can reach the oldest row, not just the oldest message', () => {
+    const seeded = run(
+      [{ type: 'viewport/measured', rows: 4, cols: 120 }],
+      run([{ type: 'focus/changed', focus: 'conversation' }], seededTen())
+    )
+    const layouts = layOutMessages(seeded.messagesByChat['c1']?.items ?? [], CONTENT_WIDTH)
+    const up = run(Array(60).fill({ type: 'conversation/scrolled', delta: 1 }), seeded)
+    expect(up.conversationOffset).toBe(totalRows(layouts) - 4)
+  })
+
+  test('a message arriving while scrolled up holds the reading position in rows', () => {
+    const parked = run(
+      [
+        { type: 'viewport/measured', rows: 6, cols: 120 },
+        { type: 'conversation/scrolled', delta: 4 },
+      ],
+      seededTen()
+    )
+    expect(parked.conversationOffset).toBe(4)
+    // A two-row arrival (header + body) plus the separator the previously-last
+    // message now needs must move the offset by that many rows, not by one.
+    const after = reduce(parked, { type: 'message/received', message: msg('m10', 'x') })
+    const grew =
+      totalRows(layOutMessages(after.messagesByChat['c1']?.items ?? [], CONTENT_WIDTH)) -
+      totalRows(layOutMessages(parked.messagesByChat['c1']?.items ?? [], CONTENT_WIDTH))
+    expect(after.conversationOffset).toBe(4 + grew)
+    expect(after.newMessagesBelow).toBe(true)
   })
 })
 

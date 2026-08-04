@@ -137,6 +137,10 @@ export interface AppState {
   /** Last measured message-viewport height (rows), so the reducer can keep the
    *  selection cursor on screen. 0 until the view first measures it. */
   viewportRows: number
+  /** Last measured terminal width (columns). Message height depends on where
+   *  text wraps, so the reducer needs the same width the view renders at.
+   *  0 until the view first measures it. */
+  viewportCols: number
   /** Cursor into the conversation action menu (while that overlay is open). */
   actionCursor: number
   /** Cursor into the emoji picker (while that overlay is open). */
@@ -182,6 +186,7 @@ export const initialState: AppState = {
   focus: 'inbox',
   conversationOffset: 0,
   viewportRows: 0,
+  viewportCols: 0,
   actionCursor: 0,
   emojiCursor: 0,
   newMessagesBelow: false,
@@ -227,8 +232,10 @@ export type AppEvent =
   | { type: 'conversation/scrolled'; delta: number }
   | { type: 'overlay/opened'; overlay: Exclude<Overlay, 'none'> }
   | { type: 'overlay/closed' }
-  /** The conversation viewport measured `rows` message lines (from the view). */
-  | { type: 'viewport/measured'; rows: number }
+  /** The conversation viewport measured `rows` tall and the terminal `cols`
+   *  wide (from the view). Both are needed: height in rows bounds the window,
+   *  width decides where messages wrap and therefore how tall they are. */
+  | { type: 'viewport/measured'; rows: number; cols: number }
   /** Move the action-menu cursor (the ENTER dropdown). */
   | { type: 'actionMenu/moved'; delta: number }
   /** Move the emoji-picker cursor. */

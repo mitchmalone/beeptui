@@ -3,6 +3,7 @@ import { useTerminalDimensions } from '@opentui/react'
 import type { InboxRow } from '@/state/selectors.ts'
 import type { Density } from '@/state/types.ts'
 import { useTheme } from '@/tui/theme/context.tsx'
+import { CHAT_RAIL_WIDTH } from '@/state/conversation-scroll.ts'
 
 /** Truncate `text` to `max` columns, marking the cut with a single-column `…`.
  *  Keeps chat names on one line (clip, not wrap). Uses string length as a width
@@ -14,8 +15,9 @@ export function clipText(text: string, max: number): string {
   return text.slice(0, max - 1) + '…'
 }
 
-/** Fixed width of the chat rail (non-grow). */
-const RAIL_WIDTH = 32
+/** Fixed width of the chat rail (non-grow). Shared with the conversation
+ *  geometry, which subtracts it to find how wide messages may wrap. */
+const RAIL_WIDTH = CHAT_RAIL_WIDTH
 
 /** Two-letter network marker for the rail (e.g. WhatsApp → WA). */
 export function networkMarker(network: string): string {

@@ -4,6 +4,14 @@
 > Concise, grouped by topic, pruned when obsolete. Never duplicate global AGENTS.md rules here.
 > The narrative "why" behind events lives in `docs/JOURNAL.md`; this file is the quick-reference.
 
+## GitHub / tooling
+
+- **Pushing `.github/workflows/*` changes needs the `workflow` OAuth scope.** The `gh` CLI's
+  default token doesn't have it, so any push touching a workflow file is rejected ("refusing to
+  allow an OAuth App to create or update workflow … without `workflow` scope" — and on `main` it
+  can surface as an opaque GH013 rules error). Fix once: `gh auth refresh -h github.com -s workflow`.
+  Pushing over SSH avoids the issue entirely.
+
 ## Dependencies
 
 - **Toolchain is pinned to the TypeScript 6 line, not TS 7.** TypeScript 7.0 is the native (Go)
@@ -67,13 +75,37 @@ chatIDs:[]}`; then send **`{type:'subscriptions.set', requestID, chatIDs:['*']}`
   the width-8 Net rail (inner width 6) and OpenTUI silently drops the whole title. Use `Net●` (no
   space) on the narrow rail; the wider panes (`Chats ●`, `Conversation ●`, `Compose ●`) have room.
   When a box title vanishes, suspect glyph width before logic.
-- **Viewport-dependent scroll math needs the height _in state_, not just the view.** Keeping the
-  message cursor on screen (`offsetToShowIndex`) requires the viewport capacity, which only the view
+- **Viewport-dependent scroll math needs the dimensions _in state_, not just the view.** Keeping
+  the message cursor on screen (`offsetToShowMessage`) requires the viewport, which only the view
   knows (`useTerminalDimensions`). The reducer must own scroll (invariant 4), so the App measures
-  `conversationCapacity(height, density)` in a `useEffect` and dispatches `viewport/measured`; the
-  reducer reads `state.viewportRows`. Guard the dispatch on a real change (and no-op in the reducer)
-  so it doesn't loop. `conversation-scroll.ts` therefore lives in `src/state/`, not `src/tui/` — it's
-  pure math the reducer imports, and state must never import the tui layer.
+  `conversationCapacity(height, density)` in a `useEffect` and dispatches `viewport/measured` with
+  both `rows` and `cols`; the reducer reads `state.viewportRows` / `state.viewportCols`. **Width
+  matters as much as height** — message height depends on where text wraps, so a reducer that
+  guessed the width differently from the view would mis-predict every row count. Guard the dispatch
+  on a real change (and no-op in the reducer) so it doesn't loop. `conversation-scroll.ts`
+  therefore lives in `src/state/`, not `src/tui/` — it's pure math the reducer imports, and state
+  must never import the tui layer. It also owns the shared column geometry (`NARROW_WIDTH`, rail
+  widths, caret gutter) so the components and the reducer cannot drift apart.
+- **The conversation viewport counts rows, not messages.** A message is a header row plus however
+  many rows its body wraps onto plus a separator (`message-layout.ts`), so "capacity" and "number
+  of messages" are different numbers. Anything that used to add or clamp by message count —
+  `conversation/scrolled`'s ceiling, the offset bump when a message arrives while scrolled up —
+  has to convert to rows or it stops short of the top and drifts the reading position.
+- **`<text>` has no hanging indent, so a gutter must be a layout column.** opentui exposes
+  `wrapMode` on `<text>` but nothing to indent continuation lines (`TextBufferRenderable` has a
+  protected `_firstLineOffset`, not surfaced as a prop). A caret or bullet baked into the string
+  only exists on line 1; every wrapped line after it starts at column 0 of the element. Put the
+  gutter in its own fixed-width box beside a `flexGrow` content box instead.
+- **Give stacked rows an explicit `height: 1` + `flexShrink: 0`.** Yoga shrinks unbounded children
+  when they don't fit, and a row squeezed to height 0 doesn't disappear — the next row paints into
+  the same terminal line, interleaving two strings character by character (a sender name and body
+  rendered as `Liveehello`). Fixed-height rows clip cleanly instead, which is the failure mode you
+  can actually see and debug.
+- **A conditional chrome row makes every capacity constant a lie.** The conversation's bottom hint
+  used to render only when there was something to say, so the rows available for messages changed
+  with app state and no single `CHROME_ROWS` could be right. Draw the row unconditionally (blank
+  when idle) and the constant becomes true — and pin it against a real render, because arithmetic
+  on border/padding/title rows is easy to get off by one and nothing else checks it.
 - **"Am I scrolled up?" is `conversationOffset > 0`, not "cursor ≠ newest".** With a message cursor,
   it's tempting to hold reading position whenever the cursor is on an older message — but on a
   conversation that fits on screen nothing is below the fold, so that mis-fires the new-messages
@@ -111,6 +143,18 @@ chatIDs:[]}`; then send **`{type:'subscriptions.set', requestID, chatIDs:['*']}`
 - **Custom theme files partial-merge onto the default.** A user file in `~/.config/beeptui/themes/`
   defines only the tokens that differ (like Dracula's distributed themes); each is validated as hex,
   and a file may override a built-in of the same name. Unknown/absent selection → default (no crash).
+
+## Text width and wrapping
+
+- **Terminal display width is an estimate; round _up_ when unsure.** `state/text-width.ts`
+  segments by grapheme cluster (so ZWJ emoji, flags and base+combining-mark count once) and scores
+  East Asian Wide/Fullwidth and emoji-presentation clusters as 2 cells. No two terminals agree on
+  every exotic grapheme, and the wrapper's failure modes are asymmetric: over-estimating wraps a
+  line early (a short line, harmless), under-estimating overflows the box or provokes a second
+  wrap by the renderer that throws the row count off.
+- **Wrap in state, keep the renderer's word-wrap as a net.** Because we err narrow, our lines
+  always fit the box, so opentui's `wrapMode: 'word'` never actually fires — but leaving it on
+  means a width disagreement degrades to a slightly short line instead of clipped text.
 
 ## Message HTML
 

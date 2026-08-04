@@ -6,6 +6,32 @@
 
 ---
 
+### 2026-08-04 · Messages are laid out into rows in pure state, not wrapped by the renderer
+
+**Decision.** `src/state/message-layout.ts` turns a message plus a content width into the exact
+rows the conversation pane draws — header, wrapped body lines, separator — and does its own word
+wrap over grapheme clusters using `src/state/text-width.ts`. The renderer draws those rows with
+opentui's `wrapMode: 'word'` left on only as a safety net, and the conversation viewport is
+measured in rows rather than messages (`conversation-scroll.ts`).
+
+**Why.** The pane moved to a block format (sender + time on one line, body beneath, a blank line
+between messages), which makes message height variable. The reducer has to predict that height to
+keep the selection cursor on screen, and it has no terminal to measure against — so any height it
+cannot compute itself puts it back out of sync with the view. That drift was already real: the old
+model assumed one message per row and multi-line HTML messages silently overflowed the viewport
+and mis-anchored the floating action menu. Laying out in pure state makes the reducer and the view
+slice the same rows by construction, and keeps it all testable without rendering a terminal.
+
+**Consequences.** `viewport/measured` carries `cols` as well as `rows`, because layout height
+depends on width. Width geometry (`NARROW_WIDTH`, the two rail widths, the caret gutter) is shared
+from `conversation-scroll.ts` rather than duplicated in components, so the reducer's wrap width
+matches what is drawn. `displayWidth` is an estimate that deliberately rounds up: over-estimating
+wraps a line early (harmless), under-estimating overflows the box. `CHROME_ROWS` must now be exact
+and is pinned against a real render in `smoke.test.tsx` — fixed-height rows clip rather than
+collapse, so an over-count would hide the newest message.
+
+---
+
 ### 2026-08-03 · Canonical name is `beeptui` (drop the `beeper-tui` spelling)
 
 **Decision.** The package name, CLI binary, config/state directories, keychain service, endpoint

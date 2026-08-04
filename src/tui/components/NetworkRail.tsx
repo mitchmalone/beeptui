@@ -2,6 +2,7 @@ import { memo } from 'react'
 import type { NetworkRailEntry } from '@/state/selectors.ts'
 import { networkColor, networkMarker, type NetworkColors } from '@/tui/components/InboxPane.tsx'
 import { useTheme } from '@/tui/theme/context.tsx'
+import { NET_RAIL_WIDTH } from '@/state/conversation-scroll.ts'
 
 export interface NetworkRailProps {
   entries: NetworkRailEntry[]
@@ -32,7 +33,7 @@ export const NetworkRail = memo(function NetworkRail({
       title={focused ? 'Net●' : 'Net'}
       border
       borderColor={focused ? theme.borderFocused : theme.border}
-      style={{ width: 8, flexShrink: 0, flexDirection: 'column' }}
+      style={{ width: NET_RAIL_WIDTH, flexShrink: 0, flexDirection: 'column' }}
     >
       <box style={{ flexGrow: 1, flexDirection: 'column' }}>
         {entries.map((entry) => {

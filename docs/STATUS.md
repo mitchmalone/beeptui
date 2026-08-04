@@ -3,9 +3,28 @@
 > The cursor: where we are right now. Keep this **terse** — a snapshot, not a history.
 > History lives in git, `plans/done/`, and `JOURNAL.md`.
 >
-> Last updated: 2026-08-03
+> Last updated: 2026-08-04
 
 ## Where we are
+
+**Conversation block layout + row-exact viewport** — on `feat/conversation-message-layout`
+(2026-08-04). Each message now reads as a block: **sender left / timestamp right on its own line,
+body beneath, a blank line of relief between messages** (dropped at compact density). The caret
+moved out of the message string into its own layout column, which fixes the reported **2-character
+drift** — every line after the first, wrapped or `<br>`-broken, now starts in the same column as
+the sender name. opentui has no hanging indent, so that had to be structural.
+
+Variable-height messages then forced the viewport to **count rows, not messages**: a new pure
+`state/message-layout.ts` (plus `state/text-width.ts` for grapheme-aware display width) wraps text
+and produces the exact rows drawn, and the reducer and the view slice the same layout. That also
+closed two pre-existing bugs — multi-line messages overflowing the viewport, and the deferred
+**line-aware menu anchoring** — and corrected `CHROME_ROWS` 9 → 11 (it had been over-counting by
+two, hidden by the old one-`<text>`-per-message rendering; now pinned against a real render).
+`viewport/measured` carries `cols` as well as `rows`. The single-line renderer
+(`messageLine`/`formatMessage`) is retired, its composition rules moved into the layout with their
+tests. **581 tests** green; typecheck + lint clean; verified live in tmux via `--demo` at 120/88/100
+columns including a resize. **Known, not fixed:** at a full message window a live arrival evicts the
+oldest, so `added` is 0 and the reading-position/new-messages branch never runs (pre-existing).
 
 **Renamed to `beeptui` + released `v0.2.0`** (2026-08-03, PR #35). The app is `beeptui` everywhere
 — package/bin, config `~/.config/beeptui/`, state `~/.local/state/beeptui/`, keychain service,
@@ -166,6 +185,15 @@ Slice 13 remote-endpoint `login` need external accounts/endpoints not available 
 Declaring **Phase 2 fully validated in production** waits on the Slice 12 matrix actually running.
 
 > Mitch is running a UX pass next, then working these slices.
+
+**Committed but unpushed — website version stamping** (2026-08-04, commit `681211e` on local
+`main`): `release.yml` gains a `website` job that pushes `src/data/release.json` to the web repo on
+each `v*` tag (same gated pattern as the tap job), so beeptui.com renders the real version. The
+push is blocked because the local `gh` OAuth token lacks the `workflow` scope (see `LEARNINGS.md`).
+To land it: `gh auth refresh -h github.com -s workflow`, push `main`, then set repo variable
+`WEB_REPO=mitchmalone/beeptui-web` and secret `WEB_REPO_TOKEN` (fine-grained PAT, contents:write on
+`beeptui-web`). The web side is already live (`beeptui-web` renders the hero version from
+`src/data/release.json`, seeded 0.2.0).
 
 ## Deferred live validation (accepted risk, Mitch 2026-08-01) → `TODO.md`
 

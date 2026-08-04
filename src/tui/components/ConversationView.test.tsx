@@ -46,13 +46,37 @@ function conv(over: Partial<ActiveConversation> = {}): ActiveConversation {
   }
 }
 
-async function frameOf(conversation: ActiveConversation, capacity = 10): Promise<string> {
+async function frameOf(
+  conversation: ActiveConversation,
+  capacity = 10,
+  width?: number
+): Promise<string> {
   const { renderOnce, captureCharFrame } = await testRender(
-    <ConversationView conversation={conversation} focused capacityOverride={capacity} />,
+    <ConversationView
+      conversation={conversation}
+      focused
+      capacityOverride={capacity}
+      {...(width !== undefined ? { widthOverride: width } : {})}
+    />,
     { width: 80, height: 20 }
   )
   await renderOnce()
   return captureCharFrame()
+}
+
+/** Column of the first drawn character inside the pane border, or -1. */
+function textColumn(line: string): number {
+  for (let i = 1; i < line.length; i += 1) {
+    const ch = line[i]
+    if (ch !== undefined && ch !== ' ' && ch !== '│') return i
+  }
+  return -1
+}
+
+function lineWith(frame: string, needle: string): string {
+  const line = frame.split('\n').find((l) => l.includes(needle))
+  if (line === undefined) throw new Error(`no line containing ${needle} in:\n${frame}`)
+  return line
 }
 
 describe('ConversationView', () => {
@@ -91,7 +115,57 @@ describe('ConversationView', () => {
     expect(frame).toContain('failed')
   })
 
-  test('bottom-pins: with a small capacity only the newest messages show', async () => {
+  test('puts the sender on its own line with the time to the right, body beneath', async () => {
+    const frame = await frameOf(conv({ messages: [msg('m1', 'hi there')] }))
+    const header = lineWith(frame, 'Grace  ') // the message header, not the chat title
+    expect(header).toContain('09:05')
+    // Time is right-aligned: it ends against the pane's right edge, and nothing
+    // but padding sits between it and the sender.
+    expect(header.indexOf('09:05')).toBeGreaterThan(header.indexOf('Grace') + 'Grace'.length)
+    expect(lineWith(frame, 'hi there')).not.toContain('09:05')
+  })
+
+  test('body lines align with the sender name, not the pane edge', async () => {
+    // Narrow content so the body must wrap; every continuation has to start in
+    // the same column as the name above it.
+    const frame = await frameOf(
+      conv({ messages: [msg('m1', 'alpha bravo charlie delta')] }),
+      10,
+      12
+    )
+    const nameColumn = textColumn(lineWith(frame, 'Grace  '))
+    for (const token of ['alpha', 'charlie']) {
+      expect(textColumn(lineWith(frame, token))).toBe(nameColumn)
+    }
+  })
+
+  test('separates messages with a blank line', async () => {
+    const frame = await frameOf(conv({ messages: [msg('m1', 'first'), msg('m2', 'second')] }))
+    const lines = frame.split('\n')
+    const firstBody = lines.findIndex((l) => l.includes('first'))
+    const secondHeader = lines.findIndex((l, i) => i > firstBody && l.includes('09:05'))
+    expect(secondHeader).toBe(firstBody + 2) // exactly one blank row between
+    expect(textColumn(lines[firstBody + 1] ?? '')).toBe(-1) // and it is blank
+  })
+
+  test('compact density drops the separator', async () => {
+    const { renderOnce, captureCharFrame } = await testRender(
+      <ConversationView
+        conversation={conv({ messages: [msg('m1', 'first'), msg('m2', 'second')] })}
+        focused
+        density="compact"
+        capacityOverride={10}
+        widthOverride={40}
+      />,
+      { width: 80, height: 20 }
+    )
+    await renderOnce()
+    const lines = captureCharFrame().split('\n')
+    const firstBody = lines.findIndex((l) => l.includes('first'))
+    expect(lines[firstBody + 1]).toContain('Grace') // next header, no blank between
+  })
+
+  test('bottom-pins: with a small capacity only the newest rows show', async () => {
     const many = Array.from({ length: 8 }, (_, i) => msg(`m${i}`, `line-${i}`))
     const frame = await frameOf(conv({ messages: many }), 3)
     expect(frame).toContain('line-7') // newest visible
@@ -99,10 +173,31 @@ describe('ConversationView', () => {
     expect(frame).not.toContain('line-0') // oldest scrolled off
   })
 
-  test('scrolled up reveals older and offers a way back to newest', async () => {
+  test('scrolling is by rows, so a message can be half in view', async () => {
     const many = Array.from({ length: 8 }, (_, i) => msg(`m${i}`, `line-${i}`))
-    const frame = await frameOf(conv({ messages: many, scrollOffset: 5 }), 3)
-    expect(frame).toContain('line-0') // scrolled to the top
+    // Each message is header + body + separator = 3 rows; one row of scroll
+    // hides the newest body while keeping its header.
+    const frame = await frameOf(conv({ messages: many, scrollOffset: 1 }), 3)
+    expect(frame).toContain('line-6')
+    expect(frame).not.toContain('line-7')
+  })
+
+  test('scrolled to the top reveals the oldest and offers a way back to newest', async () => {
+    const many = Array.from({ length: 8 }, (_, i) => msg(`m${i}`, `line-${i}`))
+    // 8 messages: seven at 3 rows plus a final 2 = 23 rows; capacity 3 puts the
+    // maximum offset at 20.
+    const frame = await frameOf(conv({ messages: many, scrollOffset: 20 }), 3)
+    expect(frame).toContain('line-0')
     expect(frame).toContain('j for newer')
+  })
+
+  test('the caret marks only the first row of the selected message', async () => {
+    const frame = await frameOf(
+      conv({ messages: [msg('m1', 'alpha bravo charlie')], selectedMessageId: 'm1' }),
+      10,
+      12
+    )
+    expect(lineWith(frame, 'Grace  ')).toContain('›')
+    expect(lineWith(frame, 'alpha')).not.toContain('›')
   })
 })
