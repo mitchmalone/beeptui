@@ -1,6 +1,6 @@
 ---
 title: reply from the action menu, and show what you are replying to
-status: planned
+status: done
 created: 2026-08-04
 updated: 2026-08-04
 links:
@@ -60,28 +60,28 @@ Compose title becomes `Replying in thread ●` (and the unfocused variant `Reply
 
 ## Steps
 
-- [ ] Add `{ id: 'reply', label: 'Reply' }` to `CONVERSATION_ACTIONS`; unit-test the action list and
+- [x] Add `{ id: 'reply', label: 'Reply' }` to `CONVERSATION_ACTIONS`; unit-test the action list and
       the menu height maths that depends on its length (`menuHeight` in `ConversationView`).
-- [ ] Wire the menu choice to `reply/started` + focus compose — the same effect as `r`. Test that
+- [x] Wire the menu choice to `reply/started` + focus compose — the same effect as `r`. Test that
       both entry points produce identical state.
-- [ ] `Compose`: title switches to `Replying in thread ●` when a reply context is present.
-- [ ] Conversation: mark the `replyTo` message's rows distinctly from the selection highlight.
+- [x] `Compose`: title switches to `Replying in thread ●` when a reply context is present.
+- [x] Conversation: mark the `replyTo` message's rows distinctly from the selection highlight.
       Component test on the rendered frame, not just on props.
-- [ ] Confirm cancel paths still clear it everywhere: `Esc` in compose, blurring compose,
+- [x] Confirm cancel paths still clear it everywhere: `Esc` in compose, blurring compose,
       `chat/selected`, and a successful send.
-- [ ] Check the action menu still anchors correctly now that it is one row taller.
-- [ ] Verify live in `--demo`: open the dropdown, choose Reply, see the title change and the target
+- [x] Check the action menu still anchors correctly now that it is one row taller.
+- [x] Verify live in `--demo`: open the dropdown, choose Reply, see the title change and the target
       marked; cancel; repeat via `r`.
 
 ## Acceptance criteria
 
-- [ ] `⏎` on a message offers React and Reply; choosing Reply behaves exactly as `r`.
-- [ ] While replying, the compose pane reads `Replying in thread ●` and the quoted context line
+- [x] `⏎` on a message offers React and Reply; choosing Reply behaves exactly as `r`.
+- [x] While replying, the compose pane reads `Replying in thread ●` and the quoted context line
       still shows.
-- [ ] While replying, the target message is visibly marked in the conversation, and that marking is
+- [x] While replying, the target message is visibly marked in the conversation, and that marking is
       distinguishable from the `›` selection cursor.
-- [ ] Cancelling or sending clears both the title and the marker.
-- [ ] `bun run typecheck`, `bun run lint`, `bun test` green.
+- [x] Cancelling or sending clears both the title and the marker.
+- [x] `bun run typecheck`, `bun run lint`, `bun test` green.
 
 ## Out of scope
 
@@ -89,6 +89,22 @@ Compose title becomes `Replying in thread ●` (and the unfocused variant `Reply
   restructure the conversation.
 - Jumping to the replied-to message when it is off screen.
 - Any other action-menu entries (delete, forward, copy).
+
+## Outcome
+
+Done. `⏎` offers Reply above React; choosing it is identical to `r` because both now go through one
+`startReply` helper — the capability gate (a network that reports no reply support gets a named
+notice) lives in one place and cannot drift between the two entry points.
+
+The reply target is marked with a `┃` quote bar in the caret gutter, deliberately a different glyph
+from the `›` cursor: starting a reply moves focus to compose and clears the cursor, so the two are
+almost never the same message and must not read as the same state. The compose pane retitles to
+`Replying in thread ●`.
+
+Left alone deliberately: the screenshot's bare-`↩`-with-no-body messages. Looked at it — the reply
+marker and read receipt render from a message whose `text` is empty, so this is upstream of the TUI
+(either genuinely empty replies or the adapter dropping a body) and diagnosing it is not a rendering
+change. Not folded in.
 
 ## Risks / open questions
 

@@ -1496,3 +1496,52 @@ describe('history pages itself when the cursor reaches the top', () => {
     expect(s.olderPagePending).toBeNull()
   })
 })
+
+describe('reply is reachable from the action menu, and visible while it is open', () => {
+  function withCursor(): AppState {
+    return run([
+      { type: 'chats/loaded', chats: [chat('c1')] },
+      { type: 'chat/selected', chatId: 'c1' },
+      { type: 'messages/loaded', chatId: 'c1', page: 'initial', messages: [msg('m1', '1')] },
+      { type: 'focus/changed', focus: 'conversation' },
+    ])
+  }
+
+  test('the menu offers Reply and React, in that order', () => {
+    expect(CONVERSATION_ACTIONS.map((a) => a.id)).toEqual(['reply', 'react'])
+  })
+
+  test('the action cursor clamps across the longer list', () => {
+    const open = reduce(withCursor(), { type: 'overlay/opened', overlay: 'conversationActions' })
+    expect(open.actionCursor).toBe(0)
+    const down = reduce(open, { type: 'actionMenu/moved', delta: 1 })
+    expect(down.actionCursor).toBe(1)
+    expect(reduce(down, { type: 'actionMenu/moved', delta: 1 }).actionCursor).toBe(1)
+  })
+
+  test('the reply target survives losing the message cursor', () => {
+    // `reply/started` clears the cursor because focus leaves the conversation.
+    // The target is remembered separately — it is what the draft answers, not
+    // where the arrow keys are — so the conversation can still mark it.
+    const replying = reduce(withCursor(), { type: 'reply/started', messageId: 'm1' })
+    expect(replying.selectedMessageId).toBeNull()
+    expect(replying.replyTo).toBe('m1')
+    const composing = reduce(replying, { type: 'focus/changed', focus: 'compose' })
+    expect(composing.replyTo).toBe('m1')
+  })
+
+  test('every exit clears the target', () => {
+    const replying = reduce(withCursor(), { type: 'reply/started', messageId: 'm1' })
+    expect(reduce(replying, { type: 'reply/cancelled' }).replyTo).toBeNull()
+    expect(reduce(replying, { type: 'chat/selected', chatId: 'other' }).replyTo).toBeNull()
+    const sent = reduce(replying, {
+      type: 'send/requested',
+      chatId: 'c1',
+      clientId: 'cid',
+      text: 'hi',
+      timestamp: '2026-07-30T00:00:00.000Z',
+      replyToId: 'm1',
+    })
+    expect(sent.replyTo).toBeNull()
+  })
+})

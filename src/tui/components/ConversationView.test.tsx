@@ -33,7 +33,9 @@ function msg(id: string, text: string, over: Partial<MessageEntity> = {}): Messa
   }
 }
 
-function conv(over: Partial<ActiveConversation> = {}): ActiveConversation {
+function conv(
+  over: Partial<ActiveConversation> & { replyToId?: string | null } = {}
+): ActiveConversation & { replyToId?: string | null } {
   return {
     chat,
     messages: [],
@@ -48,14 +50,16 @@ function conv(over: Partial<ActiveConversation> = {}): ActiveConversation {
 }
 
 async function frameOf(
-  conversation: ActiveConversation,
+  conversation: ActiveConversation & { replyToId?: string | null },
   capacity = 10,
   width?: number
 ): Promise<string> {
+  const { replyToId = null, ...rest } = conversation
   const { renderOnce, captureCharFrame } = await testRender(
     <ConversationView
-      conversation={conversation}
+      conversation={rest}
       focused
+      replyToId={replyToId}
       capacityOverride={capacity}
       {...(width !== undefined ? { widthOverride: width } : {})}
     />,
@@ -221,5 +225,26 @@ describe('ConversationView', () => {
     )
     expect(lineWith(frame, 'Grace  ')).toContain('›')
     expect(lineWith(frame, 'alpha')).not.toContain('›')
+  })
+})
+
+describe('reply target', () => {
+  test('is marked with a quote bar, distinct from the selection caret', async () => {
+    const frame = await frameOf(
+      conv({
+        messages: [msg('m1', 'answer this'), msg('m2', 'not this')],
+        replyToId: 'm1',
+        selectedMessageId: 'm2',
+      })
+    )
+    expect(lineWith(frame, 'answer this')).toContain('┃')
+    expect(lineWith(frame, 'answer this')).not.toContain('›')
+    // The cursor is elsewhere and keeps its own glyph.
+    expect(lineWith(frame, 'not this')).not.toContain('┃')
+  })
+
+  test('no marker when nothing is being replied to', async () => {
+    const frame = await frameOf(conv({ messages: [msg('m1', 'plain')] }))
+    expect(lineWith(frame, 'plain')).not.toContain('┃')
   })
 })

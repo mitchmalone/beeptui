@@ -89,3 +89,25 @@ describe('Compose', () => {
     expect(sent).toBe('hi')
   })
 })
+
+describe('reply mode', () => {
+  test('the title says a reply is in progress, not that this is a fresh message', async () => {
+    const { renderOnce, captureCharFrame } = await testRender(
+      <Compose
+        draft=""
+        focused
+        hasFailedSend={false}
+        replyContext={{ sender: 'Grace', snippet: 'the analytical engine notes' }}
+        onEdit={() => {}}
+        onSend={() => {}}
+        onBlur={() => {}}
+      />,
+      { width: 60, height: 8 }
+    )
+    await renderOnce()
+    const frame = captureCharFrame()
+    expect(frame).toContain('Replying in thread ●')
+    expect(frame).not.toContain('Compose ●')
+    expect(frame).toContain('Replying to Grace')
+  })
+})

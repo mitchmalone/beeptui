@@ -90,7 +90,17 @@ export function Compose({
 
   return (
     <box
-      title={focused ? 'Compose ●' : 'Compose'}
+      // The title carries the mode: a reply in progress is a different thing
+      // from a fresh message, and the quoted line alone was easy to miss.
+      title={
+        replyContext
+          ? focused
+            ? 'Replying in thread ●'
+            : 'Replying in thread'
+          : focused
+            ? 'Compose ●'
+            : 'Compose'
+      }
       border
       borderColor={focused ? theme.borderFocused : theme.border}
       style={{

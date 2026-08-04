@@ -36,6 +36,11 @@ length never moves, which had silently disabled the reading-position hold, the n
 affordance and cursor-follow on any busy chat with a full window. A self-echo that consumes an
 optimistic placeholder is deliberately not an arrival.
 
+**Step 5 — reply from the action menu.** `⏎` offers Reply above React; it and `r` share one
+`startReply` helper so the capability gate can't drift between entry points. The target message
+carries a `┃` quote bar in the gutter — a different glyph from the `›` cursor, since starting a reply
+moves focus to compose and clears the cursor. Compose retitles to `Replying in thread ●`.
+
 **Step 4 — history paging on scroll.** `u` is gone. Reaching the oldest loaded message and pressing
 `↑` again requests the next page; the cursor lands on the newest message of the arriving batch, so
 one keypress moves by one message the way it does anywhere else. A pending marker stops a held key

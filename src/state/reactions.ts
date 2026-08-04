@@ -10,11 +10,14 @@ export const QUICK_REACTIONS: readonly string[] = ['👍', '❤️', '😂', '�
 
 /** An action offered by the conversation action menu (the ENTER "dropdown"). */
 export interface ConversationAction {
-  id: 'react'
+  id: 'reply' | 'react'
   label: string
 }
 
-/** Actions the menu offers today. Delete / reply-from-menu / etc. come later. */
+/** Actions the menu offers today. Delete / forward / copy come later.
+ *  Reply is first: it is the common one, and it was previously reachable only
+ *  by knowing about `r`. Both entry points dispatch the same `reply/started`. */
 export const CONVERSATION_ACTIONS: readonly ConversationAction[] = [
+  { id: 'reply', label: 'Reply' },
   { id: 'react', label: 'React…' },
 ]

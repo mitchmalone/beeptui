@@ -167,6 +167,22 @@ export function App({
     const s = store.getState()
     const currentRows = selectInboxRows(s)
 
+    /** Begin a reply on `messageId`. Shared by `r` and the action menu so the
+     *  capability gate cannot drift between the two entry points: a network
+     *  that reports no reply support gets a named notice, never a dead control
+     *  (invariant 8). */
+    const startReply = (messageId: string) => {
+      const chat = selectActiveConversation(s).chat
+      if (chat === null) return
+      const capability = checkCapability(chat, 'reply')
+      if (!capability.allowed) {
+        store.dispatch({ type: 'notice/shown', message: capability.notice })
+        return
+      }
+      store.dispatch({ type: 'reply/started', messageId })
+      store.dispatch({ type: 'focus/changed', focus: 'compose' })
+    }
+
     // Overlays capture input first.
     if (s.overlay === 'help') {
       if (resolveCommand({ name: key.name, shift: key.shift }, keymap) === 'quit') onQuit()
@@ -235,8 +251,12 @@ export function App({
         store.dispatch({ type: 'actionMenu/moved', delta: 1 })
       } else if (key.name === 'return' || key.name === 'enter') {
         const action = CONVERSATION_ACTIONS[s.actionCursor]
-        if (action?.id === 'react')
+        if (action?.id === 'react') {
           store.dispatch({ type: 'overlay/opened', overlay: 'emojiPicker' })
+        } else if (action?.id === 'reply' && s.selectedMessageId !== null) {
+          store.dispatch({ type: 'overlay/closed' })
+          startReply(s.selectedMessageId)
+        }
       }
       return
     }
@@ -404,17 +424,7 @@ export function App({
     // refresh/search bindings while a message is selected.
     if (s.selectedMessageId !== null) {
       if (key.sequence === 'r') {
-        // Reply — capability-gated: a network that reports no reply support gets
-        // a named notice, never a dead control (invariant 8).
-        if (conv.chat !== null) {
-          const capability = checkCapability(conv.chat, 'reply')
-          if (!capability.allowed) {
-            store.dispatch({ type: 'notice/shown', message: capability.notice })
-          } else {
-            store.dispatch({ type: 'reply/started', messageId: s.selectedMessageId })
-            store.dispatch({ type: 'focus/changed', focus: 'compose' })
-          }
-        }
+        startReply(s.selectedMessageId)
         return
       }
       if (key.sequence === 'o') {
@@ -530,6 +540,7 @@ export function App({
                   networkColors={networkColors}
                   density={state.density}
                   loadingOlder={pendingOlder !== null}
+                  replyToId={state.replyTo}
                 />
                 {composePane}
               </box>
@@ -556,6 +567,7 @@ export function App({
                   networkColors={networkColors}
                   density={state.density}
                   loadingOlder={pendingOlder !== null}
+                  replyToId={state.replyTo}
                 />
                 {composePane}
               </box>
