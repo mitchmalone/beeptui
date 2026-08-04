@@ -10,7 +10,8 @@ import {
   resolveConfig,
   startLoopback,
 } from '@/beeper/index.ts'
-import { formatDoctor, runDoctor } from '@/cli/doctor.ts'
+import { classifyEndpoint, formatDoctor, runDoctor } from '@/cli/doctor.ts'
+import { loginPreflight } from '@/cli/login-preflight.ts'
 import { runStatus } from '@/cli/status.ts'
 import { version } from '../../package.json'
 
@@ -92,6 +93,17 @@ async function main(argv: string[]): Promise<void> {
       const adapter = new BeeperAdapter({ endpoint })
       try {
         const info = await adapter.getInfo()
+        // Refuse before opening a browser when the endpoint can't finish the
+        // flow — otherwise this opens a dead page and blocks on a callback that
+        // never arrives (invariant 8).
+        const preflight = loginPreflight({
+          endpointKind: classifyEndpoint(endpoint),
+          remoteAccessEnabled: info.remoteAccessEnabled,
+        })
+        if (!preflight.ok) {
+          console.error(preflight.message)
+          process.exit(1)
+        }
         console.log('Opening your browser to authenticate…')
         await login(info.oauth, {
           http: { fetch, nowMs: Date.now() },

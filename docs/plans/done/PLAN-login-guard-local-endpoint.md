@@ -1,6 +1,6 @@
 ---
 title: login — guard against local / remote-access-off endpoints
-status: planned
+status: done
 created: 2026-08-03
 updated: 2026-08-04
 links:
@@ -41,26 +41,41 @@ endpoint.
 
 ## Steps
 
-- [ ] Add a pure helper (e.g. `src/beeper/oauth.ts` or a small auth-policy module):
+- [x] Add a pure helper (e.g. `src/beeper/oauth.ts` or a small auth-policy module):
       `loginPreflight({ endpointKind, remoteAccessEnabled }) → { ok: true } | { ok: false, reason }`.
-- [ ] Wire it into the `login` handler in `src/cli/index.ts`: on `!ok`, print the reason + guidance
+- [x] Wire it into the `login` handler in `src/cli/index.ts`: on `!ok`, print the reason + guidance
       and `process.exit(1)` **before** `getInfo`→`login` opens a browser.
-- [ ] Message content: name the situation ("local Beeper Desktop, remote access off — already
+- [x] Message content: name the situation ("local Beeper Desktop, remote access off — already
       authenticated via a token; run `beeptui`"), and how to use remote (enable remote access /
       point `BEEPTUI_ENDPOINT` at a remote Server Client).
-- [ ] Unit-test the helper (local → refuse; remote+access-on → allow; remote+access-off → refuse).
+- [x] Unit-test the helper (local → refuse; remote+access-on → allow; remote+access-off → refuse).
 
 ## Acceptance criteria
 
-- [ ] `beeptui login` against the local default endpoint prints the guidance and exits non-zero
+- [x] `beeptui login` against the local default endpoint prints the guidance and exits non-zero
       **without** opening a browser or starting the loopback.
-- [ ] `login` still proceeds normally when the endpoint is remote with remote access enabled.
-- [ ] Helper has unit tests; `bun run typecheck` + `bun test` green.
+- [x] `login` still proceeds normally when the endpoint is remote with remote access enabled.
+- [x] Helper has unit tests; `bun run typecheck` + `bun test` green.
 
 ## Out of scope
 
 - The actual remote-login live validation (needs a real remote endpoint — tracked in `TODO.md`).
 - Any change to the token/local auth path (it already works).
+
+## Outcome
+
+Done. `beeptui login` against the local default endpoint now prints the guidance and exits 1
+without opening a browser — verified by running it, not just by test.
+
+**The open question below is resolved, and not the way the plan assumed.** The plan proposed
+refusing when the endpoint is local **or** remote access is off. Shipped: refuse **iff
+`remote_access` is off**, with the endpoint kind only choosing which way out to point at.
+
+`remote_access` is the flag that says the advertised OAuth endpoints are real. A _local_ endpoint
+with remote access switched on serves a genuine authorization page — that is how you would pair a
+remote client — so refusing on locality alone would block a working flow we have no evidence is
+broken. Over-refusing costs a user a capability; under-refusing in that rarer case only restores
+today's behaviour. The reported bug (local + remote access off) is caught either way.
 
 ## Risks / open questions
 
