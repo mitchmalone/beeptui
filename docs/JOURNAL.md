@@ -5,6 +5,25 @@
 
 ---
 
+### 2026-08-04 — A false alarm about history paging, and how it happened
+
+- **A negative result from synthetic input needs a positive control.** Driving the TUI with
+  `tmux send-keys` in a tight loop, the presses coalesced or were dropped, so the message cursor
+  never reached the oldest loaded message and no page was ever requested. The symptoms — hint stuck
+  on "more history exists", top timestamp frozen across 45 presses — read exactly like paging
+  failing silently. `sleep 0.05` between presses and it worked first try. Prove the input path
+  actually delivered before concluding the feature is broken.
+- **Two writers, one probe file, one wrong number.** Temporary instrumentation had `openChat` and
+  `loadOlderMessages` both read-modify-writing the same JSON path. The race reported `got: 0` for a
+  fetch that had returned 20 messages, which is what turned a suspicion into a confident (wrong)
+  conclusion. Give each probe point its own file.
+- **The conclusion was reported before it was double-checked.** "History paging has never worked and
+  `u` was equally broken" went out on the strength of a single instrumented run. A second, cleaner
+  measurement contradicted it entirely. Adapter paging was fine all along — confirmed independently
+  across eight chats, 20 messages per page, zero overlap.
+
+---
+
 ### 2026-08-04 — Selection seeding, and the two lies it exposed
 
 - **"Go to the newest message" and "keep this message visible" are different requests.**

@@ -295,6 +295,8 @@ export function reduce(state: AppState, event: AppEvent): AppState {
     }
 
     case 'messages/loaded': {
+      const oldestBefore = (state.messagesByChat[event.chatId]?.items ?? [])[0]?.id ?? null
+      const wasPending = state.olderPagePending === event.chatId
       const loaded = withChatMessages(state, event.chatId, (window) => {
         const merged = mergeMessages(window, event.messages.map(toEntity), event.page).window
         return {
@@ -303,6 +305,18 @@ export function reduce(state: AppState, event: AppEvent): AppState {
           ...(event.olderCursor !== undefined ? { olderCursor: event.olderCursor } : {}),
         }
       })
+      // The page this chat was waiting on: seat the cursor on the newest message
+      // of the batch, so the keypress that asked for it moves by exactly one
+      // message the way it does anywhere else in the list. By id, not index —
+      // prepending shifts every index and the view would lurch.
+      if (wasPending) {
+        const settled = { ...loaded, olderPagePending: null }
+        const items = activeItems(settled)
+        const boundary = oldestBefore === null ? -1 : items.findIndex((m) => m.id === oldestBefore)
+        const nextId = boundary > 0 ? items[boundary - 1]?.id : undefined
+        if (nextId === undefined) return settled
+        return { ...settled, selectedMessageId: nextId, ...scrollForSelection(settled, nextId) }
+      }
       // Opening a chat focuses the conversation *before* its history arrives, so
       // `focus/changed` looks at an empty list and selects nothing. Whichever of
       // the two finishes last has to seat the cursor — otherwise the pane renders
@@ -370,6 +384,7 @@ export function reduce(state: AppState, event: AppEvent): AppState {
         replyTo: null,
         conversationOffset: 0,
         newMessagesBelow: false,
+        olderPagePending: null,
         notice: null,
       }
 
@@ -389,6 +404,23 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       // (top/bottom) clamps to an edge.
       const from = current === -1 ? items.length - 1 : current
       const next = Math.min(items.length - 1, Math.max(0, from + event.delta))
+      // A single step up off the oldest loaded message is a request for more
+      // history rather than a no-op. Deliberately only a single step: `g` jumps
+      // to the top, and letting a jump page would turn one keypress into an
+      // unbounded run of fetches. The cursor stays where it is until the page
+      // lands — there is nowhere older to put it yet — and the pending marker
+      // keeps a held-down key from stacking requests.
+      if (event.delta === -1 && from === 0 && next === 0) {
+        const window =
+          state.selectedChatId === null ? undefined : state.messagesByChat[state.selectedChatId]
+        const canPage =
+          state.selectedChatId !== null &&
+          state.olderPagePending === null &&
+          window?.hasMoreOlder === true &&
+          window.olderCursor !== null &&
+          window.olderCursor !== undefined
+        return canPage ? { ...state, olderPagePending: state.selectedChatId } : state
+      }
       const nextId = items[next]?.id ?? state.selectedMessageId
       return { ...state, selectedMessageId: nextId, ...scrollForSelection(state, nextId) }
     }
@@ -661,7 +693,14 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       return { ...state, notice: null }
 
     case 'error/raised':
-      return { ...state, error: { kind: event.kind, message: event.message } }
+      // Any error while a history page is in flight means it is not coming.
+      // Clear the request so the pane can be scrolled again rather than sitting
+      // in a permanent "loading" that nothing will ever resolve (invariant 8).
+      return {
+        ...state,
+        error: { kind: event.kind, message: event.message },
+        olderPagePending: null,
+      }
 
     case 'error/cleared':
       return { ...state, error: null }

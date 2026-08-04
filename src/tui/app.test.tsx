@@ -209,7 +209,48 @@ describe('App shell', () => {
     expect(store.getState().focus).toBe('inbox')
   })
 
-  test('u pages older history when more exists', async () => {
+  test('↑ off the oldest message pages older history, with no separate key', async () => {
+    const store = seededStore()
+    store.dispatch({ type: 'chat/selected', chatId: 'c1' })
+    store.dispatch({ type: 'focus/changed', focus: 'conversation' })
+    store.dispatch({
+      type: 'messages/loaded',
+      chatId: 'c1',
+      page: 'initial',
+      messages: [
+        {
+          id: 'm1',
+          chatId: 'c1',
+          accountId: 'a',
+          senderId: 'g',
+          timestamp: '2026-07-30T09:00:00.000Z',
+          sortKey: '1',
+          text: 'oldest loaded',
+          isSender: false,
+          isUnread: false,
+        },
+      ],
+      hasMoreOlder: true,
+      olderCursor: 'CUR-7',
+    })
+    const older: Array<[string, string]> = []
+    const { renderOnce, mockInput } = await renderApp(store, {
+      onLoadOlder: (id, cursor) => older.push([id, cursor]),
+    })
+    await renderOnce()
+    // The cursor is already on the only (and therefore oldest) message; one more
+    // step up is the request. `k` and `↑` are the same binding — the mock input
+    // does not synthesise arrow keys, so the arrow is covered live instead.
+    await mockInput.pressKey('k')
+    // The reducer records the request; the fetch happens in an effect on the
+    // next commit, so let React settle before asserting.
+    await Promise.resolve()
+    await renderOnce()
+    expect(older).toEqual([['c1', 'CUR-7']])
+    expect(store.getState().olderPagePending).toBe('c1')
+  })
+
+  test('the top hint says a page is loading rather than looking ignored', async () => {
     const store = seededStore()
     store.dispatch({ type: 'chat/selected', chatId: 'c1' })
     store.dispatch({ type: 'focus/changed', focus: 'conversation' })
@@ -221,13 +262,11 @@ describe('App shell', () => {
       hasMoreOlder: true,
       olderCursor: 'CUR-7',
     })
-    const older: Array<[string, string]> = []
-    const { renderOnce, mockInput } = await renderApp(store, {
-      onLoadOlder: (id, cursor) => older.push([id, cursor]),
-    })
+    const { renderOnce, captureCharFrame } = await renderApp(store)
     await renderOnce()
-    await mockInput.pressKey('u')
-    expect(older).toEqual([['c1', 'CUR-7']])
+    expect(captureCharFrame()).toContain('↑ for older')
+    store.dispatch({ type: 'messageSelection/moved', delta: -1 })
+    await renderOnce()
   })
 
   test('k/j move the message cursor when the conversation is focused', async () => {

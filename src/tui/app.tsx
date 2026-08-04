@@ -152,6 +152,16 @@ export function App({
     store.dispatch({ type: 'viewport/measured', rows: viewportRows, cols: width })
   }, [store, viewportRows, width])
 
+  // The message cursor asked for older history by reaching the top. The reducer
+  // records that intent and never fetches (invariant 4); this turns it into the
+  // call, once, and `messages/loaded` clears the marker.
+  const pendingOlder = state.olderPagePending
+  const pendingCursor =
+    pendingOlder === null ? null : (state.messagesByChat[pendingOlder]?.olderCursor ?? null)
+  useEffect(() => {
+    if (pendingOlder !== null && pendingCursor !== null) onLoadOlder(pendingOlder, pendingCursor)
+  }, [onLoadOlder, pendingOlder, pendingCursor])
+
   useKeyboard((key) => {
     // Read live state (the closure's `state` can be stale under fast input).
     const s = store.getState()
@@ -457,11 +467,6 @@ export function App({
         store.dispatch({ type: 'messageSelection/cleared' })
         store.dispatch({ type: 'focus/changed', focus: 'inbox' })
         break
-      case 'load-older':
-        if (conv.chat !== null && conv.hasMoreOlder && conv.olderCursor !== null) {
-          onLoadOlder(conv.chat.id, conv.olderCursor)
-        }
-        break
       default:
         break
     }
@@ -524,6 +529,7 @@ export function App({
                   menu={conversationMenu}
                   networkColors={networkColors}
                   density={state.density}
+                  loadingOlder={pendingOlder !== null}
                 />
                 {composePane}
               </box>
@@ -549,6 +555,7 @@ export function App({
                   menu={conversationMenu}
                   networkColors={networkColors}
                   density={state.density}
+                  loadingOlder={pendingOlder !== null}
                 />
                 {composePane}
               </box>

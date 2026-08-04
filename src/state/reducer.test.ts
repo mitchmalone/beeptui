@@ -1392,3 +1392,107 @@ describe('a chat update that hides the selection re-seeds too', () => {
     expect(archived.selectedChatId).toBe('b')
   })
 })
+
+describe('history pages itself when the cursor reaches the top', () => {
+  function opened(over: { hasMoreOlder?: boolean; olderCursor?: string | null } = {}): AppState {
+    return run([
+      { type: 'chats/loaded', chats: [chat('c1')] },
+      { type: 'chat/selected', chatId: 'c1' },
+      { type: 'viewport/measured', rows: 20, cols: 120 },
+      { type: 'focus/changed', focus: 'conversation' },
+      {
+        type: 'messages/loaded',
+        chatId: 'c1',
+        page: 'initial',
+        messages: [msg('m2', '2'), msg('m3', '3')],
+        hasMoreOlder: over.hasMoreOlder ?? true,
+        olderCursor: over.olderCursor === undefined ? 'CUR-1' : over.olderCursor,
+      },
+    ])
+  }
+
+  const atOldest = (s: AppState) => run([{ type: 'messageSelection/moved', delta: -1 }], s)
+
+  test('moving up off the oldest loaded message asks for the next page', () => {
+    const s = atOldest(opened())
+    expect(s.selectedMessageId).toBe('m2') // oldest loaded
+    const again = reduce(s, { type: 'messageSelection/moved', delta: -1 })
+    expect(again.olderPagePending).toBe('c1')
+    // The cursor stays put until the page arrives — there is nowhere to go yet.
+    expect(again.selectedMessageId).toBe('m2')
+  })
+
+  test('the arriving page seats the cursor one message older, by id', () => {
+    const requested = reduce(atOldest(opened()), { type: 'messageSelection/moved', delta: -1 })
+    const loaded = reduce(requested, {
+      type: 'messages/loaded',
+      chatId: 'c1',
+      page: 'older',
+      messages: [msg('m0', '0'), msg('m1', '1')],
+      hasMoreOlder: true,
+      olderCursor: 'CUR-2',
+    })
+    // One press, one message: the newest of the batch, not its oldest.
+    expect(loaded.selectedMessageId).toBe('m1')
+    expect(loaded.olderPagePending).toBeNull()
+  })
+
+  test('walking up through a second page keeps moving one message per press', () => {
+    let s = reduce(atOldest(opened()), { type: 'messageSelection/moved', delta: -1 })
+    s = reduce(s, {
+      type: 'messages/loaded',
+      chatId: 'c1',
+      page: 'older',
+      messages: [msg('m0', '0'), msg('m1', '1')],
+      hasMoreOlder: true,
+      olderCursor: 'CUR-2',
+    })
+    expect(s.selectedMessageId).toBe('m1')
+    s = reduce(s, { type: 'messageSelection/moved', delta: -1 })
+    expect(s.selectedMessageId).toBe('m0')
+    s = reduce(s, { type: 'messageSelection/moved', delta: -1 })
+    expect(s.olderPagePending).toBe('c1')
+  })
+
+  test('at the true start of history nothing is requested', () => {
+    const s = atOldest(opened({ hasMoreOlder: false }))
+    const again = reduce(s, { type: 'messageSelection/moved', delta: -1 })
+    expect(again.olderPagePending).toBeNull()
+    expect(again.selectedMessageId).toBe('m2')
+  })
+
+  test('a missing cursor cannot page, and does not pretend to', () => {
+    const s = atOldest(opened({ olderCursor: null }))
+    expect(reduce(s, { type: 'messageSelection/moved', delta: -1 }).olderPagePending).toBeNull()
+  })
+
+  test('a second press while a page is in flight does not stack requests', () => {
+    const requested = reduce(atOldest(opened()), { type: 'messageSelection/moved', delta: -1 })
+    const again = reduce(requested, { type: 'messageSelection/moved', delta: -1 })
+    expect(again.olderPagePending).toBe('c1')
+    expect(again).toEqual(requested)
+  })
+
+  test('a failed page clears the request rather than wedging the pane', () => {
+    const requested = reduce(atOldest(opened()), { type: 'messageSelection/moved', delta: -1 })
+    const failed = reduce(requested, {
+      type: 'error/raised',
+      kind: 'unreachable',
+      message: 'x',
+    })
+    expect(failed.olderPagePending).toBeNull()
+  })
+
+  test('switching chats abandons an in-flight request', () => {
+    const requested = reduce(atOldest(opened()), { type: 'messageSelection/moved', delta: -1 })
+    expect(
+      reduce(requested, { type: 'chat/selected', chatId: 'other' }).olderPagePending
+    ).toBeNull()
+  })
+
+  test('jumping to the top with g does not page — one keypress, one fetch', () => {
+    const s = reduce(opened(), { type: 'messageSelection/moved', delta: -999 })
+    expect(s.selectedMessageId).toBe('m2')
+    expect(s.olderPagePending).toBeNull()
+  })
+})

@@ -36,6 +36,14 @@ length never moves, which had silently disabled the reading-position hold, the n
 affordance and cursor-follow on any busy chat with a full window. A self-echo that consumes an
 optimistic placeholder is deliberately not an arrival.
 
+**Step 4 — history paging on scroll.** `u` is gone. Reaching the oldest loaded message and pressing
+`↑` again requests the next page; the cursor lands on the newest message of the arriving batch, so
+one keypress moves by one message the way it does anywhere else. A pending marker stops a held key
+stacking requests, an error clears it rather than leaving a permanent "loading", and `g` still jumps
+to the oldest _loaded_ without paging. The dead `conversation/scrolled` event is deferred to its own
+change — 15 tests reach a "scrolled up" state through it. Verified live: holding `↑` walks
+continuously back through history, `G` returns to the newest.
+
 **Step 3 — selection & focus.** The active column always has a cursor: the first _visible_ chat is
 highlighted when the list loads (highlight only — opening stays `⏎`), the newest message is seated
 when a chat's history arrives (not just on focus, which races the fetch), and the message cursor

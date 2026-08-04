@@ -1,6 +1,6 @@
 ---
 title: history pages itself when the cursor reaches the top
-status: planned
+status: active
 created: 2026-08-04
 updated: 2026-08-04
 links:
@@ -90,6 +90,32 @@ a page is pending must not stack requests.
 - Paging _newer_ history (the live path already appends).
 - Changing `g`/`G` semantics — noted below as a question, not a change.
 - Prefetching the next page before the user reaches the top.
+
+## Outcome
+
+Done and verified end to end against a real Beeper Desktop: opening a chat and holding `↑` walks
+continuously back through history, fetching pages as it goes, one message per press. `G` returns to
+the newest. Adapter paging was separately confirmed correct across eight chats (20 messages per
+page, zero overlap).
+
+**I called this broken first, and it wasn't.** Two measurement errors, both mine:
+
+- **Rapid-fire `tmux send-keys` with no delay between presses.** The keys coalesced or were dropped,
+  so the cursor never actually reached the oldest loaded message and no page was ever requested. The
+  symptom — the top hint stuck on "more history exists", the top timestamp frozen — reads exactly
+  like paging silently failing. Adding `sleep 0.05` between presses made it work immediately.
+- **Instrumentation with two writers sharing one file.** `openChat` and `loadOlderMessages` both
+  wrote to the same probe path, and the read-modify-write raced, reporting `got: 0` for a fetch that
+  had actually returned 20 messages.
+
+The wrong conclusion ("history paging has never worked, `u` was equally broken") went to Mitch
+before it was checked against a second measurement. Lesson in `JOURNAL.md`: a negative result from
+synthetic input needs a positive control — prove the input path works before concluding the feature
+does not.
+
+**Deferred from this slice:** removing the dead `conversation/scrolled` event. It is genuinely dead
+in production, but 15 test call sites use it to reach a "scrolled up" state, and rewriting them to
+scroll by moving the cursor is its own reviewable change rather than a footnote to this one.
 
 ## Risks / open questions
 

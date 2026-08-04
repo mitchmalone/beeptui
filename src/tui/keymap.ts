@@ -11,7 +11,6 @@ export type Command =
   | 'back'
   | 'top'
   | 'bottom'
-  | 'load-older'
   | 'compose'
   | 'select-message'
   | 'retry'
@@ -82,13 +81,6 @@ export const KEYMAP: readonly Binding[] = [
     display: 'Esc / h',
     command: 'back',
     description: 'Back to inbox',
-    context: 'conversation',
-  },
-  {
-    keys: ['u'],
-    display: 'u',
-    command: 'load-older',
-    description: 'Load older messages',
     context: 'conversation',
   },
   {

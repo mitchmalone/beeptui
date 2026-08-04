@@ -147,6 +147,11 @@ export interface AppState {
   emojiCursor: number
   /** True when messages arrived in the active chat while scrolled up. */
   newMessagesBelow: boolean
+  /** Chat id whose older page has been requested and not yet arrived, else null.
+   *  Set when the message cursor tries to move past the oldest loaded message;
+   *  the App watches it, fetches, and `messages/loaded` clears it. Doubles as
+   *  the guard that stops a held-down arrow key stacking requests. */
+  olderPagePending: string | null
   /** The open modal overlay (search palette / help), or 'none'. */
   overlay: Overlay
   /** Current chat-search query (only meaningful while the search overlay is open). */
@@ -190,6 +195,7 @@ export const initialState: AppState = {
   actionCursor: 0,
   emojiCursor: 0,
   newMessagesBelow: false,
+  olderPagePending: null,
   overlay: 'none',
   searchQuery: '',
   filter: { scope: 'all', archived: false, unreadOnly: false },
