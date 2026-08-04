@@ -96,8 +96,9 @@ describe('reply mode', () => {
       <Compose
         draft=""
         focused
+        hasFailedSend={false}
         replyContext={{ sender: 'Grace', snippet: 'the analytical engine notes' }}
-        onChange={() => {}}
+        onEdit={() => {}}
         onSend={() => {}}
         onBlur={() => {}}
       />,
