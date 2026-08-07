@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test'
+import type { AttachmentSummary } from '@/beeper/types.ts'
 import type { MessageEntity } from '@/state/types.ts'
 import {
+  IMAGE_BLOCK_ROWS,
   layOutMessage,
   layOutMessages,
   layoutHeight,
@@ -229,5 +231,105 @@ describe('media messages that arrive with no attachment metadata', () => {
 
   test('a text message with no text still says (no content), not a media label', () => {
     expect(bodyText(layOutMessage(message({ kind: 'TEXT' }), 80).rows)).toEqual(['(no content)'])
+  })
+})
+
+describe('inline image blocks', () => {
+  // An image attachment with a downloadable id becomes a fixed-height block of
+  // image rows — the cells the pane paints pixels into. Fixed height because
+  // attachment metadata carries no dimensions: an aspect-derived height would
+  // need the bytes first and re-layout on arrival, moving content under the
+  // cursor (plan: PLAN-inline-image-rendering, DECISIONS 2026-08-07).
+  const img = (over: Partial<AttachmentSummary> = {}): AttachmentSummary => ({
+    kind: 'image',
+    id: 'mxc://beeper/abc',
+    fileName: 'cat.jpg',
+    fileSize: 2048,
+    ...over,
+  })
+
+  function imageRows(rows: readonly LayoutRow[]): Extract<LayoutRow, { kind: 'image' }>[] {
+    return rows.filter((r): r is Extract<LayoutRow, { kind: 'image' }> => r.kind === 'image')
+  }
+
+  test('a downloadable image attachment lays out as a fixed-height image block', () => {
+    const rows = layOutMessage(message({ attachments: [img()] }), 80).rows
+    const block = imageRows(rows)
+    expect(block).toHaveLength(IMAGE_BLOCK_ROWS)
+    expect(block[0]).toEqual({
+      kind: 'image',
+      attachmentId: 'mxc://beeper/abc',
+      placeholder: '[image: cat.jpg · 2 KB]',
+      slice: 0,
+      of: IMAGE_BLOCK_ROWS,
+    })
+    expect(block.map((r) => r.slice)).toEqual([...Array(IMAGE_BLOCK_ROWS).keys()])
+  })
+
+  test('the block replaces the body placeholder — no [image: …] text row, no (no content)', () => {
+    const rows = layOutMessage(message({ attachments: [img()] }), 80).rows
+    expect(bodyText(rows)).toEqual([])
+  })
+
+  test('a captioned image keeps its text body, block after it', () => {
+    const rows = layOutMessage(message({ text: 'look!', attachments: [img()] }), 80).rows
+    expect(bodyText(rows)).toEqual(['look!'])
+    const kinds = rows.map((r) => r.kind)
+    expect(kinds.indexOf('image')).toBeGreaterThan(kinds.indexOf('body'))
+  })
+
+  test('an image without a download id keeps the text placeholder and gets no block', () => {
+    const noId = { ...img() }
+    delete noId.id
+    const rows = layOutMessage(message({ attachments: [noId] }), 80).rows
+    expect(imageRows(rows)).toHaveLength(0)
+    expect(bodyText(rows)).toEqual(['[image: cat.jpg · 2 KB]'])
+  })
+
+  test('non-image attachments keep the text placeholder', () => {
+    const rows = layOutMessage(
+      message({ attachments: [{ kind: 'file', fileName: 'notes.pdf', id: 'mxc://beeper/f' }] }),
+      80
+    ).rows
+    expect(imageRows(rows)).toHaveLength(0)
+    expect(bodyText(rows)).toEqual(['[file: notes.pdf]'])
+  })
+
+  test('two images make two blocks; a mixed message keeps the file as text', () => {
+    const m = message({
+      attachments: [
+        img(),
+        img({ id: 'mxc://beeper/two', fileName: 'dog.png' }),
+        { kind: 'file', fileName: 'notes.pdf' },
+      ],
+    })
+    const rows = layOutMessage(m, 80).rows
+    const block = imageRows(rows)
+    expect(block).toHaveLength(2 * IMAGE_BLOCK_ROWS)
+    expect(new Set(block.map((r) => r.attachmentId))).toEqual(
+      new Set(['mxc://beeper/abc', 'mxc://beeper/two'])
+    )
+    expect(bodyText(rows)).toEqual(['[file: notes.pdf]'])
+  })
+
+  test('reactions and status still get a body row on an image-only message', () => {
+    const m = message({
+      isSender: true,
+      isSeen: true,
+      attachments: [img()],
+      reactions: [{ key: '👍', count: 2, isEmoji: true }],
+    })
+    expect(bodyText(layOutMessage(m, 80).rows)).toEqual(['👍×2 ✓✓'])
+  })
+
+  test('the separator still trails the block, and heights count image rows', () => {
+    const layout = layOutMessage(message({ attachments: [img()] }), 80, { separator: true })
+    expect(layout.rows[layout.rows.length - 1]).toEqual({ kind: 'blank' })
+    expect(layoutHeight(layout)).toBe(1 + IMAGE_BLOCK_ROWS + 1) // header + block + blank
+  })
+
+  test('the media-kind fallback stays off when a block is present', () => {
+    const m = message({ kind: 'IMAGE', attachments: [img()] })
+    expect(bodyText(layOutMessage(m, 80).rows)).toEqual([])
   })
 })

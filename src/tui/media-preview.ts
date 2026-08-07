@@ -1,5 +1,3 @@
-import type { AttachmentSummary } from '@/beeper/types.ts'
-
 /**
  * Terminal inline-image support. Two protocols cover the common capable
  * terminals: Kitty's graphics protocol and iTerm2's inline-images protocol
@@ -29,11 +27,7 @@ export function detectImageProtocol(env: Record<string, string | undefined>): Im
   return null
 }
 
-/** Is this attachment an image we could preview inline? Trusts an explicit
- *  `image` kind, or an `image/*` MIME type when the kind is coarser. */
-export function isImageAttachment(attachment: AttachmentSummary): boolean {
-  return attachment.kind === 'image' || (attachment.mimeType?.startsWith('image/') ?? false)
-}
+export { isImageAttachment } from '@/state/message-format.ts'
 
 export interface ImageSequenceOptions {
   /** Original filename, surfaced to the terminal where the protocol supports it. */

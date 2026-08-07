@@ -82,6 +82,12 @@ function RowContent({ row, style }: { row: LayoutRow; style: { fg?: string } }) 
   if (row.kind === 'body') {
     return <text style={style}>{row.runs.map((run, i) => renderRun(run, i))}</text>
   }
+  if (row.kind === 'image') {
+    // Until the pixel painter lands, an image block shows its placeholder on
+    // the first row and holds the rest of its height open (invariant 8 — the
+    // block is never a silent gap).
+    return <text style={style}>{row.slice === 0 ? row.placeholder : ' '}</text>
+  }
   // Header: sender hard left, timestamp hard right, a flex spacer between them
   // so the time stays pinned to the pane edge across a resize.
   return (

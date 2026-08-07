@@ -9,9 +9,14 @@
  * Pure: no I/O, no rendering, testable without a terminal.
  */
 
-import type { MessageKind } from '@/beeper/types.ts'
+import type { AttachmentSummary, MessageKind } from '@/beeper/types.ts'
 import type { MessageEntity } from '@/state/types.ts'
-import { attachmentLabel, formatTime, messageStatusMarker } from '@/state/message-format.ts'
+import {
+  attachmentLabel,
+  formatTime,
+  isImageAttachment,
+  messageStatusMarker,
+} from '@/state/message-format.ts'
 import {
   hasHtml,
   htmlToStyledLines,
@@ -26,6 +31,32 @@ export type LayoutRow =
   | { kind: 'header'; sender: string; time: string }
   | { kind: 'body'; runs: StyledRun[] }
   | { kind: 'blank' }
+  | {
+      kind: 'image'
+      /** Download id (`assets.download`) — a block only exists when it has one. */
+      attachmentId: string
+      /** The text placeholder this block replaces — drawn while pixels are
+       *  pending and forever when decode/fetch fails (invariant 8). */
+      placeholder: string
+      /** Which row of the block this is, 0-based, and the block height. */
+      slice: number
+      of: number
+    }
+
+/**
+ * Every image block is exactly this many rows. Fixed, not aspect-derived:
+ * attachment metadata carries no dimensions, so a true height would need the
+ * bytes first and force a re-layout (a scroll lurch) when they arrive. The
+ * painter letterboxes the decoded image inside the block instead
+ * (DECISIONS 2026-08-07).
+ */
+export const IMAGE_BLOCK_ROWS = 8
+
+/** The attachments this message renders as inline image blocks: image-kind
+ *  with a download id. Everything else stays a text placeholder. */
+function imageBlockAttachments(message: MessageEntity): AttachmentSummary[] {
+  return (message.attachments ?? []).filter((a) => isImageAttachment(a) && a.id !== undefined)
+}
 
 export interface MessageLayout {
   messageId: string
@@ -153,10 +184,14 @@ const MEDIA_PLACEHOLDER: Partial<Record<MessageKind, string>> = {
 /** Attachment placeholders and the edited marker — the decorations that read as
  *  part of the body. Reactions and delivery status trail further behind. */
 function bodyDecorations(message: MessageEntity, hasText: boolean): string {
-  const labelled = (message.attachments ?? []).map((a) => `[${attachmentLabel(a)}]`)
-  // Only a fallback: real attachment metadata and real text both win.
+  const blocks = new Set(imageBlockAttachments(message))
+  const labelled = (message.attachments ?? [])
+    .filter((a) => !blocks.has(a))
+    .map((a) => `[${attachmentLabel(a)}]`)
+  // Only a fallback: real attachment metadata, real text, and an image block
+  // all win over the bare media-kind label.
   const placeholder =
-    labelled.length === 0 && !hasText && message.kind !== undefined
+    labelled.length === 0 && !hasText && blocks.size === 0 && message.kind !== undefined
       ? MEDIA_PLACEHOLDER[message.kind]
       : undefined
   let out = (placeholder !== undefined ? [placeholder] : labelled).join(' ')
@@ -217,10 +252,20 @@ function sourceLines(message: MessageEntity): StyledLine[] {
   }
 
   appendPhrase(lines, bodyDecorations(message, hasText))
-  if (isEmpty(lines)) lines = [{ runs: [{ text: '(no content)' }] }]
+  // An image block is content: a message it fully represents needs no
+  // `(no content)` stand-in and no empty body row under the block.
+  if (isEmpty(lines) && imageBlockAttachments(message).length === 0) {
+    lines = [{ runs: [{ text: '(no content)' }] }]
+  }
 
   const reactions = reactionSummary(message)
-  if (reactions.length > 0) appendToLast(lines, `  ${reactions}`)
+  if (reactions.length > 0) {
+    // The double space sets reactions off from body text; an empty line (an
+    // image-only message whose body is just reactions) has nothing to set
+    // them off from.
+    const last = lines[Math.max(0, lines.length - 1)]?.runs.map((r) => r.text).join('') ?? ''
+    appendToLast(lines, `${last.length === 0 ? '' : '  '}${reactions}`)
+  }
   appendToLast(lines, messageStatusMarker(message))
 
   return lines
@@ -238,9 +283,27 @@ export function layOutMessage(
   const sender = message.senderName ?? (message.isSender ? 'You' : message.senderId)
   const rows: LayoutRow[] = [{ kind: 'header', sender, time: formatTime(message.timestamp) }]
 
+  const blocks = imageBlockAttachments(message)
   for (const line of sourceLines(message)) {
+    // With a block present, a body line that came to nothing draws nothing —
+    // reactions/status still earn their row, but there is no empty line to
+    // hold open between the header and the image.
+    if (blocks.length > 0 && line.runs.every((r) => r.text.length === 0)) continue
     for (const wrapped of wrapAtoms(toAtoms(line.runs), width)) {
       rows.push({ kind: 'body', runs: toRuns(wrapped) })
+    }
+  }
+  for (const attachment of blocks) {
+    const placeholder = `[${attachmentLabel(attachment)}]`
+    for (let slice = 0; slice < IMAGE_BLOCK_ROWS; slice += 1) {
+      // id is present by construction (imageBlockAttachments filters on it).
+      rows.push({
+        kind: 'image',
+        attachmentId: attachment.id ?? '',
+        placeholder,
+        slice,
+        of: IMAGE_BLOCK_ROWS,
+      })
     }
   }
   if (options.separator === true) rows.push({ kind: 'blank' })
