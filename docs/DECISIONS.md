@@ -6,6 +6,35 @@
 
 ---
 
+### 2026-08-07 · Inline images render as cells (supersampled half-blocks), not terminal graphics protocols
+
+**Decision.** Image attachments render inline as _cell content_: decoded RGBA blitted through
+OpenTUI's `drawSuperSampleBuffer`, occupying a fixed-height block of image rows in
+`message-layout.ts` (letterboxed to the image's aspect at paint time — never re-laid-out when
+dimensions arrive). This accepts two pure-JS decode dependencies (PNG + JPEG → RGBA), a recorded
+exception to the "no dependency a Bun/stdlib API covers" rule: image decoding is not in Bun's
+stdlib surface, and hand-rolling JPEG is not this product. Unsupported formats, failed fetches,
+and `image_protocol`-style opt-out degrade to the existing text placeholder (invariant 8).
+
+The native-protocol path (iTerm2 OSC 1337 / kitty raw emit at cursor) is **parked, not chosen**.
+The Slice-7 spike (2026-08-07, findings in `plans/active/PLAN-inline-image-rendering.md`) proved
+it workable but only atop a stack of fragilities: OpenTUI's threaded writer tears the escapes
+(3 of 6 corrupted; requires `useThread: false`), erased images must be re-detected via heuristics
+over private renderer APIs, iTerm2 modally prompts on unnamed emissions, and tmux silently drops
+the sequences without `allow-passthrough`. slk (the Go Slack TUI) surveyed the same ground and
+ships cell-based rendering everywhere, with kitty _Unicode placeholders_ — image-by-cell-content,
+the only protocol path that composes with a diffing TUI — on kitty/ghostty/WezTerm only, and
+explicitly nothing on iTerm2. Kitty placeholders are the recorded upgrade path for high-fidelity
+terminals; true pixels on iTerm2 have no clean route and that is iTerm2's limitation.
+
+**Why cells.** Everything the row-exact layout promised falls out for free: image rows are real
+cells, so the reducer's predicted heights and the drawn screen agree by construction, scrolling
+and redraws need no reconciliation, and it works in every terminal including tmux (the primary
+validated environment). The motivating failure — a photo-heavy chat as fourteen placeholder
+lines — needs recognizable thumbnails, not pixel fidelity.
+
+---
+
 ### 2026-08-04 · Messages are laid out into rows in pure state, not wrapped by the renderer
 
 **Decision.** `src/state/message-layout.ts` turns a message plus a content width into the exact
