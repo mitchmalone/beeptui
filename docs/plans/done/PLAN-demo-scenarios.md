@@ -1,6 +1,6 @@
 ---
 title: demo scenarios — looping, feature-specific --demo states
-status: active
+status: done
 created: 2026-08-08
 updated: 2026-08-08
 links:
@@ -32,23 +32,30 @@ row has sat on a placeholder because there was nothing honest to record.
 
 ## Steps
 
-- [ ] Scenario module: types, four scenarios, cycle validation + scheduler with injectable
+- [x] Scenario module: types, four scenarios, cycle validation + scheduler with injectable
       clock — unit tests (ordering, looping, reset, stop).
-- [ ] Fixtures: photo-heavy chat; varied demo PNG per attachment id; reply/reaction beats.
-- [ ] CLI + launch wiring: parse scenario, validate, start/stop the driver with the app.
-- [ ] Verify each scenario live in tmux (headless capture) — arrivals render, images fill in,
+- [x] Fixtures: photo-heavy chat; varied demo PNG per attachment id; reply/reaction beats.
+- [x] CLI + launch wiring: parse scenario, validate, start/stop the driver with the app.
+- [x] Verify each scenario live in tmux (headless capture) — arrivals render, images fill in,
       replies mark targets, loops reset cleanly.
 
 ## Acceptance criteria
 
-- [ ] `--demo` alone behaves as today plus a gentle everything-cycle; each named scenario loops
+- [x] `--demo` alone behaves as today plus a gentle everything-cycle; each named scenario loops
       its feature indefinitely; `q` still exits cleanly.
-- [ ] All events go through the reducer; no adapter or store bypass; no wall-clock timestamps in
+- [x] All events go through the reducer; no adapter or store bypass; no wall-clock timestamps in
       scripted events (deterministic re-records).
-- [ ] Unknown scenario name → helpful error, exit non-zero.
-- [ ] `bun run typecheck` + `bun test` green; scheduler and scenario data unit-tested.
+- [x] Unknown scenario name → helpful error, exit non-zero.
+- [x] `bun run typecheck` + `bun test` green; scheduler and scenario data unit-tested.
 
 ## Out of scope
 
 - Self-driving navigation (auto-opening chats, kiosk mode) — tapes press the keys.
 - Website tapes themselves (they live in beeptui-web).
+
+## Notes at close (2026-08-08)
+
+- `messages/loaded` merges by design — the reset needed a new `messages/replaced` event with
+  true replace semantics (and cursor reseating). Verified live: beats land, reset clears,
+  cycle two replays identically; the images scenario opens the photo chat with distinct
+  per-id thumbnails.
