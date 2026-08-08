@@ -16,6 +16,7 @@
 
 import { decodeImage } from '@/tui/image-decode.ts'
 import { fitToBlock, scaleRgba } from '@/tui/image-scale.ts'
+import { toLocalPath } from '@/tui/os-open.ts'
 
 export type PreviewEntry =
   | { status: 'loading' }
@@ -59,7 +60,10 @@ export class ImagePreviewCache {
   constructor(io: PreviewIo) {
     this.#io = {
       download: io.download,
-      readFile: io.readFile ?? (async (path) => new Uint8Array(await Bun.file(path).bytes())),
+      // The adapter hands back whatever Beeper reports — a plain path in
+      // some builds, a file:// URL in others (same normalization as open/save).
+      readFile:
+        io.readFile ?? (async (path) => new Uint8Array(await Bun.file(toLocalPath(path)).bytes())),
       concurrency: io.concurrency ?? DEFAULT_CONCURRENCY,
       capacity: io.capacity ?? DEFAULT_CAPACITY,
       maxFileBytes: io.maxFileBytes ?? DEFAULT_MAX_FILE_BYTES,

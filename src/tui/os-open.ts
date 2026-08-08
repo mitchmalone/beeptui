@@ -25,7 +25,7 @@ const defaultSpawner: Spawner = (command, args) =>
 
 /** A downloaded file's location may come back as a `file://` URL or a plain
  *  path; normalize to a filesystem path. */
-function toPath(localPath: string): string {
+export function toLocalPath(localPath: string): string {
   return localPath.startsWith('file://') ? fileURLToPath(localPath) : localPath
 }
 
@@ -38,7 +38,7 @@ export async function openFile(
   localPath: string,
   spawner: Spawner = defaultSpawner
 ): Promise<void> {
-  const path = toPath(localPath)
+  const path = toLocalPath(localPath)
   const info = await stat(path).catch(() => null)
   if (info === null || !info.isFile()) {
     throw new Error('Attachment file not found on disk')
@@ -90,7 +90,7 @@ export async function saveToDownloads(
   for (let attempt = 0; attempt < 100; attempt++) {
     const savedName = candidateName(base, attempt)
     try {
-      await copyFile(toPath(localPath), join(downloadsDir, savedName), constants.COPYFILE_EXCL)
+      await copyFile(toLocalPath(localPath), join(downloadsDir, savedName), constants.COPYFILE_EXCL)
       return { savedName }
     } catch (err) {
       const code = (err as NodeJS.ErrnoException).code

@@ -137,3 +137,29 @@ describe('ImagePreviewCache', () => {
     expect(cache.get('d', 10, 4).status).toBe('ready')
   })
 })
+
+describe('default file reader', () => {
+  // The real adapter returns `srcURL` from Beeper — a file:// URL on current
+  // desktop builds. The first live run rendered every block as a parked
+  // placeholder because the default reader passed the URL to Bun.file verbatim.
+  test('reads a file:// URL the same as a plain path', async () => {
+    const path = `${process.env.TMPDIR ?? '/tmp'}/beeptui-test-preview-${process.pid}.png`
+    await Bun.write(path, pngBytes(12, 12))
+    try {
+      const cache = new ImagePreviewCache({
+        download: async () => ({ localPath: `file://${path}` }),
+      })
+      const settled = new Promise<void>((resolve) => {
+        const unsub = cache.subscribe(() => {
+          unsub()
+          resolve()
+        })
+      })
+      cache.get('a', 10, 4)
+      await settled
+      expect(cache.get('a', 10, 4).status).toBe('ready')
+    } finally {
+      await Bun.file(path).delete()
+    }
+  })
+})
