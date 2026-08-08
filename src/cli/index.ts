@@ -28,8 +28,10 @@ Usage:
 
 Flags:
   --json                  Machine-readable output (status, doctor)
-  --demo                  Launch with synthetic data — no Beeper/auth needed
-                          (for screenshots and screen recordings)
+  --demo [scenario]       Launch with synthetic data — no Beeper/auth needed
+                          (for screenshots and screen recordings). Scenarios
+                          loop a scripted feature forever: full (default),
+                          live, replies, images
 `
 
 /** Build the live context: resolve the endpoint, then the active token (an
@@ -67,13 +69,38 @@ async function main(argv: string[]): Promise<void> {
   const [command, ...rest] = argv
   const json = rest.includes('--json')
   const demo = argv.includes('--demo')
+  // `--demo live` / `--demo=live`: the word after the flag (or its = suffix)
+  // names a scripted scenario. Validated before the terminal is touched.
+  const demoIndex = argv.findIndex((a) => a === '--demo' || a.startsWith('--demo='))
+  const demoScenarioName =
+    demoIndex === -1
+      ? undefined
+      : argv[demoIndex]?.includes('=')
+        ? argv[demoIndex]?.split('=')[1]
+        : argv[demoIndex + 1]?.startsWith('-')
+          ? undefined
+          : argv[demoIndex + 1]
 
   switch (command) {
     case undefined:
     case '--demo':
     case 'run': {
+      if (demo) {
+        // Fail an unknown scenario here, with the list, not after the alt
+        // screen opens (invariant 8).
+        const { demoScenario } = await import('@/tui/demo-scenarios.ts')
+        try {
+          demoScenario(demoScenarioName)
+        } catch (err) {
+          console.error((err as Error).message)
+          process.exit(2)
+        }
+      }
       const { launch } = await import('@/tui/launch.ts')
-      await launch({ demo })
+      await launch({
+        demo,
+        ...(demoScenarioName !== undefined ? { demoScenario: demoScenarioName } : {}),
+      })
       return
     }
     case 'status': {
