@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
-import { constants, copyFile, stat } from 'node:fs/promises'
-import { homedir, platform } from 'node:os'
+import { constants, copyFile, mkdtemp, stat } from 'node:fs/promises'
+import { homedir, platform, tmpdir } from 'node:os'
 import { basename, extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -29,6 +29,48 @@ export function toLocalPath(localPath: string): string {
   return localPath.startsWith('file://') ? fileURLToPath(localPath) : localPath
 }
 
+/** What the attachment metadata says the file is — used to give an
+ *  extension-less download a typed name the OS can dispatch on. */
+export interface OpenTypeHint {
+  fileName?: string | undefined
+  mimeType?: string | undefined
+}
+
+/** The formats worth mapping when the attachment has a MIME type but no
+ *  usable filename. Unknown types stay unmapped: the file opens as-is and the
+ *  OS gives its honest answer. */
+const MIME_EXTENSIONS: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+  'image/heic': '.heic',
+  'application/pdf': '.pdf',
+  'video/mp4': '.mp4',
+  'video/quicktime': '.mov',
+}
+
+/**
+ * Beeper's download files are extension-less blobs; macOS `open` then guesses
+ * text encoding and fails ("Unicode (UTF-8) isn't applicable"). When metadata
+ * knows better, hand the OS a typed copy: the attachment's own filename (or
+ * `attachment.<ext>` from the MIME type) in a fresh temp dir — unique by
+ * construction, cleaned by the OS. Returns null when the path already has an
+ * extension or nothing better is known.
+ */
+async function typedCopy(path: string, hint: OpenTypeHint): Promise<string | null> {
+  if (extname(path) !== '') return null
+  const hintedName = hint.fileName !== undefined ? basename(hint.fileName) : ''
+  const hintedExt = extname(hintedName)
+  const mimeExt = (hint.mimeType !== undefined ? MIME_EXTENSIONS[hint.mimeType] : undefined) ?? ''
+  const name = hintedExt !== '' ? hintedName : mimeExt !== '' ? `attachment${mimeExt}` : ''
+  if (name === '') return null
+  const dir = await mkdtemp(join(tmpdir(), 'beeptui-open-'))
+  const target = join(dir, name)
+  await copyFile(path, target)
+  return target
+}
+
 /** Open a local file with the OS default handler (`open` on macOS, `xdg-open`
  *  elsewhere). Detached so quitting the TUI doesn't kill the viewer. Rejects
  *  when the file doesn't exist or the handler can't launch — a failed open must
@@ -36,6 +78,7 @@ export function toLocalPath(localPath: string): string {
  *  files are opened: an endpoint-supplied URL must not reach the OS handler. */
 export async function openFile(
   localPath: string,
+  hint: OpenTypeHint = {},
   spawner: Spawner = defaultSpawner
 ): Promise<void> {
   const path = toLocalPath(localPath)
@@ -43,9 +86,10 @@ export async function openFile(
   if (info === null || !info.isFile()) {
     throw new Error('Attachment file not found on disk')
   }
+  const typed = await typedCopy(path, hint)
   const command = platform() === 'darwin' ? 'open' : 'xdg-open'
   await new Promise<void>((resolve, reject) => {
-    const child = spawner(command, [path])
+    const child = spawner(command, [typed ?? path])
     child.on('error', reject)
     child.on('spawn', () => {
       child.unref()
