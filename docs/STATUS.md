@@ -3,43 +3,40 @@
 > The cursor: where we are right now. Keep this **terse** — a snapshot, not a history.
 > History lives in git, `plans/done/`, and `JOURNAL.md`.
 >
-> Last updated: 2026-08-04
+> Last updated: 2026-08-08
 
 ## Where we are
 
-**v0.3 — six of seven slices shipped; inline images deferred to 0.4.** The conversation is
-navigable and configurable: one scrolling model, a cursor that is always somewhere sensible, replies
-you can find, and a home for settings. Full detail per slice in `plans/done/`; the release checklist
-is `plans/backlog/PLAN-v03-release.md`.
+**v0.4 — inline images shipped.** Image attachments render inline in the conversation as
+supersampled half-block thumbnails — any terminal, including tmux — instead of the
+`[image: … · 205 KB]` placeholder that made photo-heavy chats unreadable. The path chosen after a
+spike killed the native-protocol route: images are _cells_, laid out as fixed 8-row blocks in
+`message-layout.ts`, so the reducer's row counts and the drawn screen agree by construction
+(decision + spike findings: `DECISIONS.md` 2026-08-07, `plans/done/PLAN-inline-image-rendering.md`).
 
-| #   | Slice                                                                         | State                   |
-| --- | ----------------------------------------------------------------------------- | ----------------------- |
-| 1   | **Login guard** — `login` refuses instead of opening a dead browser tab       | done (#39)              |
-| 2   | **Full-window eviction** — live arrivals ignored once 200 messages are loaded | done (#40)              |
-| 3   | **Selection & focus** — the active column always has a cursor                 | done (#41)              |
-| 4   | **History paging on scroll** — `u` dropped; `↑` at the top pages history      | done (#42)              |
-| 5   | **Reply from the action menu** — `Replying in thread ●`, target marked        | done (#43)              |
-| 6   | **Settings menu** in the Net rail → Theme                                     | done (#44)              |
-| 7   | **Inline image rendering**                                                    | deferred to 0.4 (Mitch) |
+The pipeline: `assets.download` through the adapter → PNG/JPEG decode (`pngjs`/`jpeg-js`, the
+recorded dependency exception) → box-filter scale → LRU-capped cache with bounded concurrency →
+per-row paint scissored to the image rectangle. Loading shows `… `; failures, unknown formats
+(WebP/HEIC), and oversized files keep the honest text placeholder. The `⏎` action menu is now
+per-message — Reply / React… everywhere, **Open attachment** only where a downloadable attachment
+exists — and extension-less Beeper downloads open as a typed temp copy so macOS stops guessing
+"text" and failing.
 
-Three more fixes landed alongside, each found by using the app rather than by a test:
+**682 tests** green; typecheck + lint clean. Verified in `--demo` (headless: paint, scroll, resize,
+menu overlap) and live against a real account by Mitch, in and out of tmux.
 
-- **Dead `conversation/scrolled` removed** (#45) — dispatched by nothing since the message cursor
-  arrived, yet fifteen tests reached a "scrolled up" state through it. They now scroll by moving the
-  cursor, which is the only scroll there is.
-- **Media messages name themselves** (#46) — `type: IMAGE`/`VIDEO` messages arrive from Beeper with
-  neither text nor attachment metadata (21 of 22 image messages across ten chats) and were rendering
-  as an empty line. They now say `[image]` / `[video]`; real labels and text still win.
-- **Anchors detected as HTML** (#47) — a message containing a link rendered its raw markup. The
-  translator handled anchors all along; the detection whitelist had been written from the tags the
-  formatter implements rather than the tags bridges send.
+**Known, not fixed:**
 
-**644 tests** green; typecheck + lint clean. Verified live against a real account: launch state,
-opening a chat, paging back through history, replying from the dropdown, and the settings flyout.
+- **Keyboard input is dead in raw iTerm2** (fine under tmux, where all prior live validation
+  happened) — surfaced by the slice-7 spike, pre-existing, untracked until now. Next fix.
+- The release workflow's website job needs secret `WEB_REPO_TOKEN` (fine-grained PAT,
+  contents:write on `beeptui-web`) to auto-stamp beeptui.com; until it exists the job no-ops
+  honestly and the site version is updated by hand.
 
-**Before tagging `v0.3.0`:** set repo variable `WEB_REPO=mitchmalone/beeptui-web` and secret
-`WEB_REPO_TOKEN` (fine-grained PAT, contents:write on `beeptui-web`), or the release's website job
-silently skips and beeptui.com keeps showing the old version.
+**v0.3 — shipped 2026-08-04** (#39–#48, six slices + three found-by-using-it fixes): login guard,
+full-window eviction, selection & focus, history paging on `↑`, reply from the action menu, the
+Settings menu, dead-event removal, media messages naming themselves, and anchor-HTML detection.
+Full detail per slice in `plans/done/`; checklist `plans/done/PLAN-v03-release.md`.
 
 **Conversation block layout + row-exact viewport** — merged (2026-08-04, PR #36), released as
 `0.2.1`. Each message now reads as a block: **sender left / timestamp right on its own line,

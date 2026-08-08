@@ -8,6 +8,12 @@ export function formatTime(timestamp: string): string {
   return match?.[1] ?? ''
 }
 
+/** Is this attachment an image we could preview inline? Trusts an explicit
+ *  `image` kind, or an `image/*` MIME type when the kind is coarser. */
+export function isImageAttachment(attachment: AttachmentSummary): boolean {
+  return attachment.kind === 'image' || (attachment.mimeType?.startsWith('image/') ?? false)
+}
+
 /** Compact human-readable byte size (e.g. `20 KB`, `1.4 MB`). */
 export function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`

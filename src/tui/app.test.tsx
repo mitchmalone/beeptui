@@ -117,6 +117,48 @@ describe('App shell', () => {
     expect(opened).toEqual(['c2'])
   })
 
+  test('the action menu offers Open attachment, wired to the same handler as o', async () => {
+    const store = seededStore()
+    store.dispatch({ type: 'chat/selected', chatId: 'c1' })
+    store.dispatch({ type: 'focus/changed', focus: 'conversation' })
+    store.dispatch({
+      type: 'messages/loaded',
+      chatId: 'c1',
+      page: 'initial',
+      messages: [
+        {
+          id: 'm1',
+          chatId: 'c1',
+          accountId: 'a',
+          senderId: 'g',
+          senderName: 'Grace',
+          timestamp: '2026-07-30T09:05:00.000Z',
+          sortKey: '1',
+          isSender: false,
+          isUnread: false,
+          attachments: [{ kind: 'image', fileName: 'a.png', id: 'mxc://x' }],
+        },
+      ],
+      hasMoreOlder: false,
+    })
+    let opens = 0
+    const { renderOnce, captureCharFrame, mockInput } = await renderApp(store, {
+      onOpenAttachment: () => {
+        opens += 1
+      },
+    })
+    await renderOnce()
+    await mockInput.pressKey('RETURN') // open the action menu on the message
+    expect(store.getState().overlay).toBe('conversationActions')
+    await renderOnce()
+    expect(captureCharFrame()).toContain('Open attachment')
+    await mockInput.pressKey('ARROW_DOWN')
+    await mockInput.pressKey('ARROW_DOWN') // Reply → React… → Open attachment
+    await mockInput.pressKey('RETURN')
+    expect(opens).toBe(1)
+    expect(store.getState().overlay).toBe('none')
+  })
+
   test('t cycles the theme through the registry and names it in the status bar', async () => {
     const store = seededStore()
     const { renderOnce, captureCharFrame, mockInput } = await renderApp(store)

@@ -12,7 +12,7 @@ import {
 } from '@/state/selectors.ts'
 import { checkCapability } from '@/state/capabilities.ts'
 import { NARROW_WIDTH, conversationCapacity } from '@/state/conversation-scroll.ts'
-import { CONVERSATION_ACTIONS, QUICK_REACTIONS, SETTINGS_ITEMS } from '@/state/reactions.ts'
+import { conversationActionsFor, QUICK_REACTIONS, SETTINGS_ITEMS } from '@/state/reactions.ts'
 import { RAIL_ARCHIVED_ID, RAIL_SETTINGS_ID } from '@/state/types.ts'
 import { edgeSelection, moveSelection } from '@/tui/navigation.ts'
 import { helpGroups, KEYMAP, resolveCommand, resolveKey, type Binding } from '@/tui/keymap.ts'
@@ -24,6 +24,7 @@ import { SettingsMenu } from '@/tui/components/SettingsMenu.tsx'
 import { ThemePicker } from '@/tui/components/ThemePicker.tsx'
 import { StatusBar } from '@/tui/components/StatusBar.tsx'
 import { ConversationView, type ConversationMenu } from '@/tui/components/ConversationView.tsx'
+import type { ImagePreviewCache } from '@/tui/image-preview-cache.ts'
 import { Compose } from '@/tui/components/Compose.tsx'
 import { SearchPalette } from '@/tui/components/SearchPalette.tsx'
 import { MessageSearchPalette } from '@/tui/components/MessageSearchPalette.tsx'
@@ -66,6 +67,8 @@ export interface AppProps {
   /** name→Theme registry (built-ins + user themes). `t` cycles through its keys.
    *  Defaults to built-ins only. */
   themeRegistry?: Map<string, Theme>
+  /** Inline image thumbnail pipeline; null keeps text placeholders. */
+  previewCache?: ImagePreviewCache | null
 }
 
 /**
@@ -90,6 +93,7 @@ export function App({
   keymap = KEYMAP,
   networkColors,
   themeRegistry = BUILTIN_REGISTRY,
+  previewCache = null,
 }: AppProps) {
   const state = useSyncExternalStore(store.subscribe, store.getState)
   // Memoize the derived views on the specific state slices they depend on, so
@@ -298,12 +302,15 @@ export function App({
       } else if (key.name === 'down') {
         store.dispatch({ type: 'actionMenu/moved', delta: 1 })
       } else if (key.name === 'return' || key.name === 'enter') {
-        const action = CONVERSATION_ACTIONS[s.actionCursor]
+        const action = conversationActionsFor(selectSelectedMessage(s))[s.actionCursor]
         if (action?.id === 'react') {
           store.dispatch({ type: 'overlay/opened', overlay: 'emojiPicker' })
         } else if (action?.id === 'reply' && s.selectedMessageId !== null) {
           store.dispatch({ type: 'overlay/closed' })
           startReply(s.selectedMessageId)
+        } else if (action?.id === 'open') {
+          store.dispatch({ type: 'overlay/closed' })
+          onOpenAttachment()
         }
       }
       return
@@ -598,6 +605,7 @@ export function App({
                   density={state.density}
                   loadingOlder={pendingOlder !== null}
                   replyToId={state.replyTo}
+                  previewCache={previewCache}
                 />
                 {composePane}
               </box>
@@ -625,6 +633,7 @@ export function App({
                   density={state.density}
                   loadingOlder={pendingOlder !== null}
                   replyToId={state.replyTo}
+                  previewCache={previewCache}
                 />
                 {composePane}
               </box>

@@ -67,6 +67,11 @@ chatIDs:[]}`; then send **`{type:'subscriptions.set', requestID, chatIDs:['*']}`
   gate the action on it (a `false` chat gets a named notice, no call). Absent capability = attempt +
   degrade on error. `mark_read`/`mark_unread`/`delete` endpoints also exist for later slices.
 
+- **`assets.download` returns `srcURL` as a `file://` URL** (current desktop builds) pointing at an
+  **extension-less blob**. Normalize with `toLocalPath` before reading, and never hand the bare
+  blob to `open`/`xdg-open` — macOS guesses text encoding and fails; copy to a typed temp name
+  from the attachment's `fileName`/`mimeType` first.
+
 ## OpenTUI / rendering
 
 - **Verified: `@opentui/react@0.4.5` renders on macOS arm64 under Bun 1.3.14.** The native core
@@ -135,6 +140,16 @@ chatIDs:[]}`; then send **`{type:'subscriptions.set', requestID, chatIDs:['*']}`
   global `[ ] / a / q` shortcuts don't fire in either — advertising them there is a dead control
   (invariant 8). Gate the hint on `focus`/`overlay`: compose → `⏎ send · Esc back`, overlay →
   `Esc close`, else the global trio.
+
+- **`drawSuperSampleBuffer` is unbounded horizontally** — the native loop paints from `posX` to
+  the buffer edge, sampling 2×2 px per cell and reading wrapped garbage once past your pixel rows
+  (`TODO` in opentui's `buffer.zig` admits it). Always `pushScissorRect` the target cell rectangle
+  around the call. It _does_ respect scissors.
+- **The threaded renderer (`useThread: true`, the default) owns stdout on a native thread** — raw
+  `process.stdout.write` escapes interleave mid-sequence with frame bytes. Anything that must reach
+  the terminal atomically has to go through cells, or the app must run `useThread: false`.
+- **Raw iTerm2 (no tmux) does not deliver keyboard input to the app** — unresolved; all live runs
+  before 2026-08-08 were inside tmux and never noticed. Reproduce with any build outside tmux.
 
 ## Theming
 

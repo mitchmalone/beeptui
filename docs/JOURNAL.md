@@ -5,6 +5,31 @@
 
 ---
 
+### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
+
+- **The emit-point spike did its job by failing usefully.** OSC 1337 raw-emit inside OpenTUI is
+  _possible_ — validated headlessly by capturing the pty byte stream (detached tmux +
+  `pipe-pane`) — but each proof surfaced a new fragility: OpenTUI's threaded writer interleaves
+  frame bytes mid-escape (3 of 6 emissions torn; clean only with `useThread: false`), erased
+  images need heuristics over private renderer APIs, iTerm2 modally prompts on a `File=` without
+  `name=`/`size=`, and tmux swallows everything without `allow-passthrough`. Full findings in the
+  slice plan; pivot recorded in `DECISIONS.md` 2026-08-07. slk (Go Slack TUI) independently
+  landed on cells-only for the same reasons — and ships _nothing_ pixel-true on iTerm2.
+- **`drawSuperSampleBuffer` samples 2×2 px per cell but has no horizontal bound** — the Zig loop
+  runs to the buffer edge (their TODO admits it), painting wrapped garbage past the image. Scissor
+  the image's cell rectangle around the call. Found live in `--demo`, pinned by a paint test.
+- **Verifying pixels headlessly is a cell-path superpower.** Half-block thumbnails are real cells:
+  `tmux capture-pane` and the test renderer's `captureCharFrame`/`captureSpans` see them, so
+  paint, scroll, resize and menu overlap were all verified without eyes on a screen.
+- **Beeper's `assets.download` returns `srcURL` as a `file://` URL** and the file is an
+  **extension-less blob**. The first cost the preview pipeline (reads failed → every block parked
+  as a failed placeholder; `os-open.ts` had already learned this); the second broke `open` itself
+  (macOS guessed text encoding). Downloads now open as a typed temp copy named from attachment
+  metadata.
+- **Keyboard input never reaches the app in raw iTerm2** (fine under tmux). Surfaced by the spike,
+  reproduced against the real app, pre-existing — all live validation to date had been inside
+  tmux. Untangled from this slice; tracked in `STATUS.md` as next.
+
 ### 2026-08-04 — Raw `<a href=…>` was rendering, and the translator was innocent
 
 - **Found by doing the manual release pass, not by a test.** A real message containing a link
@@ -19,6 +44,31 @@
   decides whether it takes that path.
 
 ---
+
+### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
+
+- **The emit-point spike did its job by failing usefully.** OSC 1337 raw-emit inside OpenTUI is
+  _possible_ — validated headlessly by capturing the pty byte stream (detached tmux +
+  `pipe-pane`) — but each proof surfaced a new fragility: OpenTUI's threaded writer interleaves
+  frame bytes mid-escape (3 of 6 emissions torn; clean only with `useThread: false`), erased
+  images need heuristics over private renderer APIs, iTerm2 modally prompts on a `File=` without
+  `name=`/`size=`, and tmux swallows everything without `allow-passthrough`. Full findings in the
+  slice plan; pivot recorded in `DECISIONS.md` 2026-08-07. slk (Go Slack TUI) independently
+  landed on cells-only for the same reasons — and ships _nothing_ pixel-true on iTerm2.
+- **`drawSuperSampleBuffer` samples 2×2 px per cell but has no horizontal bound** — the Zig loop
+  runs to the buffer edge (their TODO admits it), painting wrapped garbage past the image. Scissor
+  the image's cell rectangle around the call. Found live in `--demo`, pinned by a paint test.
+- **Verifying pixels headlessly is a cell-path superpower.** Half-block thumbnails are real cells:
+  `tmux capture-pane` and the test renderer's `captureCharFrame`/`captureSpans` see them, so
+  paint, scroll, resize and menu overlap were all verified without eyes on a screen.
+- **Beeper's `assets.download` returns `srcURL` as a `file://` URL** and the file is an
+  **extension-less blob**. The first cost the preview pipeline (reads failed → every block parked
+  as a failed placeholder; `os-open.ts` had already learned this); the second broke `open` itself
+  (macOS guessed text encoding). Downloads now open as a typed temp copy named from attachment
+  metadata.
+- **Keyboard input never reaches the app in raw iTerm2** (fine under tmux). Surfaced by the spike,
+  reproduced against the real app, pre-existing — all live validation to date had been inside
+  tmux. Untangled from this slice; tracked in `STATUS.md` as next.
 
 ### 2026-08-04 — The bare `↩` messages were media, not broken replies
 
@@ -37,6 +87,31 @@
 
 ---
 
+### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
+
+- **The emit-point spike did its job by failing usefully.** OSC 1337 raw-emit inside OpenTUI is
+  _possible_ — validated headlessly by capturing the pty byte stream (detached tmux +
+  `pipe-pane`) — but each proof surfaced a new fragility: OpenTUI's threaded writer interleaves
+  frame bytes mid-escape (3 of 6 emissions torn; clean only with `useThread: false`), erased
+  images need heuristics over private renderer APIs, iTerm2 modally prompts on a `File=` without
+  `name=`/`size=`, and tmux swallows everything without `allow-passthrough`. Full findings in the
+  slice plan; pivot recorded in `DECISIONS.md` 2026-08-07. slk (Go Slack TUI) independently
+  landed on cells-only for the same reasons — and ships _nothing_ pixel-true on iTerm2.
+- **`drawSuperSampleBuffer` samples 2×2 px per cell but has no horizontal bound** — the Zig loop
+  runs to the buffer edge (their TODO admits it), painting wrapped garbage past the image. Scissor
+  the image's cell rectangle around the call. Found live in `--demo`, pinned by a paint test.
+- **Verifying pixels headlessly is a cell-path superpower.** Half-block thumbnails are real cells:
+  `tmux capture-pane` and the test renderer's `captureCharFrame`/`captureSpans` see them, so
+  paint, scroll, resize and menu overlap were all verified without eyes on a screen.
+- **Beeper's `assets.download` returns `srcURL` as a `file://` URL** and the file is an
+  **extension-less blob**. The first cost the preview pipeline (reads failed → every block parked
+  as a failed placeholder; `os-open.ts` had already learned this); the second broke `open` itself
+  (macOS guessed text encoding). Downloads now open as a typed temp copy named from attachment
+  metadata.
+- **Keyboard input never reaches the app in raw iTerm2** (fine under tmux). Surfaced by the spike,
+  reproduced against the real app, pre-existing — all live validation to date had been inside
+  tmux. Untangled from this slice; tracked in `STATUS.md` as next.
+
 ### 2026-08-04 — Removing the dead scroll event made the tests honest
 
 - **Fifteen tests reached "scrolled up" through an event no key could produce.** `conversation/
@@ -50,6 +125,31 @@ scrolled` had been dead since the message cursor arrived, but the affordance and
 - Removing dead code is cheap; removing the _fiction it supported_ is where the value was.
 
 ---
+
+### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
+
+- **The emit-point spike did its job by failing usefully.** OSC 1337 raw-emit inside OpenTUI is
+  _possible_ — validated headlessly by capturing the pty byte stream (detached tmux +
+  `pipe-pane`) — but each proof surfaced a new fragility: OpenTUI's threaded writer interleaves
+  frame bytes mid-escape (3 of 6 emissions torn; clean only with `useThread: false`), erased
+  images need heuristics over private renderer APIs, iTerm2 modally prompts on a `File=` without
+  `name=`/`size=`, and tmux swallows everything without `allow-passthrough`. Full findings in the
+  slice plan; pivot recorded in `DECISIONS.md` 2026-08-07. slk (Go Slack TUI) independently
+  landed on cells-only for the same reasons — and ships _nothing_ pixel-true on iTerm2.
+- **`drawSuperSampleBuffer` samples 2×2 px per cell but has no horizontal bound** — the Zig loop
+  runs to the buffer edge (their TODO admits it), painting wrapped garbage past the image. Scissor
+  the image's cell rectangle around the call. Found live in `--demo`, pinned by a paint test.
+- **Verifying pixels headlessly is a cell-path superpower.** Half-block thumbnails are real cells:
+  `tmux capture-pane` and the test renderer's `captureCharFrame`/`captureSpans` see them, so
+  paint, scroll, resize and menu overlap were all verified without eyes on a screen.
+- **Beeper's `assets.download` returns `srcURL` as a `file://` URL** and the file is an
+  **extension-less blob**. The first cost the preview pipeline (reads failed → every block parked
+  as a failed placeholder; `os-open.ts` had already learned this); the second broke `open` itself
+  (macOS guessed text encoding). Downloads now open as a typed temp copy named from attachment
+  metadata.
+- **Keyboard input never reaches the app in raw iTerm2** (fine under tmux). Surfaced by the spike,
+  reproduced against the real app, pre-existing — all live validation to date had been inside
+  tmux. Untangled from this slice; tracked in `STATUS.md` as next.
 
 ### 2026-08-04 — A narrow box clips its own flyout, and a memo froze the rail caret
 
@@ -71,6 +171,31 @@ scrolled` had been dead since the message cursor arrived, but the affordance and
 
 ---
 
+### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
+
+- **The emit-point spike did its job by failing usefully.** OSC 1337 raw-emit inside OpenTUI is
+  _possible_ — validated headlessly by capturing the pty byte stream (detached tmux +
+  `pipe-pane`) — but each proof surfaced a new fragility: OpenTUI's threaded writer interleaves
+  frame bytes mid-escape (3 of 6 emissions torn; clean only with `useThread: false`), erased
+  images need heuristics over private renderer APIs, iTerm2 modally prompts on a `File=` without
+  `name=`/`size=`, and tmux swallows everything without `allow-passthrough`. Full findings in the
+  slice plan; pivot recorded in `DECISIONS.md` 2026-08-07. slk (Go Slack TUI) independently
+  landed on cells-only for the same reasons — and ships _nothing_ pixel-true on iTerm2.
+- **`drawSuperSampleBuffer` samples 2×2 px per cell but has no horizontal bound** — the Zig loop
+  runs to the buffer edge (their TODO admits it), painting wrapped garbage past the image. Scissor
+  the image's cell rectangle around the call. Found live in `--demo`, pinned by a paint test.
+- **Verifying pixels headlessly is a cell-path superpower.** Half-block thumbnails are real cells:
+  `tmux capture-pane` and the test renderer's `captureCharFrame`/`captureSpans` see them, so
+  paint, scroll, resize and menu overlap were all verified without eyes on a screen.
+- **Beeper's `assets.download` returns `srcURL` as a `file://` URL** and the file is an
+  **extension-less blob**. The first cost the preview pipeline (reads failed → every block parked
+  as a failed placeholder; `os-open.ts` had already learned this); the second broke `open` itself
+  (macOS guessed text encoding). Downloads now open as a typed temp copy named from attachment
+  metadata.
+- **Keyboard input never reaches the app in raw iTerm2** (fine under tmux). Surfaced by the spike,
+  reproduced against the real app, pre-existing — all live validation to date had been inside
+  tmux. Untangled from this slice; tracked in `STATUS.md` as next.
+
 ### 2026-08-04 — A false alarm about history paging, and how it happened
 
 - **A negative result from synthetic input needs a positive control.** Driving the TUI with
@@ -89,6 +214,31 @@ scrolled` had been dead since the message cursor arrived, but the affordance and
   across eight chats, 20 messages per page, zero overlap.
 
 ---
+
+### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
+
+- **The emit-point spike did its job by failing usefully.** OSC 1337 raw-emit inside OpenTUI is
+  _possible_ — validated headlessly by capturing the pty byte stream (detached tmux +
+  `pipe-pane`) — but each proof surfaced a new fragility: OpenTUI's threaded writer interleaves
+  frame bytes mid-escape (3 of 6 emissions torn; clean only with `useThread: false`), erased
+  images need heuristics over private renderer APIs, iTerm2 modally prompts on a `File=` without
+  `name=`/`size=`, and tmux swallows everything without `allow-passthrough`. Full findings in the
+  slice plan; pivot recorded in `DECISIONS.md` 2026-08-07. slk (Go Slack TUI) independently
+  landed on cells-only for the same reasons — and ships _nothing_ pixel-true on iTerm2.
+- **`drawSuperSampleBuffer` samples 2×2 px per cell but has no horizontal bound** — the Zig loop
+  runs to the buffer edge (their TODO admits it), painting wrapped garbage past the image. Scissor
+  the image's cell rectangle around the call. Found live in `--demo`, pinned by a paint test.
+- **Verifying pixels headlessly is a cell-path superpower.** Half-block thumbnails are real cells:
+  `tmux capture-pane` and the test renderer's `captureCharFrame`/`captureSpans` see them, so
+  paint, scroll, resize and menu overlap were all verified without eyes on a screen.
+- **Beeper's `assets.download` returns `srcURL` as a `file://` URL** and the file is an
+  **extension-less blob**. The first cost the preview pipeline (reads failed → every block parked
+  as a failed placeholder; `os-open.ts` had already learned this); the second broke `open` itself
+  (macOS guessed text encoding). Downloads now open as a typed temp copy named from attachment
+  metadata.
+- **Keyboard input never reaches the app in raw iTerm2** (fine under tmux). Surfaced by the spike,
+  reproduced against the real app, pre-existing — all live validation to date had been inside
+  tmux. Untangled from this slice; tracked in `STATUS.md` as next.
 
 ### 2026-08-04 — Selection seeding, and the two lies it exposed
 
@@ -119,6 +269,31 @@ scrolled` had been dead since the message cursor arrived, but the affordance and
 
 ---
 
+### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
+
+- **The emit-point spike did its job by failing usefully.** OSC 1337 raw-emit inside OpenTUI is
+  _possible_ — validated headlessly by capturing the pty byte stream (detached tmux +
+  `pipe-pane`) — but each proof surfaced a new fragility: OpenTUI's threaded writer interleaves
+  frame bytes mid-escape (3 of 6 emissions torn; clean only with `useThread: false`), erased
+  images need heuristics over private renderer APIs, iTerm2 modally prompts on a `File=` without
+  `name=`/`size=`, and tmux swallows everything without `allow-passthrough`. Full findings in the
+  slice plan; pivot recorded in `DECISIONS.md` 2026-08-07. slk (Go Slack TUI) independently
+  landed on cells-only for the same reasons — and ships _nothing_ pixel-true on iTerm2.
+- **`drawSuperSampleBuffer` samples 2×2 px per cell but has no horizontal bound** — the Zig loop
+  runs to the buffer edge (their TODO admits it), painting wrapped garbage past the image. Scissor
+  the image's cell rectangle around the call. Found live in `--demo`, pinned by a paint test.
+- **Verifying pixels headlessly is a cell-path superpower.** Half-block thumbnails are real cells:
+  `tmux capture-pane` and the test renderer's `captureCharFrame`/`captureSpans` see them, so
+  paint, scroll, resize and menu overlap were all verified without eyes on a screen.
+- **Beeper's `assets.download` returns `srcURL` as a `file://` URL** and the file is an
+  **extension-less blob**. The first cost the preview pipeline (reads failed → every block parked
+  as a failed placeholder; `os-open.ts` had already learned this); the second broke `open` itself
+  (macOS guessed text encoding). Downloads now open as a typed temp copy named from attachment
+  metadata.
+- **Keyboard input never reaches the app in raw iTerm2** (fine under tmux). Surfaced by the spike,
+  reproduced against the real app, pre-existing — all live validation to date had been inside
+  tmux. Untangled from this slice; tracked in `STATUS.md` as next.
+
 ### 2026-08-04 — Live arrivals were invisible once the message window filled up
 
 - **Never infer "did something arrive" from a list's length when that list is capped.**
@@ -139,6 +314,31 @@ scrolled` had been dead since the message cursor arrived, but the affordance and
 
 ---
 
+### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
+
+- **The emit-point spike did its job by failing usefully.** OSC 1337 raw-emit inside OpenTUI is
+  _possible_ — validated headlessly by capturing the pty byte stream (detached tmux +
+  `pipe-pane`) — but each proof surfaced a new fragility: OpenTUI's threaded writer interleaves
+  frame bytes mid-escape (3 of 6 emissions torn; clean only with `useThread: false`), erased
+  images need heuristics over private renderer APIs, iTerm2 modally prompts on a `File=` without
+  `name=`/`size=`, and tmux swallows everything without `allow-passthrough`. Full findings in the
+  slice plan; pivot recorded in `DECISIONS.md` 2026-08-07. slk (Go Slack TUI) independently
+  landed on cells-only for the same reasons — and ships _nothing_ pixel-true on iTerm2.
+- **`drawSuperSampleBuffer` samples 2×2 px per cell but has no horizontal bound** — the Zig loop
+  runs to the buffer edge (their TODO admits it), painting wrapped garbage past the image. Scissor
+  the image's cell rectangle around the call. Found live in `--demo`, pinned by a paint test.
+- **Verifying pixels headlessly is a cell-path superpower.** Half-block thumbnails are real cells:
+  `tmux capture-pane` and the test renderer's `captureCharFrame`/`captureSpans` see them, so
+  paint, scroll, resize and menu overlap were all verified without eyes on a screen.
+- **Beeper's `assets.download` returns `srcURL` as a `file://` URL** and the file is an
+  **extension-less blob**. The first cost the preview pipeline (reads failed → every block parked
+  as a failed placeholder; `os-open.ts` had already learned this); the second broke `open` itself
+  (macOS guessed text encoding). Downloads now open as a typed temp copy named from attachment
+  metadata.
+- **Keyboard input never reaches the app in raw iTerm2** (fine under tmux). Surfaced by the spike,
+  reproduced against the real app, pre-existing — all live validation to date had been inside
+  tmux. Untangled from this slice; tracked in `STATUS.md` as next.
+
 ### 2026-08-04 — Doc updates can fail silently, and did — three times
 
 - **A `str.replace` whose anchor is missing is a no-op, not an error.** Scripted STATUS and JOURNAL
@@ -152,6 +352,31 @@ scrolled` had been dead since the message cursor arrived, but the affordance and
   string operation.
 
 ---
+
+### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
+
+- **The emit-point spike did its job by failing usefully.** OSC 1337 raw-emit inside OpenTUI is
+  _possible_ — validated headlessly by capturing the pty byte stream (detached tmux +
+  `pipe-pane`) — but each proof surfaced a new fragility: OpenTUI's threaded writer interleaves
+  frame bytes mid-escape (3 of 6 emissions torn; clean only with `useThread: false`), erased
+  images need heuristics over private renderer APIs, iTerm2 modally prompts on a `File=` without
+  `name=`/`size=`, and tmux swallows everything without `allow-passthrough`. Full findings in the
+  slice plan; pivot recorded in `DECISIONS.md` 2026-08-07. slk (Go Slack TUI) independently
+  landed on cells-only for the same reasons — and ships _nothing_ pixel-true on iTerm2.
+- **`drawSuperSampleBuffer` samples 2×2 px per cell but has no horizontal bound** — the Zig loop
+  runs to the buffer edge (their TODO admits it), painting wrapped garbage past the image. Scissor
+  the image's cell rectangle around the call. Found live in `--demo`, pinned by a paint test.
+- **Verifying pixels headlessly is a cell-path superpower.** Half-block thumbnails are real cells:
+  `tmux capture-pane` and the test renderer's `captureCharFrame`/`captureSpans` see them, so
+  paint, scroll, resize and menu overlap were all verified without eyes on a screen.
+- **Beeper's `assets.download` returns `srcURL` as a `file://` URL** and the file is an
+  **extension-less blob**. The first cost the preview pipeline (reads failed → every block parked
+  as a failed placeholder; `os-open.ts` had already learned this); the second broke `open` itself
+  (macOS guessed text encoding). Downloads now open as a typed temp copy named from attachment
+  metadata.
+- **Keyboard input never reaches the app in raw iTerm2** (fine under tmux). Surfaced by the spike,
+  reproduced against the real app, pre-existing — all live validation to date had been inside
+  tmux. Untangled from this slice; tracked in `STATUS.md` as next.
 
 ### 2026-08-04 — `login` guards on `remote_access`, not on locality
 
@@ -168,6 +393,31 @@ scrolled` had been dead since the message cursor arrived, but the affordance and
   bare error string.
 
 ---
+
+### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
+
+- **The emit-point spike did its job by failing usefully.** OSC 1337 raw-emit inside OpenTUI is
+  _possible_ — validated headlessly by capturing the pty byte stream (detached tmux +
+  `pipe-pane`) — but each proof surfaced a new fragility: OpenTUI's threaded writer interleaves
+  frame bytes mid-escape (3 of 6 emissions torn; clean only with `useThread: false`), erased
+  images need heuristics over private renderer APIs, iTerm2 modally prompts on a `File=` without
+  `name=`/`size=`, and tmux swallows everything without `allow-passthrough`. Full findings in the
+  slice plan; pivot recorded in `DECISIONS.md` 2026-08-07. slk (Go Slack TUI) independently
+  landed on cells-only for the same reasons — and ships _nothing_ pixel-true on iTerm2.
+- **`drawSuperSampleBuffer` samples 2×2 px per cell but has no horizontal bound** — the Zig loop
+  runs to the buffer edge (their TODO admits it), painting wrapped garbage past the image. Scissor
+  the image's cell rectangle around the call. Found live in `--demo`, pinned by a paint test.
+- **Verifying pixels headlessly is a cell-path superpower.** Half-block thumbnails are real cells:
+  `tmux capture-pane` and the test renderer's `captureCharFrame`/`captureSpans` see them, so
+  paint, scroll, resize and menu overlap were all verified without eyes on a screen.
+- **Beeper's `assets.download` returns `srcURL` as a `file://` URL** and the file is an
+  **extension-less blob**. The first cost the preview pipeline (reads failed → every block parked
+  as a failed placeholder; `os-open.ts` had already learned this); the second broke `open` itself
+  (macOS guessed text encoding). Downloads now open as a typed temp copy named from attachment
+  metadata.
+- **Keyboard input never reaches the app in raw iTerm2** (fine under tmux). Surfaced by the spike,
+  reproduced against the real app, pre-existing — all live validation to date had been inside
+  tmux. Untangled from this slice; tracked in `STATUS.md` as next.
 
 ### 2026-08-04 — PR #36 swept in two unrelated commits that were parked on local `main`
 
@@ -186,6 +436,31 @@ origin/main..main` before branching, and rebase or stash anything that isn't you
   reacting to the local error.
 
 ---
+
+### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
+
+- **The emit-point spike did its job by failing usefully.** OSC 1337 raw-emit inside OpenTUI is
+  _possible_ — validated headlessly by capturing the pty byte stream (detached tmux +
+  `pipe-pane`) — but each proof surfaced a new fragility: OpenTUI's threaded writer interleaves
+  frame bytes mid-escape (3 of 6 emissions torn; clean only with `useThread: false`), erased
+  images need heuristics over private renderer APIs, iTerm2 modally prompts on a `File=` without
+  `name=`/`size=`, and tmux swallows everything without `allow-passthrough`. Full findings in the
+  slice plan; pivot recorded in `DECISIONS.md` 2026-08-07. slk (Go Slack TUI) independently
+  landed on cells-only for the same reasons — and ships _nothing_ pixel-true on iTerm2.
+- **`drawSuperSampleBuffer` samples 2×2 px per cell but has no horizontal bound** — the Zig loop
+  runs to the buffer edge (their TODO admits it), painting wrapped garbage past the image. Scissor
+  the image's cell rectangle around the call. Found live in `--demo`, pinned by a paint test.
+- **Verifying pixels headlessly is a cell-path superpower.** Half-block thumbnails are real cells:
+  `tmux capture-pane` and the test renderer's `captureCharFrame`/`captureSpans` see them, so
+  paint, scroll, resize and menu overlap were all verified without eyes on a screen.
+- **Beeper's `assets.download` returns `srcURL` as a `file://` URL** and the file is an
+  **extension-less blob**. The first cost the preview pipeline (reads failed → every block parked
+  as a failed placeholder; `os-open.ts` had already learned this); the second broke `open` itself
+  (macOS guessed text encoding). Downloads now open as a typed temp copy named from attachment
+  metadata.
+- **Keyboard input never reaches the app in raw iTerm2** (fine under tmux). Surfaced by the spike,
+  reproduced against the real app, pre-existing — all live validation to date had been inside
+  tmux. Untangled from this slice; tracked in `STATUS.md` as next.
 
 ### 2026-08-04 — Conversation block layout; the viewport now counts rows, not messages
 
@@ -216,6 +491,31 @@ origin/main..main` before branching, and rebase or stash anything that isn't you
   never runs. Pre-existing (the guard is unchanged), and orthogonal to this slice.
 
 ---
+
+### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
+
+- **The emit-point spike did its job by failing usefully.** OSC 1337 raw-emit inside OpenTUI is
+  _possible_ — validated headlessly by capturing the pty byte stream (detached tmux +
+  `pipe-pane`) — but each proof surfaced a new fragility: OpenTUI's threaded writer interleaves
+  frame bytes mid-escape (3 of 6 emissions torn; clean only with `useThread: false`), erased
+  images need heuristics over private renderer APIs, iTerm2 modally prompts on a `File=` without
+  `name=`/`size=`, and tmux swallows everything without `allow-passthrough`. Full findings in the
+  slice plan; pivot recorded in `DECISIONS.md` 2026-08-07. slk (Go Slack TUI) independently
+  landed on cells-only for the same reasons — and ships _nothing_ pixel-true on iTerm2.
+- **`drawSuperSampleBuffer` samples 2×2 px per cell but has no horizontal bound** — the Zig loop
+  runs to the buffer edge (their TODO admits it), painting wrapped garbage past the image. Scissor
+  the image's cell rectangle around the call. Found live in `--demo`, pinned by a paint test.
+- **Verifying pixels headlessly is a cell-path superpower.** Half-block thumbnails are real cells:
+  `tmux capture-pane` and the test renderer's `captureCharFrame`/`captureSpans` see them, so
+  paint, scroll, resize and menu overlap were all verified without eyes on a screen.
+- **Beeper's `assets.download` returns `srcURL` as a `file://` URL** and the file is an
+  **extension-less blob**. The first cost the preview pipeline (reads failed → every block parked
+  as a failed placeholder; `os-open.ts` had already learned this); the second broke `open` itself
+  (macOS guessed text encoding). Downloads now open as a typed temp copy named from attachment
+  metadata.
+- **Keyboard input never reaches the app in raw iTerm2** (fine under tmux). Surfaced by the spike,
+  reproduced against the real app, pre-existing — all live validation to date had been inside
+  tmux. Untangled from this slice; tracked in `STATUS.md` as next.
 
 ### 2026-08-04 — Version display made release-driven; README now installs-first
 

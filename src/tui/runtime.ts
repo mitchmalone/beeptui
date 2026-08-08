@@ -11,6 +11,7 @@ import type {
   SendResult,
   ServerInfo,
 } from '@/beeper/types.ts'
+import type { OpenTypeHint } from '@/tui/os-open.ts'
 import type { WatchEvent } from '@/beeper/watch-protocol.ts'
 import type { WatchStatus } from '@/beeper/watch.ts'
 import type { AppEvent, AppState, ConnectionState } from '@/state/types.ts'
@@ -329,7 +330,7 @@ export async function sendReaction(
 /** Opens a local file with the OS handler. Injected so the runtime stays pure /
  *  testable; the launch layer supplies the real `open`/`xdg-open` implementation.
  *  The path is passed as a process argument, never logged (invariant 6). */
-export type FileOpener = (localPath: string) => Promise<void>
+export type FileOpener = (localPath: string, hint?: OpenTypeHint) => Promise<void>
 
 /** Copies a downloaded file into the user's Downloads dir, returning the saved
  *  path (for the notice's *filename*, never the full path). Injected like `FileOpener`. */
@@ -369,7 +370,7 @@ export async function openAttachment(
   dispatch({ type: 'notice/shown', message: 'Opening attachment…' })
   try {
     const { localPath } = await gateway.downloadAttachment(attachment.id)
-    await opener(localPath)
+    await opener(localPath, { fileName: attachment.fileName, mimeType: attachment.mimeType })
     dispatch({ type: 'notice/shown', message: 'Opened attachment.' })
   } catch (err) {
     const error = normalizeError(err)

@@ -1,3 +1,6 @@
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { PNG } from 'pngjs'
 import type { Account, ChatSummary, MessageSummary, ServerInfo } from '@/beeper/types.ts'
 import type { Gateway } from '@/tui/runtime.ts'
 import type { MessageHistoryPage, MessageSearchPage } from '@/beeper/client.ts'
@@ -116,7 +119,19 @@ const MESSAGES: Record<string, MessageSummary[]> = {
         reactions: [{ key: '❤️', count: 2, isEmoji: true }],
       }
     ),
-    them('c-ada', 'acc-wa', 'Ada Lovelace', 4, 'Coffee tomorrow to talk it through?', T(14, 42)),
+    them('c-ada', 'acc-wa', 'Ada Lovelace', 4, '', T(14, 41), {
+      kind: 'IMAGE',
+      attachments: [
+        {
+          kind: 'image',
+          id: 'demo-img-diagram',
+          fileName: 'engine-diagram.png',
+          fileSize: 4096,
+          mimeType: 'image/png',
+        },
+      ],
+    }),
+    them('c-ada', 'acc-wa', 'Ada Lovelace', 5, 'Coffee tomorrow to talk it through?', T(14, 42)),
   ],
   'c-design': [
     them('c-design', 'acc-sl', 'priya', 1, 'new mocks are in figma 🎨', T(14, 5)),
@@ -215,6 +230,26 @@ function baseMsg(
     isUnread: false,
   }
 }
+/** A generated test-card PNG: gradient + diagonal stripes + white border.
+ *  Entirely synthetic (invariant 9). */
+function demoPng(): Uint8Array {
+  const width = 320
+  const height = 200
+  const png = new PNG({ width, height })
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const i = (y * width + x) * 4
+      const border = x < 4 || y < 4 || x >= width - 4 || y >= height - 4
+      const stripe = (x + y) % 40 < 20
+      png.data[i] = border ? 255 : Math.round((x / width) * 255)
+      png.data[i + 1] = border ? 255 : stripe ? 190 : 70
+      png.data[i + 2] = border ? 255 : Math.round((y / height) * 255)
+      png.data[i + 3] = 255
+    }
+  }
+  return new Uint8Array(PNG.sync.write(png))
+}
+
 function them(
   chatId: string,
   accountId: string,
@@ -286,6 +321,12 @@ export function createDemoGateway(): Gateway {
     },
     setArchived: async () => {},
     addReaction: async () => {},
-    downloadAttachment: async () => ({ localPath: '/tmp/beeper-demo/attachment' }),
+    downloadAttachment: async (id) => {
+      // Serve a synthetic PNG so `--demo` exercises the real inline-image
+      // pipeline (download → decode → scale → paint) with invented pixels.
+      const localPath = join(tmpdir(), `beeptui-demo-${id}.png`)
+      await Bun.write(localPath, demoPng())
+      return { localPath }
+    },
   }
 }

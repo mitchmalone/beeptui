@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { reduce } from '@/state/reducer.ts'
 import { initialState, MAX_MESSAGES_PER_CHAT, type AppEvent, type AppState } from '@/state/types.ts'
-import { CONVERSATION_ACTIONS, QUICK_REACTIONS } from '@/state/reactions.ts'
+import { conversationActionsFor, QUICK_REACTIONS } from '@/state/reactions.ts'
 import { RAIL_ARCHIVED_ID } from '@/state/types.ts'
 import { conversationContentWidth, visibleRows } from '@/state/conversation-scroll.ts'
 import { layOutMessages, totalRows } from '@/state/message-layout.ts'
@@ -1028,9 +1028,9 @@ describe('action menu + emoji picker overlays', () => {
     expect(s.emojiCursor).toBe(QUICK_REACTIONS.length - 1) // clamped at the end
   })
 
-  test('actionMenu/moved clamps within the action list', () => {
+  test("actionMenu/moved clamps within the selected message's action list", () => {
     const s = reduce(initialState, { type: 'actionMenu/moved', delta: 99 })
-    expect(s.actionCursor).toBe(CONVERSATION_ACTIONS.length - 1)
+    expect(s.actionCursor).toBe(conversationActionsFor(null).length - 1)
   })
 })
 
@@ -1523,16 +1523,57 @@ describe('reply is reachable from the action menu, and visible while it is open'
     ])
   }
 
-  test('the menu offers Reply and React, in that order', () => {
-    expect(CONVERSATION_ACTIONS.map((a) => a.id)).toEqual(['reply', 'react'])
+  test('the menu offers Reply and React on a plain message; Open attachment needs one', () => {
+    expect(conversationActionsFor(null).map((a) => a.id)).toEqual(['reply', 'react'])
+    expect(conversationActionsFor(msg('m1', '1')).map((a) => a.id)).toEqual(['reply', 'react'])
+    const withAttachment = {
+      ...msg('m1', '1'),
+      attachments: [{ kind: 'image' as const, fileName: 'a.png', id: 'mxc://x' }],
+    }
+    expect(conversationActionsFor(withAttachment).map((a) => a.id)).toEqual([
+      'reply',
+      'react',
+      'open',
+    ])
+    // Mirrors the open/save precondition: an attachment without a download id
+    // can't be opened, so the item doesn't dangle.
+    const noId = { ...msg('m1', '1'), attachments: [{ kind: 'image' as const }] }
+    expect(conversationActionsFor(noId).map((a) => a.id)).toEqual(['reply', 'react'])
   })
 
-  test('the action cursor clamps across the longer list', () => {
+  test("the action cursor clamps to the selected message's own menu", () => {
+    // Plain message: two actions, cursor caps at 1.
     const open = reduce(withCursor(), { type: 'overlay/opened', overlay: 'conversationActions' })
     expect(open.actionCursor).toBe(0)
     const down = reduce(open, { type: 'actionMenu/moved', delta: 1 })
     expect(down.actionCursor).toBe(1)
     expect(reduce(down, { type: 'actionMenu/moved', delta: 1 }).actionCursor).toBe(1)
+  })
+
+  test('the action cursor reaches Open attachment when the message has one', () => {
+    const state = run([
+      { type: 'chats/loaded', chats: [chat('c1')] },
+      { type: 'chat/selected', chatId: 'c1' },
+      {
+        type: 'messages/loaded',
+        chatId: 'c1',
+        page: 'initial',
+        messages: [
+          {
+            ...msg('m1', '1'),
+            attachments: [{ kind: 'image', fileName: 'a.png', id: 'mxc://x' }],
+          },
+        ],
+      },
+      { type: 'focus/changed', focus: 'conversation' },
+      { type: 'overlay/opened', overlay: 'conversationActions' },
+    ])
+    const down2 = reduce(reduce(state, { type: 'actionMenu/moved', delta: 1 }), {
+      type: 'actionMenu/moved',
+      delta: 1,
+    })
+    expect(down2.actionCursor).toBe(2)
+    expect(reduce(down2, { type: 'actionMenu/moved', delta: 1 }).actionCursor).toBe(2)
   })
 
   test('the reply target survives losing the message cursor', () => {

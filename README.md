@@ -12,11 +12,12 @@ terminal, over Beeper's Desktop/Server Client API. Beeper stays the account, syn
 boundary; this is a local client, not a bridge.
 
 **Status: usable daily against a local Beeper Desktop.** Browse your unified inbox, read history,
-receive live updates over WebSocket, and send real messages. Also built: a network rail with
-archived/unread filters, message search, replies, edits, attachment open/save, reactions, read
-receipts, honest per-network capability messaging, an OAuth 2.0 + PKCE flow for remote endpoints
-with cross-platform token storage, config for keymap/colours/notification hooks, and a standalone
-binary. Remaining work is gated on live validation (more networks, a real remote host) and a couple
+receive live updates over WebSocket, and send real messages. Image attachments render inline as
+half-block thumbnails in any terminal (tmux included), with one-key open in the OS viewer. Also
+built: a network rail with archived/unread filters, message search, replies, edits, attachment
+open/save, reactions, read receipts, honest per-network capability messaging, an OAuth 2.0 + PKCE
+flow for remote endpoints with cross-platform token storage, config for keymap/colours/notification
+hooks, and a standalone binary. Remaining work is gated on live validation (more networks, a real remote host) and a couple
 of product decisions. See [`docs/STATUS.md`](docs/STATUS.md) for the precise state.
 
 ## Install
