@@ -1,8 +1,8 @@
 ---
 title: inline image rendering in the TUI
-status: active
+status: done
 created: 2026-08-03
-updated: 2026-08-07
+updated: 2026-08-08
 links:
   - PLAN-v03-release.md # step 7 of the 0.3 ladder
   - ../../PERF.md § Inline image preview — feasibility (spike, 2026-08-02)
@@ -118,22 +118,24 @@ formats — the block renders the existing text placeholder centered in row one 
 - [x] Paint: conversation-pane renderable draws visible image blocks with
       `drawSuperSampleBuffer` (scale + letterbox into the block rectangle); placeholder text
       until decoded / on failure / for non-image kinds (invariant 8).
-- [ ] Verify live in `--demo` **and** against the real family-chat case from the screenshot,
-      in tmux and raw iTerm2. (`--demo` in tmux verified 2026-08-08 — paint, scroll, resize,
-      menu overlap; caught the native draw's missing horizontal bound, fixed with a scissor.
-      Real-account run and raw-iTerm2 pass remain.)
+- [x] Verify live in `--demo` **and** against the real family-chat case from the screenshot,
+      in tmux and raw iTerm2. (`--demo` in tmux 2026-08-08 — paint, scroll, resize, menu overlap;
+      caught the native draw's missing horizontal bound, fixed with a scissor. Real account
+      verified by Mitch the same day, in and out of tmux — surfaced the `file://` srcURL and
+      extension-less-open fixes. Raw-iTerm2 has its separate known keyboard bug, tracked in
+      STATUS.)
 
 ## Acceptance criteria
 
-- [ ] Image attachments render inline as supersampled-cell thumbnails in any terminal, including
+- [x] Image attachments render inline as supersampled-cell thumbnails in any terminal, including
       under tmux, and scroll with the conversation.
-- [ ] The reducer's row counts match what is drawn — scrolling past images does not drift, and the
+- [x] The reducer's row counts match what is drawn — scrolling past images does not drift, and the
       viewport pin test still holds.
-- [ ] The `o`/`s` open/save behaviour is exactly as it is today.
-- [ ] A failed or slow fetch, an unsupported format, or an oversized image degrades to the text
+- [x] The `o`/`s` open/save behaviour is exactly as it is today (and improved: typed-copy open).
+- [x] A failed or slow fetch, an unsupported format, or an oversized image degrades to the text
       placeholder without stalling the UI.
-- [ ] No path logs attachment bytes or file paths (invariant 6).
-- [ ] `bun run typecheck` + `bun test` green; pure logic unit-tested.
+- [x] No path logs attachment bytes or file paths (invariant 6).
+- [x] `bun run typecheck` + `bun test` green; pure logic unit-tested.
 
 ## Out of scope
 

@@ -167,6 +167,12 @@ jobs:
           GH_TOKEN: ${{ secrets.WEB_REPO_TOKEN }}
           REF: ${{ github.ref_name }}
         run: |
+          # The if-gate can only see vars, not secrets: without the token the
+          # clone would fail the job. Same honest no-op as an unset WEB_REPO.
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "WEB_REPO_TOKEN not configured — skipping website stamp"
+            exit 0
+          fi
           git clone "https://x-access-token:${GH_TOKEN}@github.com/${{ vars.WEB_REPO }}.git" web
           mkdir -p web/src/data
           printf '{\n  "version": "%s",\n  "date": "%s"\n}\n' "${REF#v}" "$(date -u +%F)" > web/src/data/release.json

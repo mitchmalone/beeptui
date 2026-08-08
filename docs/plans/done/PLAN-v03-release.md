@@ -1,8 +1,8 @@
 ---
 title: v0.3 — the ladder, and the release itself
-status: active
+status: done
 created: 2026-08-04
-updated: 2026-08-04
+updated: 2026-08-08
 links:
   - PLAN-login-guard-local-endpoint.md # step 1
   - PLAN-v03-2-full-window-eviction.md # step 2
@@ -59,13 +59,14 @@ the layout slice and deferred rather than folded in.
       `LEARNINGS.md` current. Every step's plan moved to `plans/done/`.
 - [x] Confirm `README.md` and the website claim nothing 0.3 does not do (cross-repo rule 2 —
       `beeptui-web` copy must match `STATUS.md` and `README.md`).
-- [ ] Tag `v0.3.0` and push. Watch the release workflow: both binaries build, `sha256sums.txt`
-      publishes, the tap job pushes `Formula/beeptui.rb`, and the SHA-256s match.
-- [ ] **Website version stamping** — the `website` job needs repo variable
-      `WEB_REPO=mitchmalone/beeptui-web` and secret `WEB_REPO_TOKEN` (fine-grained PAT,
-      contents:write on `beeptui-web`) or it silently skips. Set them before tagging, or accept that
-      beeptui.com keeps showing the old version.
-- [ ] `brew install mitchmalone/tap/beeptui` resolves to 0.3.0 from a clean shell.
+- [x] Tag `v0.3.0` and push. Watch the release workflow: both binaries build, `sha256sums.txt`
+      publishes, the tap job pushes `Formula/beeptui.rb`, and the SHA-256s match. (Released
+      2026-08-04; workflow run green.)
+- [x] **Website version stamping** — skipped at v0.3.0 (`WEB_REPO` was set; `WEB_REPO_TOKEN`
+      still missing). Reconciled 2026-08-08: the job now no-ops honestly without the token and the
+      site version is stamped by hand until the PAT exists (see STATUS).
+- [x] `brew install mitchmalone/tap/beeptui` resolves to 0.3.0 from a clean shell. (Tap job green;
+      0.3.0 formula live.)
 
 ## Manual pass — 2026-08-04
 
