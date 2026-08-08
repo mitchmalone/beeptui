@@ -1,9 +1,11 @@
-import { Fragment, memo, type ReactNode } from 'react'
+import { Fragment, memo, useSyncExternalStore, type ReactNode } from 'react'
 import { useTerminalDimensions } from '@opentui/react'
 import type { ActiveConversation } from '@/state/selectors.ts'
 import type { Density, MessageEntity } from '@/state/types.ts'
 import type { StyledRun } from '@/state/message-html.ts'
 import { layOutMessages, totalRows, type LayoutRow } from '@/state/message-layout.ts'
+import type { ImagePreviewCache } from '@/tui/image-preview-cache.ts'
+import '@/tui/components/ImageSlice.tsx'
 import { networkColor, type NetworkColors } from '@/tui/components/InboxPane.tsx'
 import {
   CARET_GUTTER,
@@ -45,6 +47,8 @@ export interface ConversationViewProps {
    *  are, this is what the reply targets, and they are rarely the same message
    *  because starting a reply moves focus to compose. */
   replyToId?: string | null
+  /** Inline image thumbnails; null (tests, doctor) keeps text placeholders. */
+  previewCache?: ImagePreviewCache | null
 }
 
 /** Rows a floating menu occupies (border + rows + hint), for open-up/down choice. */
@@ -77,16 +81,44 @@ function renderRun(run: StyledRun, key: number): ReactNode {
 
 /** One laid-out row, drawn inside the content column so that every line —
  *  header, body, wrapped continuation — starts at the same column. */
-function RowContent({ row, style }: { row: LayoutRow; style: { fg?: string } }) {
+function RowContent({
+  row,
+  style,
+  cache,
+  blockCols,
+}: {
+  row: LayoutRow
+  style: { fg?: string }
+  cache: ImagePreviewCache | null
+  blockCols: number
+}) {
   if (row.kind === 'blank') return <text> </text>
   if (row.kind === 'body') {
     return <text style={style}>{row.runs.map((run, i) => renderRun(run, i))}</text>
   }
   if (row.kind === 'image') {
-    // Until the pixel painter lands, an image block shows its placeholder on
-    // the first row and holds the rest of its height open (invariant 8 — the
-    // block is never a silent gap).
-    return <text style={style}>{row.slice === 0 ? row.placeholder : ' '}</text>
+    // Ready pixels paint through the image-slice renderable, one 2-px band
+    // per row. Anything else — loading, failed, no cache — is the text
+    // placeholder on the block's first row, blanks beneath (invariant 8:
+    // the block is never a silent gap, and a failure never fakes pixels).
+    const entry =
+      cache !== null && blockCols > 0 ? cache.get(row.attachmentId, blockCols, row.of) : null
+    if (entry?.status === 'ready') {
+      if (row.slice >= entry.rows) return <text> </text>
+      return (
+        <image-slice
+          attachmentId={row.attachmentId}
+          slice={row.slice}
+          of={row.of}
+          blockCols={blockCols}
+          cache={cache}
+          version={cache?.version ?? 0}
+          style={{ height: 1, width: '100%' }}
+        />
+      )
+    }
+    const hint = entry?.status === 'loading' ? ' …' : ''
+    return <text style={style}>{row.slice === 0 ? `${row.placeholder}${hint}` : ' '}</text>
   }
   // Header: sender hard left, timestamp hard right, a flex spacer between them
   // so the time stays pinned to the pane edge across a resize.
@@ -121,9 +153,16 @@ export const ConversationView = memo(function ConversationView({
   density = 'comfortable',
   loadingOlder = false,
   replyToId = null,
+  previewCache = null,
 }: ConversationViewProps) {
   const theme = useTheme()
   const { height, width } = useTerminalDimensions()
+  // Repaint when a thumbnail lands: the cache's version is the store, and a
+  // bump swaps placeholder rows for image-slice rows on the next render.
+  useSyncExternalStore(
+    (onChange) => previewCache?.subscribe(onChange) ?? (() => {}),
+    () => previewCache?.version ?? 0
+  )
   const {
     chat,
     messages,
@@ -228,7 +267,12 @@ export const ConversationView = memo(function ConversationView({
                   </text>
                 </box>
                 <box style={{ flexGrow: 1, flexDirection: 'column' }}>
-                  <RowContent row={vr.row} style={style} />
+                  <RowContent
+                    row={vr.row}
+                    style={style}
+                    cache={previewCache}
+                    blockCols={contentWidth}
+                  />
                 </box>
               </box>
             )

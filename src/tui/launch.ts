@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { createCliRenderer } from '@opentui/core'
+import { ImagePreviewCache } from '@/tui/image-preview-cache.ts'
 import { createRoot } from '@opentui/react'
 import { createElement } from 'react'
 import { BeeperAdapter, resolveActiveToken, resolveConfig } from '@/beeper/index.ts'
@@ -108,6 +109,11 @@ export async function launch(options: { demo?: boolean } = {}): Promise<void> {
     statusWriter.update(selectTotalUnread(store.getState()))
   }
 
+  // Inline image thumbnails: downloads ride the same adapter as o/s.
+  const previewCache = new ImagePreviewCache({
+    download: (id) => gateway.downloadAttachment(id),
+  })
+
   const renderer = await createCliRenderer()
   // Resolve the `system` theme against the terminal's light/dark mode (OpenTUI
   // owns the OSC query). Done before the first render so the initial paint is
@@ -172,6 +178,7 @@ export async function launch(options: { demo?: boolean } = {}): Promise<void> {
   createRoot(renderer).render(
     createElement(App, {
       store,
+      previewCache,
       onQuit,
       onRefresh,
       onOpenChat,

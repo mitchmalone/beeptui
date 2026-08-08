@@ -24,6 +24,7 @@ import { SettingsMenu } from '@/tui/components/SettingsMenu.tsx'
 import { ThemePicker } from '@/tui/components/ThemePicker.tsx'
 import { StatusBar } from '@/tui/components/StatusBar.tsx'
 import { ConversationView, type ConversationMenu } from '@/tui/components/ConversationView.tsx'
+import type { ImagePreviewCache } from '@/tui/image-preview-cache.ts'
 import { Compose } from '@/tui/components/Compose.tsx'
 import { SearchPalette } from '@/tui/components/SearchPalette.tsx'
 import { MessageSearchPalette } from '@/tui/components/MessageSearchPalette.tsx'
@@ -66,6 +67,8 @@ export interface AppProps {
   /** name→Theme registry (built-ins + user themes). `t` cycles through its keys.
    *  Defaults to built-ins only. */
   themeRegistry?: Map<string, Theme>
+  /** Inline image thumbnail pipeline; null keeps text placeholders. */
+  previewCache?: ImagePreviewCache | null
 }
 
 /**
@@ -90,6 +93,7 @@ export function App({
   keymap = KEYMAP,
   networkColors,
   themeRegistry = BUILTIN_REGISTRY,
+  previewCache = null,
 }: AppProps) {
   const state = useSyncExternalStore(store.subscribe, store.getState)
   // Memoize the derived views on the specific state slices they depend on, so
@@ -598,6 +602,7 @@ export function App({
                   density={state.density}
                   loadingOlder={pendingOlder !== null}
                   replyToId={state.replyTo}
+                  previewCache={previewCache}
                 />
                 {composePane}
               </box>
@@ -625,6 +630,7 @@ export function App({
                   density={state.density}
                   loadingOlder={pendingOlder !== null}
                   replyToId={state.replyTo}
+                  previewCache={previewCache}
                 />
                 {composePane}
               </box>

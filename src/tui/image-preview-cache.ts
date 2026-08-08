@@ -54,6 +54,7 @@ export class ImagePreviewCache {
   #queue: Array<() => Promise<void>> = []
   #inFlight = 0
   #listeners = new Set<() => void>()
+  #version = 0
 
   constructor(io: PreviewIo) {
     this.#io = {
@@ -83,6 +84,12 @@ export class ImagePreviewCache {
       this.#notify()
     })
     return entry
+  }
+
+  /** Monotonic change counter — pairs with `subscribe` for
+   *  `useSyncExternalStore`, and doubles as a dirty-marker prop. */
+  get version(): number {
+    return this.#version
   }
 
   /** Re-render hook; returns unsubscribe. */
@@ -147,6 +154,7 @@ export class ImagePreviewCache {
   }
 
   #notify(): void {
+    this.#version += 1
     for (const listener of this.#listeners) listener()
   }
 }
