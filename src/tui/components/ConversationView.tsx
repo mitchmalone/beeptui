@@ -17,7 +17,7 @@ import {
 } from '@/state/conversation-scroll.ts'
 import { ConversationActionMenu } from '@/tui/components/ConversationActionMenu.tsx'
 import { EmojiPicker } from '@/tui/components/EmojiPicker.tsx'
-import { CONVERSATION_ACTIONS } from '@/state/reactions.ts'
+import { conversationActionsFor, type ConversationAction } from '@/state/reactions.ts'
 import { useTheme } from '@/tui/theme/context.tsx'
 import type { Theme } from '@/tui/theme/theme.ts'
 
@@ -52,9 +52,12 @@ export interface ConversationViewProps {
 }
 
 /** Rows a floating menu occupies (border + rows + hint), for open-up/down choice. */
-function menuHeight(menu: NonNullable<ConversationMenu>): number {
+function menuHeight(
+  menu: NonNullable<ConversationMenu>,
+  actions: readonly ConversationAction[]
+): number {
   // border (2) + hint (1) + content rows.
-  return menu.kind === 'emoji' ? 2 + 1 + 1 : 2 + 1 + CONVERSATION_ACTIONS.length
+  return menu.kind === 'emoji' ? 2 + 1 + 1 : 2 + 1 + actions.length
 }
 
 function rowStyle(
@@ -208,17 +211,19 @@ export const ConversationView = memo(function ConversationView({
   // visible window: open downward just under it, or upward when it would
   // overflow the bottom. `top`/`left` are relative to the (position:relative)
   // messages box, whose row 0 is the first visible row.
+  const byId = new Map(messages.map((m) => [m.id, m]))
+  const menuActions = conversationActionsFor(
+    selectedMessageId !== null ? (byId.get(selectedMessageId) ?? null) : null
+  )
   const menuRow =
     menu !== null ? visible.findIndex((r) => r.messageId === selectedMessageId && r.first) : -1
   const showMenu = menu !== null && menuRow >= 0
   const menuTop =
     showMenu && menu !== null
-      ? menuRow + 1 + menuHeight(menu) <= capacity
+      ? menuRow + 1 + menuHeight(menu, menuActions) <= capacity
         ? menuRow + 1
-        : Math.max(0, menuRow - menuHeight(menu))
+        : Math.max(0, menuRow - menuHeight(menu, menuActions))
       : 0
-
-  const byId = new Map(messages.map((m) => [m.id, m]))
 
   return (
     <box
@@ -281,7 +286,7 @@ export const ConversationView = memo(function ConversationView({
         {showMenu && menu !== null ? (
           <box style={{ position: 'absolute', top: menuTop, left: CARET_GUTTER, zIndex: 20 }}>
             {menu.kind === 'actions' ? (
-              <ConversationActionMenu cursor={menu.actionCursor} />
+              <ConversationActionMenu cursor={menu.actionCursor} actions={menuActions} />
             ) : (
               <EmojiPicker cursor={menu.emojiCursor} />
             )}

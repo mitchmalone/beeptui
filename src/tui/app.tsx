@@ -12,7 +12,7 @@ import {
 } from '@/state/selectors.ts'
 import { checkCapability } from '@/state/capabilities.ts'
 import { NARROW_WIDTH, conversationCapacity } from '@/state/conversation-scroll.ts'
-import { CONVERSATION_ACTIONS, QUICK_REACTIONS, SETTINGS_ITEMS } from '@/state/reactions.ts'
+import { conversationActionsFor, QUICK_REACTIONS, SETTINGS_ITEMS } from '@/state/reactions.ts'
 import { RAIL_ARCHIVED_ID, RAIL_SETTINGS_ID } from '@/state/types.ts'
 import { edgeSelection, moveSelection } from '@/tui/navigation.ts'
 import { helpGroups, KEYMAP, resolveCommand, resolveKey, type Binding } from '@/tui/keymap.ts'
@@ -302,7 +302,7 @@ export function App({
       } else if (key.name === 'down') {
         store.dispatch({ type: 'actionMenu/moved', delta: 1 })
       } else if (key.name === 'return' || key.name === 'enter') {
-        const action = CONVERSATION_ACTIONS[s.actionCursor]
+        const action = conversationActionsFor(selectSelectedMessage(s))[s.actionCursor]
         if (action?.id === 'react') {
           store.dispatch({ type: 'overlay/opened', overlay: 'emojiPicker' })
         } else if (action?.id === 'reply' && s.selectedMessageId !== null) {

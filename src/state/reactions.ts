@@ -1,3 +1,4 @@
+import type { AttachmentSummary } from '@/beeper/types.ts'
 /**
  * The limited quick-reaction set and the conversation action-menu items. Pure
  * data, kept out of the TUI so the reducer can clamp cursors against these
@@ -20,12 +21,19 @@ export interface ConversationAction {
 export const CONVERSATION_ACTIONS: readonly ConversationAction[] = [
   { id: 'reply', label: 'Reply' },
   { id: 'react', label: 'React…' },
-  // Same handler as `o` — on a message without an attachment it says so in a
-  // notice rather than hiding (the menu is a fixed list the reducer's cursor
-  // maths depend on, and an honest "no attachment here" beats a shape-shifting
-  // menu).
   { id: 'open', label: 'Open attachment' },
 ]
+
+/** The menu for one specific message. Open attachment appears only when the
+ *  message has a downloadable attachment — the same `attachments[0]` +
+ *  download-id precondition open/save enforce, so the item never dangles on a
+ *  message where picking it could only produce an excuse. */
+export function conversationActionsFor(
+  message: { attachments?: readonly AttachmentSummary[] | undefined } | null
+): readonly ConversationAction[] {
+  const openable = message?.attachments?.[0]?.id !== undefined
+  return CONVERSATION_ACTIONS.filter((a) => a.id !== 'open' || openable)
+}
 
 /** An entry in the Settings flyout (Net rail → Settings). */
 export interface SettingsItem {

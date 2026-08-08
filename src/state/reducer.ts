@@ -11,10 +11,10 @@ import {
   type MessageEntity,
   type MessagePage,
 } from '@/state/types.ts'
-import { CONVERSATION_ACTIONS, QUICK_REACTIONS, SETTINGS_ITEMS } from '@/state/reactions.ts'
+import { conversationActionsFor, QUICK_REACTIONS, SETTINGS_ITEMS } from '@/state/reactions.ts'
 import { conversationContentWidth, offsetToShowMessage } from '@/state/conversation-scroll.ts'
 import { layOutMessages, totalRows, type MessageLayout } from '@/state/message-layout.ts'
-import { matchesFilter } from '@/state/selectors.ts'
+import { matchesFilter, selectSelectedMessage } from '@/state/selectors.ts'
 
 /** Loaded messages of the active chat, or [] when none is selected. */
 function activeItems(state: AppState): readonly MessageEntity[] {
@@ -542,7 +542,7 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       return { ...state, viewportRows: event.rows, viewportCols: event.cols }
 
     case 'actionMenu/moved': {
-      const max = CONVERSATION_ACTIONS.length - 1
+      const max = conversationActionsFor(selectSelectedMessage(state)).length - 1
       const next = Math.min(max, Math.max(0, state.actionCursor + event.delta))
       return { ...state, actionCursor: next }
     }
