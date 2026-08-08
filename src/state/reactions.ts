@@ -10,7 +10,7 @@ export const QUICK_REACTIONS: readonly string[] = ['👍', '❤️', '😂', '�
 
 /** An action offered by the conversation action menu (the ENTER "dropdown"). */
 export interface ConversationAction {
-  id: 'reply' | 'react'
+  id: 'reply' | 'react' | 'open'
   label: string
 }
 
@@ -20,6 +20,11 @@ export interface ConversationAction {
 export const CONVERSATION_ACTIONS: readonly ConversationAction[] = [
   { id: 'reply', label: 'Reply' },
   { id: 'react', label: 'React…' },
+  // Same handler as `o` — on a message without an attachment it says so in a
+  // notice rather than hiding (the menu is a fixed list the reducer's cursor
+  // maths depend on, and an honest "no attachment here" beats a shape-shifting
+  // menu).
+  { id: 'open', label: 'Open attachment' },
 ]
 
 /** An entry in the Settings flyout (Net rail → Settings). */

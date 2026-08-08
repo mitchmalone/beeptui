@@ -308,6 +308,9 @@ export function App({
         } else if (action?.id === 'reply' && s.selectedMessageId !== null) {
           store.dispatch({ type: 'overlay/closed' })
           startReply(s.selectedMessageId)
+        } else if (action?.id === 'open') {
+          store.dispatch({ type: 'overlay/closed' })
+          onOpenAttachment()
         }
       }
       return

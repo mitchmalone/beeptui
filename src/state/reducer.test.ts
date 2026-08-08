@@ -1523,8 +1523,8 @@ describe('reply is reachable from the action menu, and visible while it is open'
     ])
   }
 
-  test('the menu offers Reply and React, in that order', () => {
-    expect(CONVERSATION_ACTIONS.map((a) => a.id)).toEqual(['reply', 'react'])
+  test('the menu offers Reply, React and Open attachment, in that order', () => {
+    expect(CONVERSATION_ACTIONS.map((a) => a.id)).toEqual(['reply', 'react', 'open'])
   })
 
   test('the action cursor clamps across the longer list', () => {
@@ -1532,7 +1532,11 @@ describe('reply is reachable from the action menu, and visible while it is open'
     expect(open.actionCursor).toBe(0)
     const down = reduce(open, { type: 'actionMenu/moved', delta: 1 })
     expect(down.actionCursor).toBe(1)
-    expect(reduce(down, { type: 'actionMenu/moved', delta: 1 }).actionCursor).toBe(1)
+    const bottom = reduce(down, { type: 'actionMenu/moved', delta: 1 })
+    expect(bottom.actionCursor).toBe(CONVERSATION_ACTIONS.length - 1)
+    expect(reduce(bottom, { type: 'actionMenu/moved', delta: 1 }).actionCursor).toBe(
+      CONVERSATION_ACTIONS.length - 1
+    )
   })
 
   test('the reply target survives losing the message cursor', () => {
