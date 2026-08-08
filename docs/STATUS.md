@@ -27,8 +27,8 @@ menu overlap) and live against a real account by Mitch, in and out of tmux.
 
 **Demo scenarios** (2026-08-08, post-0.4.0): `--demo [full|live|replies|images]` loops scripted
 feature cycles through the reducer — arrivals, a threaded reply, reaction bumps, images landing —
-with a fixture reset each cycle (`messages/replaced`). Built for the website's VHS tapes; also a
-better live showcase. Ships in 0.4.1.
+with a fixture reset each cycle (`messages/replaced`). Built for the website's VHS tapes (all five
+feature clips now record real behaviour); also a better live showcase. Released as `v0.4.1`.
 
 **Known, not fixed:**
 
@@ -61,8 +61,8 @@ two, hidden by the old one-`<text>`-per-message rendering; now pinned against a 
 tests. **581 tests** green; typecheck + lint clean; verified live in tmux via `--demo` at 120/88/100
 columns including a resize. **Demo scenarios** (2026-08-08, post-0.4.0): `--demo [full|live|replies|images]` loops scripted
 feature cycles through the reducer — arrivals, a threaded reply, reaction bumps, images landing —
-with a fixture reset each cycle (`messages/replaced`). Built for the website's VHS tapes; also a
-better live showcase. Ships in 0.4.1.
+with a fixture reset each cycle (`messages/replaced`). Built for the website's VHS tapes (all five
+feature clips now record real behaviour); also a better live showcase. Released as `v0.4.1`.
 
 **Known, not fixed:** at a full message window a live arrival evicts the
 oldest, so `added` is 0 and the reading-position/new-messages branch never runs (pre-existing).
