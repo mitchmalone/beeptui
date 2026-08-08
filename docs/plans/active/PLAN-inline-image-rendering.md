@@ -106,20 +106,22 @@ formats — the block renders the existing text placeholder centered in row one 
     dialog on every emission. Also surfaced: keyboard input never reached the app in raw iTerm2
     (fine under tmux) — untracked pre-existing bug, investigate separately from this slice.
 
-- [ ] Image row kind in `message-layout.ts`: fixed-height block per image attachment (constant
+- [x] Image row kind in `message-layout.ts`: fixed-height block per image attachment (constant
       rows, letterboxed at paint), placeholder text carried on the block's first row; unit tests
       (block height, non-image attachments unaffected, multi-attachment messages, separator).
-- [ ] Decode: add PNG + JPEG pure-JS decoders (decision in `../../DECISIONS.md`); a
+- [x] Decode: add PNG + JPEG pure-JS decoders (decision in `../../DECISIONS.md`); a
       `decodeImage(bytes, mime) → {rgba, width, height} | null` module, unit-tested against tiny
       synthetic fixtures; unknown formats → null, never a throw.
-- [ ] Fetch + cache: bytes via `assets.download` through the adapter, decoded off the render
+- [x] Fetch + cache: bytes via `assets.download` through the adapter, decoded off the render
       path, cached per attachment id, bounded concurrent fetches, size guard (oversized →
       placeholder, never a stall).
-- [ ] Paint: conversation-pane renderable draws visible image blocks with
+- [x] Paint: conversation-pane renderable draws visible image blocks with
       `drawSuperSampleBuffer` (scale + letterbox into the block rectangle); placeholder text
       until decoded / on failure / for non-image kinds (invariant 8).
 - [ ] Verify live in `--demo` **and** against the real family-chat case from the screenshot,
-      in tmux and raw iTerm2.
+      in tmux and raw iTerm2. (`--demo` in tmux verified 2026-08-08 — paint, scroll, resize,
+      menu overlap; caught the native draw's missing horizontal bound, fixed with a scissor.
+      Real-account run and raw-iTerm2 pass remain.)
 
 ## Acceptance criteria
 
