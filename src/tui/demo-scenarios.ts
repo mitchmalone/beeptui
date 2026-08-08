@@ -10,7 +10,7 @@ import {
  * Looping `--demo` scenarios: each is a timed cycle of ordinary `AppEvent`s
  * replayed through the reducer, exactly the way real watch events arrive
  * (invariant 4). A cycle opens by resetting the affected chats to their
- * fixtures (`messages/loaded`, page `initial`), then plays its beats; at the
+ * fixtures (`messages/replaced` — a true replace), then plays its beats; at the
  * period it starts again — so a screen recording of any one cycle loops
  * cleanly, and a live showcase runs forever.
  *
@@ -36,15 +36,11 @@ export interface DemoScenario {
 }
 
 function reset(chatId: string, at: number): DemoStep {
+  // messages/loaded merges; the loop needs true replace semantics so scripted
+  // arrivals from the previous cycle disappear.
   return {
     at,
-    event: {
-      type: 'messages/loaded',
-      chatId,
-      page: 'initial',
-      messages: demoInitialMessages(chatId),
-      hasMoreOlder: false,
-    },
+    event: { type: 'messages/replaced', chatId, messages: demoInitialMessages(chatId) },
   }
 }
 

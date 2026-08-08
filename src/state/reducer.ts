@@ -324,6 +324,24 @@ export function reduce(state: AppState, event: AppEvent): AppState {
       return { ...loaded, selectedMessageId: newest, ...scrollForSelection(loaded, newest) }
     }
 
+    case 'messages/replaced': {
+      const replaced = withChatMessages(state, event.chatId, (window) => ({
+        ...(window ?? { hasMoreOlder: false, olderCursor: null }),
+        items: event.messages.map(toEntity),
+      }))
+      // A cursor on a message that no longer exists reseats to the newest
+      // survivor — never a dangling selection (and never none while focused).
+      const items = replaced.messagesByChat[event.chatId]?.items ?? []
+      const cursorAlive =
+        replaced.selectedMessageId === null ||
+        replaced.selectedChatId !== event.chatId ||
+        items.some((m) => m.id === replaced.selectedMessageId)
+      if (cursorAlive) return replaced
+      const newest = items[items.length - 1]?.id ?? null
+      return newest === null
+        ? { ...replaced, selectedMessageId: null }
+        : { ...replaced, selectedMessageId: newest, ...scrollForSelection(replaced, newest) }
+    }
     case 'message/received': {
       const chatId = event.message.chatId
       // Bounded memory: live messages are only buffered into windows that
