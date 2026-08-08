@@ -25,6 +25,11 @@ exists — and extension-less Beeper downloads open as a typed temp copy so macO
 **682 tests** green; typecheck + lint clean. Verified in `--demo` (headless: paint, scroll, resize,
 menu overlap) and live against a real account by Mitch, in and out of tmux.
 
+**Demo scenarios** (2026-08-08, post-0.4.0): `--demo [full|live|replies|images]` loops scripted
+feature cycles through the reducer — arrivals, a threaded reply, reaction bumps, images landing —
+with a fixture reset each cycle (`messages/replaced`). Built for the website's VHS tapes; also a
+better live showcase. Ships in 0.4.1.
+
 **Known, not fixed:**
 
 - **Keyboard input is dead in raw iTerm2** (fine under tmux, where all prior live validation
@@ -54,7 +59,12 @@ two, hidden by the old one-`<text>`-per-message rendering; now pinned against a 
 `viewport/measured` carries `cols` as well as `rows`. The single-line renderer
 (`messageLine`/`formatMessage`) is retired, its composition rules moved into the layout with their
 tests. **581 tests** green; typecheck + lint clean; verified live in tmux via `--demo` at 120/88/100
-columns including a resize. **Known, not fixed:** at a full message window a live arrival evicts the
+columns including a resize. **Demo scenarios** (2026-08-08, post-0.4.0): `--demo [full|live|replies|images]` loops scripted
+feature cycles through the reducer — arrivals, a threaded reply, reaction bumps, images landing —
+with a fixture reset each cycle (`messages/replaced`). Built for the website's VHS tapes; also a
+better live showcase. Ships in 0.4.1.
+
+**Known, not fixed:** at a full message window a live arrival evicts the
 oldest, so `added` is 0 and the reading-position/new-messages branch never runs (pre-existing).
 
 **Renamed to `beeptui` + released `v0.2.0`** (2026-08-03, PR #35). The app is `beeptui` everywhere

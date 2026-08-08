@@ -8,7 +8,8 @@ import { BeeperAdapter, resolveActiveToken, resolveConfig } from '@/beeper/index
 import { App } from '@/tui/app.tsx'
 import { buildThemeRegistry } from '@/tui/theme/resolve.ts'
 import { systemThemeForMode } from '@/tui/theme/theme.ts'
-import { createDemoGateway, DEMO_FIRST_CHAT_ID } from '@/tui/demo.ts'
+import { createDemoGateway } from '@/tui/demo.ts'
+import { demoScenario, runDemoScenario } from '@/tui/demo-scenarios.ts'
 import type { Gateway } from '@/tui/runtime.ts'
 import { createStore } from '@/state/store.ts'
 import { initialState } from '@/state/types.ts'
@@ -43,8 +44,11 @@ import { applyKeymapOverrides, KEYMAP } from '@/tui/keymap.ts'
  * shows a named degraded state if Beeper is unreachable. Loaded lazily so the
  * `status`/`doctor` CLI never pulls in the native renderer.
  */
-export async function launch(options: { demo?: boolean } = {}): Promise<void> {
+export async function launch(
+  options: { demo?: boolean; demoScenario?: string } = {}
+): Promise<void> {
   const demo = options.demo ?? false
+  const scenario = demo ? demoScenario(options.demoScenario) : null
   const { endpoint, notify, keymap: keymapOverrides, theme, configPath } = resolveConfig()
   // Resolve the active theme: built-ins plus any user themes in the config dir's
   // `themes/` folder. A missing folder is fine (built-ins only); a malformed
@@ -198,9 +202,15 @@ export async function launch(options: { demo?: boolean } = {}): Promise<void> {
 
   // Fire-and-forget: bootstrap dispatches into the store, which re-renders the app.
   void bootstrap(gateway, store.dispatch).then(() => {
-    // Demo mode opens a rich conversation on first paint so the center pane isn't
-    // empty in screenshots. (No watch socket runs in demo — token is undefined.)
-    if (demo) void openChat(gateway, store.dispatch, DEMO_FIRST_CHAT_ID)
+    // Demo mode opens the scenario's chat on first paint so the center pane
+    // isn't empty in screenshots, then loops the scripted cycle — events flow
+    // through the reducer exactly like watch events. (No watch socket runs in
+    // demo — token is undefined.)
+    if (scenario !== null) {
+      void openChat(gateway, store.dispatch, scenario.openChatId).then(() => {
+        runDemoScenario(scenario, store.dispatch)
+      })
+    }
   })
 
   // Live updates: subscribe to the watch socket. On each (re)connect after the

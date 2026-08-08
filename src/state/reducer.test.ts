@@ -1034,6 +1034,62 @@ describe('action menu + emoji picker overlays', () => {
   })
 })
 
+describe('messages/replaced', () => {
+  // The demo scenario loop resets a chat to its fixtures at the top of each
+  // cycle. messages/loaded merges by design, so a reset needs real replace
+  // semantics — and a stale cursor must reseat, not dangle.
+  function loadedChat(): AppState {
+    return run([
+      { type: 'chats/loaded', chats: [chat('c1')] },
+      { type: 'chat/selected', chatId: 'c1' },
+      {
+        type: 'messages/loaded',
+        chatId: 'c1',
+        page: 'initial',
+        messages: [msg('m1', '1'), msg('m2', '2')],
+      },
+      { type: 'focus/changed', focus: 'conversation' },
+    ])
+  }
+
+  test('replaces the window wholesale', () => {
+    const before = reduce(loadedChat(), {
+      type: 'message/received',
+      message: msg('m3', '3'),
+    })
+    expect(before.messagesByChat['c1']?.items.map((m) => m.id)).toEqual(['m1', 'm2', 'm3'])
+    const reset = reduce(before, {
+      type: 'messages/replaced',
+      chatId: 'c1',
+      messages: [msg('m1', '1'), msg('m2', '2')],
+    })
+    expect(reset.messagesByChat['c1']?.items.map((m) => m.id)).toEqual(['m1', 'm2'])
+  })
+
+  test('a cursor on a removed message reseats to the newest survivor', () => {
+    let s = loadedChat()
+    s = reduce(s, { type: 'message/received', message: msg('m3', '3') })
+    s = { ...s, selectedMessageId: 'm3' }
+    s = reduce(s, {
+      type: 'messages/replaced',
+      chatId: 'c1',
+      messages: [msg('m1', '1'), msg('m2', '2')],
+    })
+    expect(s.selectedMessageId).toBe('m2')
+  })
+
+  test('a surviving cursor stays put', () => {
+    let s = loadedChat()
+    s = { ...s, selectedMessageId: 'm1' }
+    s = reduce(s, {
+      type: 'messages/replaced',
+      chatId: 'c1',
+      messages: [msg('m1', '1'), msg('m2', '2')],
+    })
+    expect(s.selectedMessageId).toBe('m1')
+  })
+})
+
 describe('live arrivals at a full message window', () => {
   // Once the window is capped, an arrival evicts the oldest, so the list length
   // is unchanged. Everything below used to be skipped because the reducer

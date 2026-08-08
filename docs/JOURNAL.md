@@ -5,6 +5,15 @@
 
 ---
 
+### 2026-08-08 — Demo scenarios: the reset that wasn't
+
+- `--demo` grew looping scenarios (`full`/`live`/`replies`/`images`) for the website tapes. The
+  gotcha: the cycle reset dispatched `messages/loaded (initial)` and nothing happened —
+  **`messages/loaded` merges, never replaces** (by design, for paging). Resets needed a new
+  `messages/replaced` event with real replace semantics and cursor reseating. The fake-clock
+  scheduler test had its own trap: timers created inside a callback must be scheduled relative
+  to the callback's fire time, or the second cycle silently never runs.
+
 ### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
 
 - **The emit-point spike did its job by failing usefully.** OSC 1337 raw-emit inside OpenTUI is
@@ -44,6 +53,15 @@
   decides whether it takes that path.
 
 ---
+
+### 2026-08-08 — Demo scenarios: the reset that wasn't
+
+- `--demo` grew looping scenarios (`full`/`live`/`replies`/`images`) for the website tapes. The
+  gotcha: the cycle reset dispatched `messages/loaded (initial)` and nothing happened —
+  **`messages/loaded` merges, never replaces** (by design, for paging). Resets needed a new
+  `messages/replaced` event with real replace semantics and cursor reseating. The fake-clock
+  scheduler test had its own trap: timers created inside a callback must be scheduled relative
+  to the callback's fire time, or the second cycle silently never runs.
 
 ### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
 
@@ -87,6 +105,15 @@
 
 ---
 
+### 2026-08-08 — Demo scenarios: the reset that wasn't
+
+- `--demo` grew looping scenarios (`full`/`live`/`replies`/`images`) for the website tapes. The
+  gotcha: the cycle reset dispatched `messages/loaded (initial)` and nothing happened —
+  **`messages/loaded` merges, never replaces** (by design, for paging). Resets needed a new
+  `messages/replaced` event with real replace semantics and cursor reseating. The fake-clock
+  scheduler test had its own trap: timers created inside a callback must be scheduled relative
+  to the callback's fire time, or the second cycle silently never runs.
+
 ### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
 
 - **The emit-point spike did its job by failing usefully.** OSC 1337 raw-emit inside OpenTUI is
@@ -125,6 +152,15 @@ scrolled` had been dead since the message cursor arrived, but the affordance and
 - Removing dead code is cheap; removing the _fiction it supported_ is where the value was.
 
 ---
+
+### 2026-08-08 — Demo scenarios: the reset that wasn't
+
+- `--demo` grew looping scenarios (`full`/`live`/`replies`/`images`) for the website tapes. The
+  gotcha: the cycle reset dispatched `messages/loaded (initial)` and nothing happened —
+  **`messages/loaded` merges, never replaces** (by design, for paging). Resets needed a new
+  `messages/replaced` event with real replace semantics and cursor reseating. The fake-clock
+  scheduler test had its own trap: timers created inside a callback must be scheduled relative
+  to the callback's fire time, or the second cycle silently never runs.
 
 ### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
 
@@ -171,6 +207,15 @@ scrolled` had been dead since the message cursor arrived, but the affordance and
 
 ---
 
+### 2026-08-08 — Demo scenarios: the reset that wasn't
+
+- `--demo` grew looping scenarios (`full`/`live`/`replies`/`images`) for the website tapes. The
+  gotcha: the cycle reset dispatched `messages/loaded (initial)` and nothing happened —
+  **`messages/loaded` merges, never replaces** (by design, for paging). Resets needed a new
+  `messages/replaced` event with real replace semantics and cursor reseating. The fake-clock
+  scheduler test had its own trap: timers created inside a callback must be scheduled relative
+  to the callback's fire time, or the second cycle silently never runs.
+
 ### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
 
 - **The emit-point spike did its job by failing usefully.** OSC 1337 raw-emit inside OpenTUI is
@@ -214,6 +259,15 @@ scrolled` had been dead since the message cursor arrived, but the affordance and
   across eight chats, 20 messages per page, zero overlap.
 
 ---
+
+### 2026-08-08 — Demo scenarios: the reset that wasn't
+
+- `--demo` grew looping scenarios (`full`/`live`/`replies`/`images`) for the website tapes. The
+  gotcha: the cycle reset dispatched `messages/loaded (initial)` and nothing happened —
+  **`messages/loaded` merges, never replaces** (by design, for paging). Resets needed a new
+  `messages/replaced` event with real replace semantics and cursor reseating. The fake-clock
+  scheduler test had its own trap: timers created inside a callback must be scheduled relative
+  to the callback's fire time, or the second cycle silently never runs.
 
 ### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
 
@@ -269,6 +323,15 @@ scrolled` had been dead since the message cursor arrived, but the affordance and
 
 ---
 
+### 2026-08-08 — Demo scenarios: the reset that wasn't
+
+- `--demo` grew looping scenarios (`full`/`live`/`replies`/`images`) for the website tapes. The
+  gotcha: the cycle reset dispatched `messages/loaded (initial)` and nothing happened —
+  **`messages/loaded` merges, never replaces** (by design, for paging). Resets needed a new
+  `messages/replaced` event with real replace semantics and cursor reseating. The fake-clock
+  scheduler test had its own trap: timers created inside a callback must be scheduled relative
+  to the callback's fire time, or the second cycle silently never runs.
+
 ### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
 
 - **The emit-point spike did its job by failing usefully.** OSC 1337 raw-emit inside OpenTUI is
@@ -314,6 +377,15 @@ scrolled` had been dead since the message cursor arrived, but the affordance and
 
 ---
 
+### 2026-08-08 — Demo scenarios: the reset that wasn't
+
+- `--demo` grew looping scenarios (`full`/`live`/`replies`/`images`) for the website tapes. The
+  gotcha: the cycle reset dispatched `messages/loaded (initial)` and nothing happened —
+  **`messages/loaded` merges, never replaces** (by design, for paging). Resets needed a new
+  `messages/replaced` event with real replace semantics and cursor reseating. The fake-clock
+  scheduler test had its own trap: timers created inside a callback must be scheduled relative
+  to the callback's fire time, or the second cycle silently never runs.
+
 ### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
 
 - **The emit-point spike did its job by failing usefully.** OSC 1337 raw-emit inside OpenTUI is
@@ -352,6 +424,15 @@ scrolled` had been dead since the message cursor arrived, but the affordance and
   string operation.
 
 ---
+
+### 2026-08-08 — Demo scenarios: the reset that wasn't
+
+- `--demo` grew looping scenarios (`full`/`live`/`replies`/`images`) for the website tapes. The
+  gotcha: the cycle reset dispatched `messages/loaded (initial)` and nothing happened —
+  **`messages/loaded` merges, never replaces** (by design, for paging). Resets needed a new
+  `messages/replaced` event with real replace semantics and cursor reseating. The fake-clock
+  scheduler test had its own trap: timers created inside a callback must be scheduled relative
+  to the callback's fire time, or the second cycle silently never runs.
 
 ### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
 
@@ -393,6 +474,15 @@ scrolled` had been dead since the message cursor arrived, but the affordance and
   bare error string.
 
 ---
+
+### 2026-08-08 — Demo scenarios: the reset that wasn't
+
+- `--demo` grew looping scenarios (`full`/`live`/`replies`/`images`) for the website tapes. The
+  gotcha: the cycle reset dispatched `messages/loaded (initial)` and nothing happened —
+  **`messages/loaded` merges, never replaces** (by design, for paging). Resets needed a new
+  `messages/replaced` event with real replace semantics and cursor reseating. The fake-clock
+  scheduler test had its own trap: timers created inside a callback must be scheduled relative
+  to the callback's fire time, or the second cycle silently never runs.
 
 ### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
 
@@ -436,6 +526,15 @@ origin/main..main` before branching, and rebase or stash anything that isn't you
   reacting to the local error.
 
 ---
+
+### 2026-08-08 — Demo scenarios: the reset that wasn't
+
+- `--demo` grew looping scenarios (`full`/`live`/`replies`/`images`) for the website tapes. The
+  gotcha: the cycle reset dispatched `messages/loaded (initial)` and nothing happened —
+  **`messages/loaded` merges, never replaces** (by design, for paging). Resets needed a new
+  `messages/replaced` event with real replace semantics and cursor reseating. The fake-clock
+  scheduler test had its own trap: timers created inside a callback must be scheduled relative
+  to the callback's fire time, or the second cycle silently never runs.
 
 ### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
 
@@ -491,6 +590,15 @@ origin/main..main` before branching, and rebase or stash anything that isn't you
   never runs. Pre-existing (the guard is unchanged), and orthogonal to this slice.
 
 ---
+
+### 2026-08-08 — Demo scenarios: the reset that wasn't
+
+- `--demo` grew looping scenarios (`full`/`live`/`replies`/`images`) for the website tapes. The
+  gotcha: the cycle reset dispatched `messages/loaded (initial)` and nothing happened —
+  **`messages/loaded` merges, never replaces** (by design, for paging). Resets needed a new
+  `messages/replaced` event with real replace semantics and cursor reseating. The fake-clock
+  scheduler test had its own trap: timers created inside a callback must be scheduled relative
+  to the callback's fire time, or the second cycle silently never runs.
 
 ### 2026-08-08 — Inline images: the spike said no to protocols, cells said yes
 

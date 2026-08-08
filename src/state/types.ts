@@ -242,6 +242,9 @@ export type AppEvent =
       olderCursor?: string | null
     }
   | { type: 'message/received'; message: MessageSummary }
+  /** Replace a chat's loaded window wholesale (messages/loaded merges). The
+   *  demo scenario loop uses this to reset a chat at the top of each cycle. */
+  | { type: 'messages/replaced'; chatId: string; messages: MessageSummary[] }
   | { type: 'chat/selected'; chatId: string | null }
   | { type: 'messageSelection/started' }
   | { type: 'messageSelection/moved'; delta: number }
