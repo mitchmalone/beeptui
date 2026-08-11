@@ -1,4 +1,8 @@
 node_modules
 coverage
 bun.lock
-.husky
+.next
+out
+*.tsbuildinfo
+next-env.d.ts
+apps/www/public/demo

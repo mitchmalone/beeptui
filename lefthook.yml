@@ -4,6 +4,11 @@ pre-commit:
   commands:
     lint:
       glob: '*.{ts,tsx,js,mjs}'
+      # apps/www lints with its own eslint-config-next setup (root `lint` chains
+      # it; pre-push verify covers it) — passing its files to the root ESLint
+      # would resolve its nearest config under the wrong ESLint major.
+      exclude:
+        - apps/www/**
       run: bunx eslint --fix {staged_files}
       stage_fixed: true
     format:
