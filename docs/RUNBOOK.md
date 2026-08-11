@@ -19,9 +19,9 @@ bun run dev        # launch the TUI (Slice 0+)
 ## Diagnose
 
 ```bash
-bun run src/cli/index.ts status          # endpoint + auth + account summary
-bun run src/cli/index.ts status --json   # machine-readable
-bun run src/cli/index.ts doctor          # named checks, non-zero exit on failure
+bun run apps/cli/src/cli/index.ts status          # endpoint + auth + account summary
+bun run apps/cli/src/cli/index.ts status --json   # machine-readable
+bun run apps/cli/src/cli/index.ts doctor          # named checks, non-zero exit on failure
 ```
 
 `doctor` identifies: Beeper not running / endpoint unreachable, no access token, authentication
@@ -69,10 +69,10 @@ On a host with Beeper **remote access enabled** (`server.remote_access: true` in
 ```bash
 # point at the remote endpoint (a URL, or a name from config.endpoints)
 export BEEPTUI_ENDPOINT="https://your-remote-host:PORT"
-bun run src/cli/index.ts login      # opens the browser for OAuth 2.0 + PKCE; stores tokens in the OS keychain
-bun run src/cli/index.ts doctor     # expect: remote endpoint reachable, authenticated, token scope
+bun run apps/cli/src/cli/index.ts login      # opens the browser for OAuth 2.0 + PKCE; stores tokens in the OS keychain
+bun run apps/cli/src/cli/index.ts doctor     # expect: remote endpoint reachable, authenticated, token scope
 bun run dev                         # inbox + read + send over the remote endpoint
-bun run src/cli/index.ts logout     # revokes + clears the stored session
+bun run apps/cli/src/cli/index.ts logout     # revokes + clears the stored session
 ```
 
 **Pass:** the full flow works and no token is ever written to a file/log/argv.

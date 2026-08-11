@@ -49,11 +49,11 @@ jobs:
           REF: ${{ github.ref_name }}
         run: |
           v="${REF#v}"
-          V="$v" bun -e 'const p=await Bun.file("package.json").json(); p.version=process.env.V; await Bun.write("package.json", JSON.stringify(p,null,2)+"\n")'
-          echo "Stamped package.json version -> $v"
+          V="$v" bun -e 'const f="apps/cli/package.json"; const p=await Bun.file(f).json(); p.version=process.env.V; await Bun.write(f, JSON.stringify(p,null,2)+"\n")'
+          echo "Stamped apps/cli/package.json version -> $v"
 
       - name: Compile standalone binary
-        run: bun build src/cli/index.ts --compile --outfile dist/beeptui-${{ matrix.target }}
+        run: bun build apps/cli/src/cli/index.ts --compile --outfile dist/beeptui-${{ matrix.target }}
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v5
@@ -121,7 +121,7 @@ jobs:
           darwin=$(shasum -a 256 artifacts/beeptui-darwin-arm64 | cut -d' ' -f1)
           linux=$(shasum -a 256 artifacts/beeptui-linux-x64 | cut -d' ' -f1)
           FORMULA_SHA_DARWIN_ARM64="$darwin" FORMULA_SHA_LINUX_X64="$linux" \
-            bun run src/packaging/homebrew.ts > beeptui.rb
+            bun run apps/cli/src/packaging/homebrew.ts > beeptui.rb
           cat beeptui.rb
 
       - name: Commit to tap
