@@ -14,8 +14,40 @@ env:
   BUN_VERSION: '1.3.14'
 
 jobs:
+  # Release notes are written first, from docs/releases/_TEMPLATE.md — no notes
+  # file for this tag, no release. The website version stamp ships in the same
+  # release-prep commit (apps/www/src/data/release.json), so the site and the
+  # binary can never disagree about what's released.
+  gate:
+    name: release-notes gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Require release notes
+        run: |
+          NOTES="docs/releases/${GITHUB_REF_NAME}.md"
+          if [ ! -f "$NOTES" ]; then
+            echo "::error::missing $NOTES — write release notes before tagging"
+            exit 1
+          fi
+          if grep -qE 'vX\.Y\.Z|<!-- Written BEFORE' "$NOTES"; then
+            echo "::error::$NOTES still contains template placeholders"
+            exit 1
+          fi
+
+      - name: Require a matching website release stamp
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          stamped=$(python3 -c "import json; print(json.load(open('apps/www/src/data/release.json'))['version'])")
+          if [ "$stamped" != "$tag_version" ]; then
+            echo "::error::apps/www/src/data/release.json says ${stamped}, tag says ${tag_version} — stamp it in the release-prep commit"
+            exit 1
+          fi
+
   build:
     name: build (${{ matrix.target }})
+    needs: gate
     strategy:
       fail-fast: false
       matrix:
@@ -67,6 +99,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v5 # for the release-notes file
+
       - name: Download all binaries
         uses: actions/download-artifact@v5
         with:
@@ -87,7 +121,7 @@ jobs:
           gh release create "${{ github.ref_name }}" \
             --repo "${{ github.repository }}" \
             --title "${{ github.ref_name }}" \
-            --generate-notes \
+            --notes-file "docs/releases/${{ github.ref_name }}.md" \
             artifacts/beeptui-* artifacts/sha256sums.txt
 
   # Update the Homebrew tap so `brew upgrade` picks up the new binary. Runs only
@@ -150,39 +184,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "beeptui ${{ github.ref_name }}"
-          git push
-
-  # Stamp the released version into the website repo so beeptui.com renders the
-  # real version instead of a hand-maintained string. Same shape as the tap job:
-  # runs only when configured (repo variable WEB_REPO + secret WEB_REPO_TOKEN),
-  # otherwise an honest no-op — never a failed release.
-  website:
-    name: update website version
-    needs: release
-    if: ${{ vars.WEB_REPO != '' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Commit release.json to the website repo
-        env:
-          GH_TOKEN: ${{ secrets.WEB_REPO_TOKEN }}
-          REF: ${{ github.ref_name }}
-        run: |
-          # The if-gate can only see vars, not secrets: without the token the
-          # clone would fail the job. Same honest no-op as an unset WEB_REPO.
-          if [ -z "${GH_TOKEN}" ]; then
-            echo "WEB_REPO_TOKEN not configured — skipping website stamp"
-            exit 0
-          fi
-          git clone "https://x-access-token:${GH_TOKEN}@github.com/${{ vars.WEB_REPO }}.git" web
-          mkdir -p web/src/data
-          printf '{\n  "version": "%s",\n  "date": "%s"\n}\n' "${REF#v}" "$(date -u +%F)" > web/src/data/release.json
-          cd web
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/data/release.json
-          if git diff --cached --quiet; then
-            echo "version unchanged — nothing to push"
-            exit 0
-          fi
-          git commit -m "chore: stamp release ${REF} from the app release workflow"
           git push
