@@ -13,3 +13,10 @@ dist/
 
 # Bun compile intermediates
 *.bun-build
+
+# Next.js (apps/www)
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+.vercel

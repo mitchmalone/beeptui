@@ -4,7 +4,9 @@ import prettier from 'eslint-config-prettier'
 import globals from 'globals'
 
 export default tseslint.config(
-  { ignores: ['node_modules/**', '.husky/**', 'coverage/**'] },
+  // apps/www lints itself with eslint-config-next (see its eslint.config.mjs);
+  // the root `lint` script chains it.
+  { ignores: ['node_modules/**', 'coverage/**', 'apps/www/**'] },
   ...tseslint.configs.recommended,
   {
     files: ['**/*.{ts,tsx}'],

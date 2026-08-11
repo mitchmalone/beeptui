@@ -24,8 +24,8 @@ the README's Getting started. Tests, typecheck, and lint need no Beeper at all.
   through the reducer in `src/state/`; `src/tui/` renders and dispatches only.
 - **Honesty over polish.** A missing capability shows a named state — never a dead control or a
   fake success. A message is only ever sent on an explicit user action.
-- **Conventional Commits** (`feat:`, `fix:`, `docs:`, …), enforced by commitlint. Husky hooks run
-  lint-staged, gitleaks, and the test suite — don't bypass them. PRs are squash-merged.
+- **Conventional Commits** (`feat:`, `fix:`, `docs:`, …), enforced by commitlint. Lefthook hooks
+  run lint/format, gitleaks, and the full verify gate — don't bypass them. PRs are squash-merged.
 
 ## Privacy — non-negotiable
 
