@@ -19,16 +19,7 @@
     "format:check": "prettier --check .",
     "test": "bun test",
     "verify": "bun run typecheck && bun run lint && bun run format:check && bun test",
-    "prepare": "husky"
-  },
-  "lint-staged": {
-    "*.{ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{js,json,md,yml,yaml}": [
-      "prettier --write"
-    ]
+    "prepare": "lefthook install"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.1",
@@ -37,8 +28,7 @@
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-react-hooks": "7.1.1",
     "globals": "17.8.0",
-    "husky": "9.1.7",
-    "lint-staged": "17.2.0",
+    "lefthook": "^2.1.10",
     "prettier": "3.9.6",
     "typescript": "6.0.3",
     "typescript-eslint": "8.65.0"

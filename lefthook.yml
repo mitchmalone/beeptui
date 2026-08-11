@@ -1,0 +1,33 @@
+# Bun variant of the jig +public lefthook.yml (see docs/STANDARDS.md).
+pre-commit:
+  parallel: true
+  commands:
+    lint:
+      glob: '*.{ts,tsx,js,mjs}'
+      run: bunx eslint --fix {staged_files}
+      stage_fixed: true
+    format:
+      glob: '*.{ts,tsx,js,mjs,json,md,css,yml,yaml}'
+      run: bunx prettier --write {staged_files}
+      stage_fixed: true
+    # Block secrets or personal data from ever entering history (AGENTS.md invariant 9).
+    # CI re-runs this scan; catching it pre-commit keeps it out of local history too.
+    gitleaks:
+      run: |
+        if command -v gitleaks >/dev/null 2>&1; then
+          gitleaks git --staged --redact --no-banner
+        else
+          echo "✖ gitleaks is not installed — cannot scan staged changes for secrets."
+          echo "  Install it: brew install gitleaks   (see docs/RUNBOOK.md)"
+          exit 1
+        fi
+
+commit-msg:
+  commands:
+    commitlint:
+      run: bunx commitlint --edit {1}
+
+pre-push:
+  commands:
+    verify:
+      run: bun run verify
