@@ -3,9 +3,19 @@
 > The cursor: where we are right now. Keep this **terse** — a snapshot, not a history.
 > History lives in git, `plans/done/`, and `JOURNAL.md`.
 >
-> Last updated: 2026-08-08
+> Last updated: 2026-08-11
 
 ## Where we are
+
+**Monorepo + jig standard (2026-08-11, `feat/jig-reconciliation`).** The repo now follows the jig:
+the app lives in `apps/cli`, the marketing site (formerly the `beeptui-web` repo) in `apps/www`
+(static export), one Bun toolchain and one `verify` gate for both, Lefthook instead of Husky,
+AGENTS.md canonical (CLAUDE.md is a pointer), the standard vendored at `docs/STANDARDS.md`, and
+deviations recorded in `DEVIATIONS.md`. Releases now require pre-written notes
+(`docs/releases/<tag>.md`) and an in-repo `apps/www/src/data/release.json` stamped in the
+release-prep commit — the cross-repo website fan-out job (never configured) is gone. Pending
+Mitch-side follow-ups: archive `beeptui-web`, repoint the Vercel project at this repo with root
+`apps/www`, drop the `WEB_REPO*` workflow config.
 
 **v0.4 — inline images shipped.** Image attachments render inline in the conversation as
 supersampled half-block thumbnails — any terminal, including tmux — instead of the
@@ -34,9 +44,8 @@ feature clips now record real behaviour); also a better live showcase. Released 
 
 - **Keyboard input is dead in raw iTerm2** (fine under tmux, where all prior live validation
   happened) — surfaced by the slice-7 spike, pre-existing, untracked until now. Next fix.
-- The release workflow's website job needs secret `WEB_REPO_TOKEN` (fine-grained PAT,
-  contents:write on `beeptui-web`) to auto-stamp beeptui.com; until it exists the job no-ops
-  honestly and the site version is updated by hand.
+- ~~The release workflow's website job needs `WEB_REPO_TOKEN`~~ — dissolved 2026-08-11: the site
+  lives in-repo now and the release gate checks the stamp instead.
 
 **v0.3 — shipped 2026-08-04** (#39–#48, six slices + three found-by-using-it fixes): login guard,
 full-window eviction, selection & focus, history paging on `↑`, reply from the action menu, the

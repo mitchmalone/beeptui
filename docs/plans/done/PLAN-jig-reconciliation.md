@@ -1,6 +1,6 @@
 ---
 title: jig reconciliation — monorepo merge + toolchain unification
-status: active
+status: done
 created: 2026-08-11
 updated: 2026-08-11
 links:
@@ -39,29 +39,29 @@ then hooks, then the www import, then release wiring, then docs. Verify green at
 
 ## Steps
 
-- [ ] Restructure: app → `apps/cli`, root becomes Bun workspace root (tui-bun flavor shape);
+- [x] Restructure: app → `apps/cli`, root becomes Bun workspace root (tui-bun flavor shape);
       update tsconfig/eslint/CI/release paths, compile outfile, formula renderer invocation.
-- [ ] Husky → Lefthook (+ gitleaks pre-commit); root `verify` script = typecheck + lint +
+- [x] Husky → Lefthook (+ gitleaks pre-commit); root `verify` script = typecheck + lint +
       format:check + test.
-- [ ] Import web as `apps/www` (`@beeptui/www`): strip its hooks/agent files (deltas fold into
+- [x] Import web as `apps/www` (`@beeptui/www`): strip its hooks/agent files (deltas fold into
       root AGENTS.md), `output: 'export'` static-first, typecheck/lint wired into `verify`,
       `next build` in CI.
-- [ ] Release workflow: release-notes-written-first gate from `docs/releases/_TEMPLATE.md`
+- [x] Release workflow: release-notes-written-first gate from `docs/releases/_TEMPLATE.md`
       (+ `--notes-file`), gate that `apps/www/src/data/release.json` matches the tag, delete the
       website fan-out job, path updates.
-- [ ] Docs: CLAUDE.md → pointer; AGENTS.md rewritten (deltas only); TODO.md → `docs/ROADMAP.md`;
+- [x] Docs: CLAUDE.md → pointer; AGENTS.md rewritten (deltas only); TODO.md → `docs/ROADMAP.md`;
       vendor `docs/STANDARDS.md` (+ `.prettierignore`); create `DEVIATIONS.md`.
-- [ ] Close out: STATUS/JOURNAL/DECISIONS updated, plan → done, push branch, CI green.
+- [x] Close out: STATUS/JOURNAL/DECISIONS updated, plan → done, push branch, CI green.
 
 ## Acceptance criteria
 
-- [ ] `bun run verify` green at repo root; `bun run --filter '@beeptui/www' build` produces a
+- [x] `bun run verify` green at repo root; `bun run --filter '@beeptui/www' build` produces a
       static export.
-- [ ] No Husky remnants; Lefthook hooks fire (pre-commit format/lint/gitleaks, commit-msg,
+- [x] No Husky remnants; Lefthook hooks fire (pre-commit format/lint/gitleaks, commit-msg,
       pre-push verify).
-- [ ] Release workflow refuses a tag without `docs/releases/v<X.Y.Z>.md` or with a stale
+- [x] Release workflow refuses a tag without `docs/releases/v<X.Y.Z>.md` or with a stale
       `release.json`.
-- [ ] `CLAUDE.md` is one line; no rule stated in two places (AGENTS.md vs STANDARDS.md).
+- [x] `CLAUDE.md` is one line; no rule stated in two places (AGENTS.md vs STANDARDS.md).
 
 ## Out of scope
 

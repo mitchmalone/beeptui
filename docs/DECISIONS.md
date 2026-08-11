@@ -6,6 +6,19 @@
 
 ---
 
+### 2026-08-11 · One monorepo on the jig standard; website imported as a snapshot, not a subtree
+
+**Decision.** beeptui adopts the jig topology: `apps/cli` (the app, `src/` layout intact) +
+`apps/www` (the former `beeptui-web` repo), one Bun toolchain, one `verify` gate, Lefthook,
+AGENTS.md canonical with the standard vendored at `docs/STANDARDS.md` and divergences in
+`DEVIATIONS.md`. `beeptui-web`'s history was **not** merged: that repo is private and its history
+was never vetted for publishable hygiene (this repo's was filter-repo'd before going public), and
+`main` requires linear history — the code arrived as a single snapshot commit and the old repo is
+archived as the historical record. No `packages/*` yet (second-use rule): extract only when
+`apps/www` first imports app code. The release website fan-out job dissolved — the version stamp
+(`apps/www/src/data/release.json`) updates in the release-prep commit and the tag gate enforces it,
+because a workflow push to protected `main` would be blocked.
+
 ### 2026-08-07 · Inline images render as cells (supersampled half-blocks), not terminal graphics protocols
 
 **Decision.** Image attachments render inline as _cell content_: decoded RGBA blitted through

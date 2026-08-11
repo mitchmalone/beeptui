@@ -5,6 +5,19 @@
 
 ---
 
+### 2026-08-11 — Monorepo merge: two gotchas from the workspace unification
+
+- **`@types/node` must resolve to ONE version across Bun workspaces.** `apps/www` arrived pinning
+  `^20`; Bun's isolated store then paired `bun-types` with a second `@types/node`, and `apps/cli`
+  typecheck exploded with `Property 'on' does not exist on type 'ChildProcess'`. Symptom → cause:
+  two `@types/node` dirs under `node_modules/.bun`. Fix: pin www to the same major the lock
+  already resolved for bun-types (`^26`).
+- **Never pass `apps/www` files to the root ESLint.** ESLint resolves the _nearest_ flat config,
+  so root `eslint --fix <staged www file>` loads `apps/www/eslint.config.mjs`
+  (eslint-config-next, ESLint 9 world) under the root's ESLint 10 → `getFilename is not a
+function`. The pre-commit lint hook excludes `apps/www/**`; www lints itself via the chained
+  root `lint` script.
+
 ### 2026-08-08 — Demo scenarios: the reset that wasn't
 
 - `--demo` grew looping scenarios (`full`/`live`/`replies`/`images`) for the website tapes. The
