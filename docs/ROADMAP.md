@@ -50,4 +50,22 @@ Coarser outlines — re-plan before starting.
 - **Slice 14 — Polish & packaging**: read-only reactions/receipts, theming/config, notification
   hooks, performance tuning, install docs and distribution.
 
+## Deferred live validation (accepted risk, 2026-08-01)
+
+Built, tested, and merged — but the live/manual runs need accounts/endpoints that don't currently
+exist. Until ticked, these capabilities are **unverified in production**, not "known good"; don't
+upgrade `STATUS.md` wording to "validated" without actually running them.
+
+- **Slice 12 — remaining-networks live matrix.** Trigger: Discord / Instagram DMs / X DMs
+  connected in Beeper Desktop. Run the full per-network matrix (list · read · live inbound ·
+  send · reply · search · attachments); record a redacted results table in `STATUS.md` (note
+  Beeper-side flakiness honestly — IG/X bridges historically flakiest). Once green, `STATUS.md`
+  may declare Phase 2 complete.
+- **Slice 13 — remote endpoint OAuth login.** Trigger: a real remote Server Client endpoint with
+  `remote_access` enabled. Run `beeptui login` end-to-end (browser OAuth + PKCE → loopback →
+  token in the OS credential store); confirm `launch`/`status`/`doctor` resolve it and `logout`
+  revokes. Note the result in `STATUS.md`.
+- **Slice 11 — per-network reply rendering.** Accrues as networks are exercised: note threaded vs
+  quoted vs unsupported in `LEARNINGS.md` (WhatsApp done 2026-08-01).
+
 > Product truth lives in `PRD.md`. Out-of-slice items are architected-for, not built.

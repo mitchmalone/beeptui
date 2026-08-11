@@ -132,7 +132,7 @@ review; and private vulnerability reporting enabled.
 
 **Slices 10–14 code landed and merged to `main`** (PRs #12–#22). **Slices 11, 12 and 13 are now
 closed** — 11 fully (live reply send done 2026-08-01); 12 and 13 as **code-complete with their live
-tests deferred to `TODO.md`** (accepted-risk call, Mitch 2026-08-01: no Discord/IG/X accounts and no
+tests deferred to `ROADMAP.md` § deferred live validation** (accepted-risk call, Mitch 2026-08-01: no Discord/IG/X accounts and no
 remote endpoint available to run them). A `slk`-style **leftmost network rail** scopes the inbox (All + per-network,
 unread dots) with archived (`a`) and unread-only (`U`) toggles. Per Mitch's live-use feedback the
 rail is now a **real focus target**: `Esc`/`h`/`←` walks out (conversation → list → rail), `j`/`k`
@@ -155,17 +155,17 @@ bindings don't overflow. **315 tests** green; typecheck + lint + format clean; 1
 **Live reply send validated 2026-08-01** (Mitch sent real replies from the TUI on a connected
 network — the one invariant-5-gated step): **Slice 11 is fully done.**
 
-**Slice 12 (remaining networks & capability messaging) — DONE (code-complete, tests green); live matrix tracked in `TODO.md`.** The two
+**Slice 12 (remaining networks & capability messaging) — DONE (code-complete, tests green); live matrix tracked in `ROADMAP.md` § deferred live validation.** The two
 capability-gated actions (reply, archive) now route through one shared `checkCapability` /
 `capabilityUnavailableMessage` (`src/state/capabilities.ts`) — honest, source-naming ("Replies not
 available for Slack via Beeper"), no ad-hoc strings. Added a burst-stability smoke scenario (12 rapid
 inbound while scrolled up keeps reading position). A **redacted live capability probe** on the 3
 connected networks confirms the plumbing (reply reported-supported on WhatsApp + Facebook). The full
-Discord/Instagram/X matrix is a tracked follow-up in `TODO.md` (accepted risk, Mitch 2026-08-01):
+Discord/Instagram/X matrix is a tracked follow-up in `ROADMAP.md` § deferred live validation (accepted risk, Mitch 2026-08-01):
 the slice ships on the code + tests; the multi-network live run happens once those networks are
 connected.
 
-**Slice 13 (remote endpoint & OAuth) — DONE (code-complete, tests green); live remote login tracked in `TODO.md`.** API
+**Slice 13 (remote endpoint & OAuth) — DONE (code-complete, tests green); live remote login tracked in `ROADMAP.md` § deferred live validation.** API
 re-investigated: auth is OAuth 2.0 Authorization Code + PKCE with RFC 7591 dynamic registration,
 discovered from `/v1/info` (`ServerInfo.oauth`, all six endpoints live-confirmed). `src/beeper/oauth.ts`
 implements PKCE (S256) + CSRF state + registration + exchange/refresh/revoke + an `authorize`
@@ -180,7 +180,7 @@ token through it (env/legacy → stored OAuth). Live-verified the Keychain round
 fallback** (`secret-file-store.ts`): AES-256-GCM encrypted `0600` file when no keyring is present.
 **`doctor` reports token scope** (RFC 7662 introspection — "read, write; can read and send"), and
 **named endpoints** (`config.endpoints` `{name: url}`) let the `endpoint` selector be a URL or a name.
-**Only unrun item** (now deferred to `TODO.md`, accepted risk): running `login` against a real remote
+**Only unrun item** (now deferred to `ROADMAP.md` § deferred live validation, accepted risk): running `login` against a real remote
 endpoint (`remote_access:false` locally).
 
 **Slice 14 (polish) — unblocked features landed.** Read-only **reactions** (`👍×2 🎉`, aggregated),
@@ -198,7 +198,7 @@ Kitty/iTerm2 media preview, brew tap / versioned releases) are optional/fuzzy po
 
 **Phases 1–3 are code-complete and green (429 tests).** Slices 0–14 are done on code + tests. The
 only outstanding items are production-only runs that need external accounts/endpoints, tracked in
-`TODO.md` — they are unverified in production, not code gaps.
+`ROADMAP.md` § deferred live validation — they are unverified in production, not code gaps.
 
 **🎉 Phase 1 complete — Slices 0–9 done (all merged to `main`).**
 The MVP is real and live-validated against Beeper Desktop 4.2.1004: browse the inbox, read history
@@ -216,14 +216,14 @@ hand_, or scrolling drifts the moment one is on screen; and a throwaway spike on
 escape sequence so it survives OpenTUI's redraws. Do the spike first and stop there if it fails —
 everything else in the plan depends on it.
 
-**Production-only validation → `TODO.md`** — the Slice 12 multi-network matrix (Discord/IG/X) and the
+**Production-only validation → `ROADMAP.md` § deferred live validation** — the Slice 12 multi-network matrix (Discord/IG/X) and the
 Slice 13 remote-endpoint `login` need external accounts and endpoints that do not exist here
 (accepted risk, Mitch 2026-08-01). Neither is a code gap.
 
-## Deferred live validation (accepted risk, Mitch 2026-08-01) → `TODO.md`
+## Deferred live validation (accepted risk, Mitch 2026-08-01) → `ROADMAP.md` § deferred live validation
 
 Slices 11–13 closed; these are the **unrun production checks**, not code gaps. Full detail + checklists
-live in `TODO.md`.
+live in `ROADMAP.md` § deferred live validation.
 
 - ~~**Slice 11 live reply send**~~ — **done 2026-08-01** (real replies sent from the TUI on a
   connected network; the one invariant-5-gated step). Slice 11 fully closed.
