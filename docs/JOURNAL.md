@@ -5,6 +5,15 @@
 
 ---
 
+### 2026-08-12 — The Homebrew tap is shared now
+
+- `mitchmalone/homebrew-tap` hosts **all** of Mitch's projects (launcharr's cask joined
+  2026-08-12; more coming). Our release job owns `Formula/beeptui.rb` only — it must never write
+  the tap's README or touch other projects' files. `HOMEBREW_TAP_TOKEN` was rotated to a shared
+  fine-grained PAT (same secret name); if a release's homebrew job fails auth, check that first.
+  Tap-migration gotcha (from launcharr): `brew untap --force` uninstalls the tap's
+  casks/formulae — safe order is tap-new → install → untap-old.
+
 ### 2026-08-11 — Monorepo merge: two gotchas from the workspace unification
 
 - **`@types/node` must resolve to ONE version across Bun workspaces.** `apps/www` arrived pinning
