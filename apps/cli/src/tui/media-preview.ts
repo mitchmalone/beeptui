@@ -6,8 +6,8 @@
  *
  * NB: emitting these sequences *inside* the running OpenTUI screen requires
  * coordinating with the native renderer (which owns the framebuffer); that
- * integration is deliberately not wired here (see docs/PERF.md /
- * docs/plans/backlog/PLAN-v1-polish-backlog.md). Until it is, attachments
+ * integration is deliberately not wired here (see docs/PERF.md and
+ * docs/DECISIONS.md 2026-08-07). Until it is, attachments
  * degrade visibly to the existing text placeholder + open/save actions
  * (invariant 8) and `doctor` reports honestly whether preview is available.
  */

@@ -2,15 +2,17 @@
 
 Thanks for your interest! beeptui is a keyboard-first terminal client for
 [Beeper](https://www.beeper.com)'s unified inbox. Before writing code, skim the
-[README](README.md) and [`CLAUDE.md`](CLAUDE.md) — the invariants there are the project's
-constitution, and PRs that violate them won't merge.
+[README](README.md) and [`AGENTS.md`](AGENTS.md) — the invariants there are the project's
+constitution, and PRs that violate them won't merge. [`docs/STANDARDS.md`](docs/STANDARDS.md) is
+the standard the repo runs on, [`docs/DECISIONS.md`](docs/DECISIONS.md) what is already decided,
+and [`docs/LEARNINGS.md`](docs/LEARNINGS.md) the gotchas worth knowing first.
 
 ## Setup
 
 ```bash
 brew install bun gitleaks   # Bun ≥1.3.14 (runtime); gitleaks (pre-commit secret scan)
 bun install
-bun run typecheck && bun run lint && bun test   # should all pass before you start
+bun run verify   # the one gate: should pass before you start
 ```
 
 Running the TUI needs [Beeper Desktop](https://www.beeper.com) signed in with API access — see
@@ -20,8 +22,9 @@ the README's Getting started. Tests, typecheck, and lint need no Beeper at all.
 
 - **Test-first.** New behavior lands as a failing test, then the minimum code to green. Reducer
   and adapter logic must be testable without rendering a terminal.
-- **Respect the boundaries.** All Beeper I/O goes through `src/beeper/`; all state changes go
-  through the reducer in `src/state/`; `src/tui/` renders and dispatches only.
+- **Respect the boundaries.** All Beeper I/O goes through `apps/cli/src/beeper/`; all state
+  changes go through the reducer in `apps/cli/src/state/`; `apps/cli/src/tui/` renders and
+  dispatches only.
 - **Honesty over polish.** A missing capability shows a named state — never a dead control or a
   fake success. A message is only ever sent on an explicit user action.
 - **Conventional Commits** (`feat:`, `fix:`, `docs:`, …), enforced by commitlint. Lefthook hooks
@@ -38,7 +41,7 @@ immediately — history rewrites are much cheaper early.
 ## Reporting security issues
 
 Please use **GitHub's private vulnerability reporting** (Security tab → "Report a vulnerability")
-rather than a public issue. The auth/token surface (`src/beeper/oauth*`, `token-store`,
+rather than a public issue. The auth/token surface (`apps/cli/src/beeper/oauth*`, `token-store`,
 `keychain`) is the sensitive area; reports there are especially appreciated.
 
 ## License

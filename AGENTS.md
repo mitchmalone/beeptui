@@ -5,14 +5,22 @@ terminal. One monorepo: the app (`apps/cli`) and the marketing site (`apps/www`)
 (`mitchmalone/homebrew-tap`) is a generated release satellite — fix the generator
 (`apps/cli/src/packaging/homebrew.ts`), never the output.
 
-This file carries only this project's **deltas**. The full standard is vendored at
-`docs/STANDARDS.md`; where this project knowingly diverges, `DEVIATIONS.md` says how and why.
 **`docs/PRD.md` outranks this file on product scope and technical direction** — when they appear
-to conflict, follow the PRD and flag it.
+to conflict, follow the PRD and flag it. Check `docs/LEARNINGS.md` for project-specific gotchas.
 
-Session protocol, docs discipline, TDD, commits, and hooks: as the standard prescribes — orient on
-`docs/STATUS.md` and `docs/plans/active/` first; slices live in `docs/plans/`; check
-`LEARNINGS.md` for project-specific gotchas.
+## Standard
+
+This project was stamped from the [jig](https://github.com/mitchmalone/jig). Its standard lives **in this repo** at `docs/STANDARDS.md` (vendored at stamp time) — that copy governs; do not consult or "upgrade to" the jig's current version mid-task. This file carries **deltas only** — identity, stack, invariants — never restatements. Divergences live in `DEVIATIONS.md` with a justification. Refreshing `docs/STANDARDS.md` from the jig is a deliberate reconciliation, done as its own change.
+
+## Sessions
+
+Working state lives outside the repo — see the standard for roles and discipline. Start every session with `/session-start` and end it with `/session-end`; both drive `scripts/session.mjs`, and `session.config.json` holds the pointers below.
+
+- **Backlog:** Notion, The Backlog, `Project` = `Beeptui`.
+- **Handoffs and learnings:** Vercel Board, team `ramenamok`, channel `beeptui`. Learnings an
+  outside contributor needs are also curated into `docs/LEARNINGS.md` (the repo is public).
+- **Decisions:** `docs/DECISIONS.md`, in the commit that makes them.
+- **This session's copy:** `local/session/` (gitignored).
 
 ## Stack
 
@@ -22,7 +30,7 @@ Session protocol, docs discipline, TDD, commits, and hooks: as the standard pres
 - **`apps/cli`** — TypeScript strict, OpenTUI (`@opentui/react`), SQLite via `bun:sqlite`.
   **Version pinning matters**: OpenTUI ships a native Zig core — pin exact `@opentui/*` versions,
   record the tested Bun version, and treat upgrades as deliberate, tested changes
-  (quirks → `LEARNINGS.md`).
+  (quirks → a Board learning, and `docs/LEARNINGS.md` if contributors need it).
 - **`apps/www`** — Next.js 16 App Router, **static export** (`output: 'export'` — removing it is
   a recorded deviation), React 19, Tailwind CSS 4 (CSS-first: theme tokens live in
   `src/app/globals.css`, there is no `tailwind.config`), shadcn (base-nova style, Base UI,
@@ -35,7 +43,7 @@ Session protocol, docs discipline, TDD, commits, and hooks: as the standard pres
 ```bash
 bun install                              # deps + lefthook hooks (prepare)
 bun run dev                              # launch the TUI
-bun run --filter '@beeptui/www' dev      # site dev server on :3000
+bun run --filter '@beeptui/www' dev      # site dev server on :3000 (only local port)
 bun run build                            # compile → apps/cli/dist/beeptui
 bun run verify                           # the one gate: typecheck + lint + format:check + test
 ```
@@ -81,7 +89,7 @@ bun run verify                           # the one gate: typecheck + lint + form
 
 ## Website rules (`apps/www`)
 
-- **Content must be true.** `apps/cli` (its `README.md`, `docs/STATUS.md`) is the source of truth
+- **Content must be true.** `apps/cli` (the code and the root `README.md`) is the source of truth
   for what beeptui does. Never advertise a feature that isn't shipped; features pending live
   validation are described as such or omitted.
 - **The install command is exactly** `brew install mitchmalone/tap/beeptui` — everywhere it
@@ -110,9 +118,11 @@ The repo is public. Beyond invariant 9:
 
 ## Definition of done — project deltas
 
-Beyond the standard's (verify green, tests-first, docs closed out in the same commit, CI checked):
+Beyond the standard's (verify green, tests-first, decisions in the same commit, CI checked, backlog
+item `In Review`):
 
 1. No Beeper I/O outside `apps/cli/src/beeper/`; no state mutation outside the reducer.
 2. No token, message body, or attachment path in logs or errors.
 3. Website claims still trace to shipped behavior after the change.
-4. Anything non-obvious learned → dated `docs/JOURNAL.md` entry; durable gotchas → `LEARNINGS.md`.
+4. Anything non-obvious learned → a Board learning when it happens; contributor-relevant gotchas
+   → `docs/LEARNINGS.md`.

@@ -28,7 +28,7 @@ function groupHeight(group: HelpGroup): number {
 /**
  * Split groups across two columns balancing total *rows*, not group count — an
  * even count split leaves one column much taller and its group-boxes overlap
- * (they don't clip) on a short terminal, garbling rows (see docs/JOURNAL.md).
+ * (they don't clip) on a short terminal, garbling rows.
  * Greedy: each group joins the currently-shorter column, preserving order.
  */
 function balanceColumns(groups: HelpGroup[]): [HelpGroup[], HelpGroup[]] {

@@ -1,0 +1,5 @@
+# Merged into lefthook.yml via its `extends` glob.
+pre-commit:
+  commands:
+    gitleaks:
+      run: gitleaks git --pre-commit --staged --redact --verbose

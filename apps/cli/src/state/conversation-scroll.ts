@@ -3,7 +3,7 @@
  * computed window over the loaded messages rather than an OpenTUI `scrollbox` —
  * the scrollbox's `stickyStart` bottom-pin misbehaves in the headless test
  * renderer, and a sliced window is deterministic and unit-testable (see
- * `LEARNINGS.md`).
+ * `docs/LEARNINGS.md`).
  *
  * The window is measured in **rows, not messages**. A message occupies a header
  * row, one row per wrapped body line, and a blank separator, so counting

@@ -2,7 +2,7 @@
 
 > Source of truth for product scope.
 
-**Status:** Accepted — in delivery (see `STATUS.md`)
+**Status:** Accepted — in delivery
 **Owner:** Mitch Malone
 **Product:** Local-first terminal chat client
 **Name:** `beeptui`

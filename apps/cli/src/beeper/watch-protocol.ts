@@ -4,7 +4,7 @@ import { mapMessage, type MessageSummary } from '@/beeper/types.ts'
 /**
  * Pure Beeper `/v1/ws` protocol: the subscribe command, event parsing, and
  * reconnect backoff. No I/O — the `WatchClient` wires these to a socket.
- * Protocol confirmed live against Beeper Desktop 4.2.1004 (see LEARNINGS.md).
+ * Protocol confirmed live against Beeper Desktop 4.2.1004 (see docs/LEARNINGS.md).
  */
 
 export type WatchEvent =

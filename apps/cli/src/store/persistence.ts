@@ -19,7 +19,7 @@ const DEFAULT_DEBOUNCE_MS = 400
 /** The persisted scroll anchor: the message id at the top of the visible window,
  *  or null when pinned to the newest message. Persisted but not yet restored on
  *  hydrate — restoring requires paging history to the anchored message, a
- *  tracked follow-up (`TODO.md`); reopening currently lands on the newest page. */
+ *  tracked follow-up; reopening currently lands on the newest page. */
 function scrollAnchorId(state: AppState): string | null {
   const id = state.selectedChatId
   if (id === null || state.conversationOffset === 0) return null

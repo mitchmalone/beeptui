@@ -1,8 +1,9 @@
 # Learnings
 
-> Hard-won project-specific knowledge: blockers, workarounds, dependency quirks, non-obvious setup.
-> Concise, grouped by topic, pruned when obsolete. Never duplicate global AGENTS.md rules here.
-> The narrative "why" behind events lives in `docs/JOURNAL.md`; this file is the quick-reference.
+> The gotchas an outside contributor needs before changing beeptui: dependency quirks, API shapes,
+> rendering and testing traps. Curated by topic, pruned when obsolete. Never restates
+> `docs/STANDARDS.md` or `AGENTS.md`. The maintainer's full learning log lives on a private Board;
+> entries are promoted here only when a contributor would need them.
 
 ## GitHub / tooling
 
@@ -13,14 +14,6 @@
   which silently merged that PR's content and left its own PR stale. If a branch genuinely must
   stack, say so on the PR and rebase onto `main` the moment the parent lands — a squash merge makes
   the parent's commits unreachable, so without the rebase the child's diff re-proposes all of them.
-- **`gh pr merge --delete-branch` moves your working tree.** It checks out the default branch and
-  tries to fast-forward. With a diverged local `main` the pull fails, leaving you on a stale `main`
-  — which reads exactly like the merge failed. Check the PR state before reacting to the local error.
-- **Pushing `.github/workflows/*` changes needs the `workflow` OAuth scope.** The `gh` CLI's
-  default token doesn't have it, so any push touching a workflow file is rejected ("refusing to
-  allow an OAuth App to create or update workflow … without `workflow` scope" — and on `main` it
-  can surface as an opaque GH013 rules error). Fix once: `gh auth refresh -h github.com -s workflow`.
-  Pushing over SSH avoids the issue entirely.
 
 ## Dependencies
 
@@ -31,6 +24,14 @@
   compiler. Revisit when typescript-eslint ships TS 7 support. See `docs/DECISIONS.md`.
 - `@opentui/core` and `@opentui/react` are exact-pinned at `0.4.5` and must share that version;
   upgrade them together. `@opentui/keymap` is intentionally _not_ used (see `docs/DECISIONS.md`).
+- **`@types/node` must resolve to one major across the workspace.** If `apps/www` pins a different
+  major than the one `bun-types` pulls, Bun's isolated store keeps two, and `apps/cli` typecheck
+  fails with `Property 'on' does not exist on type 'ChildProcess'` (two `@types/node` dirs under
+  `node_modules/.bun`). Pin www to the major the lock already resolved.
+- **Never pass `apps/www` files to the root ESLint.** ESLint loads the nearest flat config, so the
+  root ESLint 10 picks up www's eslint-config-next (ESLint 9) and fails with `getFilename is not a
+function`. The pre-commit lint hook excludes `apps/www/**`; www lints itself via the root `lint`
+  script.
 
 ## Beeper API (live-validated against Beeper Desktop 4.2.1004, 2026-07-31)
 
@@ -40,8 +41,7 @@
 - **Write operations need the `write` token scope.** A read-only token authenticates fine and reads
   everything, but `POST` calls (`messages.send`, `chats.start`) return `403 forbidden` —
   `"Required scopes: write, missing: write"`. Create the token with write scope to send. The adapter
-  maps this 403 to `unauthorized` (degrade visibly). Follow-up: `doctor` should surface token scope
-  so a read-only token doesn't look send-capable.
+  maps this 403 to `unauthorized` (degrade visibly); `doctor` reports the token's scopes.
 - **`chats.start({ accountID, user: { phoneNumber } })`** resolves-or-creates a DM and returns
   `{ chatID, status: 'existing' | 'created' }` — no need to look up a participant id to start a chat.
 - Transient `400 VALIDATION_ERROR` can occur while Beeper Desktop is still syncing on startup; it
@@ -98,7 +98,7 @@ chatIDs:[]}`; then send **`{type:'subscriptions.set', requestID, chatIDs:['*']}`
   matters as much as height** — message height depends on where text wraps, so a reducer that
   guessed the width differently from the view would mis-predict every row count. Guard the dispatch
   on a real change (and no-op in the reducer) so it doesn't loop. `conversation-scroll.ts`
-  therefore lives in `src/state/`, not `src/tui/` — it's pure math the reducer imports, and state
+  therefore lives in `apps/cli/src/state/`, not `apps/cli/src/tui/` — it's pure math the reducer imports, and state
   must never import the tui layer. It also owns the shared column geometry (`NARROW_WIDTH`, rail
   widths, caret gutter) so the components and the reducer cannot drift apart.
 - **The conversation viewport counts rows, not messages.** A message is a header row plus however
@@ -148,12 +148,12 @@ chatIDs:[]}`; then send **`{type:'subscriptions.set', requestID, chatIDs:['*']}`
 - **The threaded renderer (`useThread: true`, the default) owns stdout on a native thread** — raw
   `process.stdout.write` escapes interleave mid-sequence with frame bytes. Anything that must reach
   the terminal atomically has to go through cells, or the app must run `useThread: false`.
-- **Raw iTerm2 (no tmux) does not deliver keyboard input to the app** — unresolved; all live runs
-  before 2026-08-08 were inside tmux and never noticed. Reproduce with any build outside tmux.
+- **Raw iTerm2 (no tmux) does not deliver keyboard input to the app** — a known, open bug; run
+  inside tmux for live testing until it's fixed.
 
 ## Theming
 
-- **Colours flow through a `useTheme()` context, not props.** `src/tui/theme/` defines a `Theme` of
+- **Colours flow through a `useTheme()` context, not props.** `apps/cli/src/tui/theme/` defines a `Theme` of
   semantic tokens; a `ThemeProvider` (default = `DEFAULT_THEME`) means components read tokens with no
   prop threading, and isolated component tests keep passing without a provider (they get the default).
   Only `launch.ts` wraps the tree. Use tokens, never hardcoded hex — except network **brand** marker
@@ -186,8 +186,8 @@ chatIDs:[]}`; then send **`{type:'subscriptions.set', requestID, chatIDs:['*']}`
 - **It's a translator, not a renderer.** Some networks embed a small HTML subset in message bodies.
   Don't build an HTML layout engine — strip the tags and map a handful to terminal formatting
   (`<b>`→bold, `<i>`→italic, `<u>`→underline, `<br>`→line break, `<ul>`→`- `, `<ol>`→`1.`), decode
-  entities, drop the rest. `src/state/message-html.ts` is the pure parser (`htmlToStyledLines` /
-  `htmlToPlainText` / `hasHtml`); it's in `src/state/` because a selector (reply preview) needs it and
+  entities, drop the rest. `apps/cli/src/state/message-html.ts` is the pure parser (`htmlToStyledLines` /
+  `htmlToPlainText` / `hasHtml`); it's in `apps/cli/src/state/` because a selector (reply preview) needs it and
   tui must not be imported by state.
 - **Bold/italic/underline need the `<b>/<i>/<u>` elements, not `style`.** A `style={{ bold: true }}`
   on `<text>`/`<span>` is ignored (verified via `captureSpans().attributes` = 0). The dedicated
@@ -252,9 +252,11 @@ height})` gives a headless render; `captureCharFrame()` asserts content, `mockIn
 
 ## Tooling / CI
 
+- **Synthetic tmux input needs pacing.** `tmux send-keys` in a tight loop coalesces or drops
+  presses, which reads exactly like a feature failing. Sleep ~50 ms between presses, and prove the
+  input arrived before concluding anything is broken.
 - **`gitleaks` is a required local tool** (`brew install gitleaks`). The pre-commit hook hard-fails
   if it's missing rather than skipping the secret scan (invariant 9). CI installs the pinned
   binary and scans full history.
-- Husky v9 hooks are the bare command (no boilerplate); `bunx husky` sets `core.hooksPath=.husky/_`.
 - **Prettier reformats Markdown prose.** A wrapped line starting with `+`/`-` gets turned into a
   list item — keep continuation lines from starting with those characters in committed docs.

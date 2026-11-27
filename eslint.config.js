@@ -6,7 +6,7 @@ import globals from 'globals'
 export default tseslint.config(
   // apps/www lints itself with eslint-config-next (see its eslint.config.mjs);
   // the root `lint` script chains it.
-  { ignores: ['node_modules/**', 'coverage/**', 'apps/www/**'] },
+  { ignores: ['**/node_modules/**', 'coverage/**', '**/dist/**', 'apps/www/**'] },
   ...tseslint.configs.recommended,
   {
     files: ['**/*.{ts,tsx}'],
@@ -18,6 +18,12 @@ export default tseslint.config(
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
     },
+  },
+  {
+    files: ['scripts/**/*.mjs'],
+    // Node scripts, not app code (scripts/session.mjs is jig-owned).
+    languageOptions: { globals: { ...globals.node } },
+    rules: { 'no-console': 'off' },
   },
   // Disable stylistic rules that conflict with Prettier — Prettier owns formatting.
   prettier
