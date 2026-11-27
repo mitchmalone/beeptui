@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { homedir as osHomedir } from 'node:os'
 
-/** Default local Beeper Desktop API endpoint (see docs/JOURNAL.md 2026-07-30). */
+/** Default local Beeper Desktop API endpoint. */
 export const DEFAULT_ENDPOINT = 'http://127.0.0.1:23373'
 
 /** User-configurable notification hook: a command run on a new

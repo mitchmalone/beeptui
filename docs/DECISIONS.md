@@ -6,6 +6,21 @@
 
 ---
 
+### 2026-11-27 · Working state moves out of the repo: Notion backlog + Board, per the jig
+
+**Decision.** Reconciled to the latest jig (`.jig.json`). Work items live in Notion (The Backlog,
+`Project` = `Beeptui`); session handoffs and learnings on the Vercel Board channel `beeptui`; this
+file stays the decision log. `docs/STATUS.md`, `docs/ROADMAP.md`, `docs/JOURNAL.md` and
+`docs/plans/` are deleted (git keeps them): their open items became backlog items, the journal's
+learnings became Board threads, and the root `LEARNINGS.md` became the curated, contributor-facing
+`docs/LEARNINGS.md`. Sessions run through `/session-start` and `/session-end`
+(`scripts/session.mjs`). This supersedes the 2026-07-30 docs-protocol decision, and the Husky note
+in the 2026-07-30 Bun decision (hooks are Lefthook since 2026-08-11).
+
+**Why.** The in-repo cursor docs drifted (STATUS repeated whole sections and still pointed at work
+that had shipped); one store per fact, outside the code review path, is the jig's answer. The repo
+keeps only what is reviewed with the code: PRD, PERF, RUNBOOK, release notes, decisions.
+
 ### 2026-08-11 · One monorepo on the jig standard; website imported as a snapshot, not a subtree
 
 **Decision.** beeptui adopts the jig topology: `apps/cli` (the app, `src/` layout intact) +

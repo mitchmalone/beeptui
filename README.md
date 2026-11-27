@@ -18,7 +18,7 @@ built: a network rail with archived/unread filters, message search, replies, edi
 open/save, reactions, read receipts, honest per-network capability messaging, an OAuth 2.0 + PKCE
 flow for remote endpoints with cross-platform token storage, config for keymap/colours/notification
 hooks, and a standalone binary. Remaining work is gated on live validation (more networks, a real remote host) and a couple
-of product decisions. See [`docs/STATUS.md`](docs/STATUS.md) for the precise state.
+of product decisions.
 
 ## Install
 
@@ -103,14 +103,13 @@ file or on a command line).
 | Doc                                      | What it is                                           |
 | ---------------------------------------- | ---------------------------------------------------- |
 | [`docs/PRD.md`](docs/PRD.md)             | Product requirements — the source of truth           |
-| [`docs/ROADMAP.md`](docs/ROADMAP.md)     | Phases broken into agent-sized slices                |
-| [`docs/STATUS.md`](docs/STATUS.md)       | Where we are right now                               |
-| [`docs/plans/`](docs/plans)              | One plan per slice: `backlog/` → `active/` → `done/` |
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | Dated decision log                                   |
-| [`docs/JOURNAL.md`](docs/JOURNAL.md)     | Append-only learnings                                |
+| [`docs/LEARNINGS.md`](docs/LEARNINGS.md) | Gotchas worth knowing before you change things       |
 | [`docs/RUNBOOK.md`](docs/RUNBOOK.md)     | Hand-run operational procedures                      |
-| [`CLAUDE.md`](CLAUDE.md)                 | Operating rules for coding agents                    |
-| [`AGENTS.md`](AGENTS.md)                 | Project coding standards (extends global)            |
+| [`docs/PERF.md`](docs/PERF.md)           | Performance budgets and measurements                 |
+| [`AGENTS.md`](AGENTS.md)                 | Project rules for agents and humans: deltas only     |
+| [`docs/STANDARDS.md`](docs/STANDARDS.md) | The vendored jig standard this repo runs on          |
+| [`DEVIATIONS.md`](DEVIATIONS.md)         | Where this repo knowingly diverges from the standard |
 
 ## Development
 
@@ -179,9 +178,9 @@ layer, `apps/cli/src/tui/keymap.ts`) · SQLite for local UI state. See `docs/PRD
 
 ## Working on this repo
 
-New here? Start with [`CONTRIBUTING.md`](CONTRIBUTING.md). The deeper workflow lives in
-`CLAUDE.md`: every slice is a plan in `docs/plans/backlog/` — pick it up, move it to `active/`,
-work it test-first, and close out the docs with the code.
+New here? Start with [`CONTRIBUTING.md`](CONTRIBUTING.md), then [`AGENTS.md`](AGENTS.md) and
+[`docs/LEARNINGS.md`](docs/LEARNINGS.md). Work is test-first and every change passes `bun run verify`.
+The maintainer's backlog and session notes live outside the repo; open an issue to propose work.
 
 ## License
 

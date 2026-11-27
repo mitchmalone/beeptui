@@ -84,5 +84,5 @@ fight-the-framebuffer hack:
 decoding (PNG/JPEG → raw) is _not_ in the Bun/stdlib surface — it needs a
 decode dependency (or the native-protocol path, which takes encoded bytes but
 only renders on kitty/iTerm2/WezTerm). So the remaining work is a **dependency +
-integration** decision, not an unknown. Tracked in
-`docs/plans/backlog/PLAN-v1-polish-backlog.md`.
+integration** decision, not an unknown. (Since resolved: images render as cells —
+`docs/DECISIONS.md` 2026-08-07.)

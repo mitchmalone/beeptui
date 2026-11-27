@@ -42,7 +42,7 @@ bun test
 The buildable + auto-verifiable work for Slices 11–14 is done, tested, and merged. Each slice has one
 final acceptance step that is a real-world act or decision — not automatable (a live send is barred by
 invariant 5; the others need accounts / a remote host / a terminal / a product call). Run these by
-hand to close each slice; update `docs/STATUS.md` + the slice plan when each passes.
+hand to close each slice; record the outcome on the matching backlog item when each passes.
 
 ### Slice 11 — live reply send (a supporting network, e.g. WhatsApp)
 
@@ -53,14 +53,14 @@ bun run dev
 `j`/`k` to a chat → `⏎` open → `v` enter message-selection → `j`/`k` to a message → `r` reply
 (the compose box shows a quoted header) → type → `⏎` send. **Pass:** it lands threaded/quoted in the
 other client. Also confirm a non-supporting network shows "Replies not available for … via Beeper"
-instead of a dead control. Note per-network reply rendering in `LEARNINGS.md`.
+instead of a dead control. Note per-network reply rendering on the backlog item.
 
 ### Slice 12 — live matrix on the remaining networks
 
 Connect **Discord / Instagram DMs / X DMs** in Beeper Desktop, then per network: list chats, read
-history, receive a live inbound, send, reply, search, open an attachment. Record results in the
-Slice 12 plan **redacted** (network + capability + outcome only — invariant 9). When all seven
-day-one networks pass, declare **Phase 2 complete** in `docs/STATUS.md`.
+history, receive a live inbound, send, reply, search, open an attachment. Record results on the
+backlog item **redacted** (network + capability + outcome only — invariant 9). When all seven
+day-one networks pass, declare **Phase 2 complete** (a decision, in `docs/DECISIONS.md`).
 
 ### Slice 13 — remote endpoint login
 
