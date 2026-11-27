@@ -7,3 +7,6 @@ out
 next-env.d.ts
 apps/www/public/demo
 docs/STANDARDS.md
+# jig-owned, replaced whole on re-stamp: never reformat
+scripts/session.mjs
+.claude/skills/session-*/

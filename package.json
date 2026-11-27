@@ -23,7 +23,7 @@
     "format:check": "prettier --check .",
     "test": "bun test",
     "verify": "bun run typecheck && bun run lint && bun run format:check && bun test",
-    "prepare": "lefthook install"
+    "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && lefthook install || true"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.1",

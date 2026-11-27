@@ -8,11 +8,14 @@ dist/
 .env.*
 !.env.example
 
-# Agent worktrees (isolated subagent trees)
+# Claude/agent personal state and worktrees
+.claude/settings.local.json
+.claude/*.local.json
 .claude/worktrees/
 
-# Bun compile intermediates
+# Interrupted bun-compile intermediates (.<hash>-00000000.bun-build)
 *.bun-build
+.*.bun-build
 
 # Next.js (apps/www)
 .next/

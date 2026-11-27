@@ -1,0 +1,10 @@
+{
+  "jig": {
+    "commit": "2db7d2a81af66b8c6461fee107bd00c3899a58ae",
+    "date": "2026-11-27T13:29:31+11:00"
+  },
+  "name": "beeptui",
+  "title": "Beeptui",
+  "flavors": ["tui-bun", "www-next"],
+  "layers": ["ci", "public"]
+}
